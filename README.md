@@ -31,15 +31,25 @@ GitHub bağlantısı `.github/workflows` yazmasını reddettiği için Actions h
 
 ## Kullanım
 
-1. Veriüssü giriş/kayıt penceresini açıp kendi hesabınızla giriş yapın, pencereyi kapatın.
+1. “Tarayıcıda giriş / kayıt” düğmesine basın. Sistemin varsayılan tarayıcısında açılan
+   Veriüssü sayfasından giriş yapın; ardından bağlantı sekmesine dönüp “Hesabımı Umay’a bağla”
+   düğmesine basın. Giriş otomatik olarak Umay'a aktarılır; uygulama içinde parola girilmez.
 2. Hesabı yenileyin, yetkili modeli seçin. Mevcut sohbetler sunucudan gelir.
 3. Ayarlar/Konuşma'dan STT ve TTS indirin. Bunlar büyük indirmelerdir; internet gerekir.
 4. Kulaklıkla konuşmayı başlatın veya yazılı soru gönderin. Mikrofon iznini verin.
 5. MP3 seçerek klon profil oluşturun, sesi seçin ve önizleyin.
 
 İndirmeler/yerel modeller kullanıcı AppData alanında; sohbet/hafıza veriussu.com'dadır.
+“Çıkış yap” Umay oturumunu temizler ve varsayılan tarayıcıda Veriüssü çıkış onayı açar.
+Tarayıcıdaki Veriüssü oturumunu da kapatmak için bu onayı tamamlayın.
 Hafıza çıkarımı mevcut sunucunun ChatMemory iş kuyruğu ve kullanıcının hafıza ayarlarıyla
 yürür; istemci ikinci bir hafıza DB'si oluşturmaz.
+
+Varsayılan tarayıcı girişi için `server/desktop-auth.controller.ts` ve
+`server/desktop-auth-policy.ts` sunucu API'sine eklenir; `DesktopAuthController`
+AppModule controllers listesine kaydedilir. Mevcut web_sessions tablosu kullanılır,
+şema migration'ı yoktur. Kullanıcı kimliği/parolası masaüstüne URL ile taşınmaz;
+90 saniyelik tek kullanımlık kod ve PKCE doğrulaması kullanılır.
 
 ## Doğrulanması gereken sınırlar
 
