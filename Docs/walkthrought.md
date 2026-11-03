@@ -1,0 +1,195 @@
+# Umay — Adım Adım İlerleme ve Yol Haritası
+
+**Güncelleme:** 2026-11-03
+**Mevcut adım:** Windows geliştirme sürümü — uygulama, doğrulama ve paketleme.
+**Durum:** Kodlama başladı; tüm kabul koşulları henüz tamamlanmadı.
+Güncel kanıt ve sınırlar: [implementation.md](implementation.md).
+**Ana belge:** [plan.md](plan.md)
+**Kural:** Her adım kullanıcı yönlendirmesiyle başlar. Listede sıradaki adımın bulunması
+onu otomatik başlatma yetkisi değildir. Tasarım en son; güncel kapsam yalnızca Windows.
+
+## 1. Gerçek başlangıç durumu
+
+- Dizinde Docs ve .claude bulunuyor; henüz ürün kodu/proje bildirimi yok.
+- Docs daha önce oluşturulmuş; eski “yalnızca .claude var” kaydı artık güncel değil.
+- Django/DRF önceki not olarak korundu; yerel backend veya DB kurulmadı.
+- STT/TTS, Windows kabuğu ve LLM erişimi henüz kesinleşmedi.
+- Hedef: Türkçe kalite önceliği, hafif çalışma ve 4 GB VRAM birlikte.
+  Güncel öncelikli denemeler STT large-v3-turbo ve TTS Pocket TTS Turkish;
+  large-v3/small ile Chatterbox Multilingual V3/XTTS-v2 karşılaştırma adayları.
+  Hiçbiri kurulmadı veya 4 GB üzerinde doğrulanmadı; small varsayılan sayılmıyor.
+- Önceki renkler reddedildi; kabul edilmiş nihai palet yok.
+- Yeni gereksinimler: otomatik donanım/backend seçimi, GPU yoksa/kullanılamazsa CPU;
+  STT/TTS uygulama açıkken seçilen GPU belleği veya CPU RAM'inde kalıcı hazır.
+  Barge-in zorunlu; oynatım referanslı AEC ile kendi sesinden tetiklenmeme doğrulanacak.
+  Apple M/ARM yolları mimaride ayrılıyor; ilk uygulama/test kapsamı yine Windows.
+- sunucu.txt bu aşamada açılmadı; SSH, DB ve hesap entegrasyonu yapılmadı.
+- Dağıtım hedefi umay.veriussu.com; Windows kurulum dosyası ve otomatik güncelleme.
+  Yeniden açılış/Windows restart/güncelleme oturumu kapatmayacak; açık çıkış desteklenecek.
+  Sunucu oturum iptali ayrı durumdur. Mobil/macOS/Apple M bu sürümün teslim kapsamı dışında.
+
+## 2. Yol haritası
+
+| Adım | Durum | Çıktı | Bağımlılık |
+|---|---|---|---|
+| P0 Planlama | Tamamlandı | Ayrıntılı plan ve ilerleme dosyası | Bu talep |
+| A0 Kararlar | Geliştirme kararları alındı | Electron + Python, mevcut NestJS API | implementation.md |
+| A1 Windows temeli | Test edildi | Pencere, IPC ve gezinme smoke testi | A0 |
+| A2 Cihaz/işçi | Kısmen uygulandı | CPU işçisi; gerçek mikrofon/hoparlör testi bekliyor | A1 |
+| A3 Paket yönetimi | Kısmen doğrulandı | Gerçek STT/TTS indirme/yükleme; hata testleri genişleyecek | A2 |
+| A4 Türkçe STT | Sentetik sesle doğrulandı | TTS çıktısı doğru metne dönüştü; gerçek mikrofon bekliyor | A3/STT |
+| A5 Model yanıtı | API adapter'ı yazıldı | Gerçek hesapla test ve erken metin akışı eksik | API erişimi |
+| A6 Türkçe TTS | CPU üretimi doğrulandı | Ses üretimi ve protokol; kullanıcı dinleme kabulü bekliyor | A3/TTS |
+| A7 Birleşik sohbet | Kısmen uygulandı | İptal regresyonları geçti; gerçek AEC/20 tur kabulü eksik | A4+A5+A6 |
+| A8 Ses klonlama | Uygulandı, kabul bekliyor | MP3 sınırı/profil akışı; gerçek klon benzerliği testi eksik | A6+A7 |
+| A9 Windows doğrulama | Installer hazırlanıyor | İmzasız test sürümü; production update testi yok | A10.5 oturum testi eksik |
+| A10 veriussu.com | Mevcut API'lere bağlandı | Kullanıcı testi ve kalıcı desktop refresh sözleşmesi eksik | implementation.md |
+| A11 Nihai tasarım | Ertelendi | Onaylı açık/koyu Windows tasarımı | İşlevsel fazlardan sonra |
+| M1 Mobil/macOS | Bu sürümün dışında | Şimdi geliştirme/paketleme yapılmaz | İleride ayrı kullanıcı talebi |
+
+Süre/yüzde tahmini yok: teknik seçimler ve kullanıcının adım sırası henüz belli değil.
+
+## 3. P0 tamamlanan işler — 2026-11-03
+
+- [x] Mevcut plan, ilerleme, sohbet ve test kayıtları okundu.
+- [x] Vault AGENTS.md, CLAUDE.md ve proje referansı kanun.md okundu.
+- [x] Kullanıcının Türkçe sesli konuşma kapsamı ve çalışma yöntemi kaydedildi.
+- [x] Temel Windows fazı ile sunucu/hesap/DB ve nihai tasarım ayrıldı.
+- [x] Paket yaşam döngüsü, otomatik hazırlık, klonlama ve kabul koşulları yazıldı.
+- [x] Hız hedefleri ölçülmemiş öneriler olarak belirtildi.
+- [x] Doküman kapsam/tutarlılık kontrolü yapıldı; sonuç test.md'ye kaydedildi.
+
+Ürün kodu, model indirme, bağımlılık kurulumu ve sunucu işlemi yapılmadı.
+
+## 4. Adım kontrol listeleri
+
+### A0 — Kararlar
+
+- [ ] Kullanıcı bu adımı başlattı.
+- [ ] Windows/CPU/RAM/GPU/disk profili kaydedildi.
+- [ ] 4 GB hedef kartın modeli ve desteklediği çalışma yolu kaydedildi;
+  güncel STT/TTS adayları aynı Türkçe metin/referans ses üzerinde gerçek ölçümle değerlendirildi.
+- [ ] Kabuk, STT/TTS ve klonlama motoru değerlendirildi; seçim gerekçesi kaydedildi.
+- [ ] API erişimi, yerel dosyalar ve 50 MB yorumu netleşti.
+- [ ] Kesin dosya yolları, sürümler ve test komutları plan.md'ye eklendi.
+- [ ] Sonuç kullanıcıya sunuldu; A1 henüz başlamadı.
+
+### A1 — Windows temeli
+
+- [ ] Kullanıcı başlattı; minimum uygulama oluşturuldu.
+- [ ] Ana ekran ve Ayarlar/Konuşma gezinmesi çalışıyor.
+- [ ] Konuşma kapalı başlıyor; eksik/bozuk tercihle açılış ve kapanış doğrulandı.
+- [ ] Yerel DB yok; test ve Docs kayıtları tamamlandı.
+
+### A2 — Cihaz/işçi
+
+- [ ] Mikrofon/çıkış seçimi, seviye ve kısa kayıt/oynatım çalışıyor.
+- [ ] İzin reddi, cihaz çıkarılması ve cihaz değişimi denendi.
+- [ ] Ağır işlem arayüzü kilitlemiyor; iptal/kapanış mikrofonu serbest bırakıyor.
+- [ ] Tüm GPU'lar ve gerçek backend desteği test edildi; STT/TTS için ayrı cihaz
+  seçimi, GPU yok/bozuk sürücü/düşük VRAM halinde görünür CPU fallback doğrulandı.
+- [ ] Capture/render eşzamanlı akış ve oynatım referanslı AEC hattı doğrulandı.
+- [ ] Test ve Docs kayıtları tamamlandı.
+
+### A3 — Paket yönetimi
+
+- [ ] Boyut/sürüm/alan ihtiyacı ve kurulum durumları gösteriliyor.
+- [ ] Bağımlılıklar kullanıcı terminali olmadan kuruluyor.
+- [ ] İptal, ağ kopması, yarım/bozuk dosya ve yetersiz disk denendi.
+- [ ] Gerçek sağlık testi sonrası otomatik etkinleştirme çalışıyor.
+- [ ] STT/TTS birlikte yüklenip ısıtılıyor; normal turlar ve iptallerde boşaltılmıyor.
+  Kullanıcı kapatma/kaldırma veya uygulama kapanışında kaynaklar bırakılıyor.
+- [ ] Ayrı kaldırma işçiyi boşaltıyor, diğer paketi/profili koruyor.
+- [ ] Test ve Docs kayıtları tamamlandı.
+
+### A4 — Türkçe STT
+
+- [ ] Bas-konuş ve gerçek Türkçe mikrofon girdisi çalışıyor.
+- [ ] VAD/konuşma sonu algılama; sessizlikte istek oluşmuyor.
+- [ ] Kısmi/kesin metin ayrımı, sayı/tarih/kısa cevap/gürültü denendi.
+- [ ] Test ve Docs kayıtları tamamlandı.
+
+### A5 — Model yanıtı
+
+- [ ] Gerçek endpoint/yetki ve akış sözleşmesi doğrulandı.
+- [ ] Gerçek modelle Türkçe çok turlu yanıt çalışıyor.
+- [ ] İptal/zaman aşımı/bağlantı kopması denendi.
+- [ ] Erişim eksikse gerçek sohbet kabulü beklemede; taklit çıktı başarı sayılmıyor.
+- [ ] Test ve Docs kayıtları tamamlandı.
+
+### A6 — Türkçe TTS
+
+- [ ] Varsayılan ses ve sıralı kuyruk çalışıyor.
+- [ ] Noktalama/tonlama, sayı/saat/tarih ve Markdown denendi.
+- [ ] Anlamlı parçalama ve kuyruk sınırı doğrulandı.
+- [ ] Kullanıcı ses doğallığını dinleyerek değerlendirdi.
+- [ ] Test ve Docs kayıtları tamamlandı.
+
+### A7 — Birleşik sohbet
+
+- [ ] STT → gerçek LLM → TTS gerçek cihazlarda çalışıyor.
+- [ ] İlk ses tüm model yanıtını beklemiyor; durumlar gösteriliyor.
+- [ ] Durdur/yeni soru eski üretim ve tamponları iptal ediyor.
+- [ ] Kulaklık/hoparlör, söze girme ve yankı senaryoları denendi.
+- [ ] Yalnız Umay sesiyle 20 örnekte yanlış kesilme; eşzamanlı kullanıcı konuşmasıyla
+  20 örnekte algılama/iptal ve ilk hece korunumu ölçüldü. Klon kullanıcı sesi ayrıca denendi.
+- [ ] 20 turda tekrar model yüklemesi yok; eski yanıt kesildikten sonra yeniden çalmıyor.
+- [ ] En az 20 tur soğuk/sıcak süre ve p50/p95 kaydedildi.
+- [ ] Gerçek 4 GB GPU'da STT/TTS birlikte tepe VRAM/RAM ve RTF ölçüldü;
+  CPU fallback, normal/klon ses ve bellek yetersizliği davranışları ayrı kaydedildi.
+- [ ] Test ve Docs kayıtları tamamlandı.
+
+### A8 — Klonlama
+
+- [ ] MP3 gerçek biçimi ve boyutu işleme öncesi doğrulanıyor.
+- [ ] Sınır altı/tam sınır/sınır üstü; boş/bozuk/sahte dosya denendi.
+- [ ] Uzun çözülmüş ses/kaynak sınırı, sessizlik ve iptal denendi.
+- [ ] Profil oluştur/önizle/seç/sil ve yeniden açılış çalışıyor.
+- [ ] Klon sesi gerçek Türkçe sohbette kullanıcı dinledi.
+- [ ] TTS kaldırma/yeniden kurma profil davranışı doğrulandı.
+- [ ] Test ve Docs kayıtları tamamlandı.
+
+### A9 — Temel sürüm
+
+- [ ] Geliştirme araçları olmayan Windows'ta dağıtım denendi.
+- [ ] Kur/kaldır/yeniden kur ve alan geri kazanımı doğrulandı.
+- [ ] Çökme/ağ/cihaz kaybı ve bozuk paket onarımı denendi.
+- [ ] Yerel DB ve dağıtıma gömülü sır yok; gerçek sınırlar kaydedildi.
+- [ ] A9.1: Windows installer/updater ve mimari seçildi; HTTPS, imza ve manifest
+  yayını doğrulandı. Henüz canlı yayın yapılmış sayılmıyor.
+- [ ] vN → vN+1 güncellemesi, aktif konuşmada erteleme, bozuk paket/ağ/disk/yanlış
+  mimari ve yarım kurulumdan toparlanma test edildi.
+- [ ] Güncelleme ayar/model/klon profilini koruyor; A10.5 sonrası gerçek oturum da korundu.
+
+### A10 — Daha sonra veriussu.com
+
+- [ ] Kullanıcı fazı başlattı; sunucu.txt güvenli incelendi.
+- [ ] SSH ile önce salt okunur API/site/oturum incelemesi yapıldı.
+- [ ] API üzerinden eşleme alt planı yazıldı; doğrudan masaüstü DB bağlantısı yok.
+- [ ] Kayıt/giriş/yenileme/çıkış ve kullanıcı veri ayrımı doğrulandı.
+- [ ] A10.1: Aktif kullanıcının yetkili modelleri ve sayfalanmış sohbet/mesajları alındı;
+  yeni mesajlar sunucuya mükerrer kayıt olmadan yazılıyor.
+- [ ] A10.2: Kullanıcının açık bilgi/kararları kaynağıyla çıkarılıyor; sunucu hafızasına
+  tekilleştirilerek yazılıyor. Öneri/alıntı/varsayım kullanıcı gerçeği sayılmıyor.
+- [ ] A10.3: Yeni sohbette ilgili hafıza sınırlı bağlama alınıyor; güncel karar öncelikli.
+  Model değişse de hafıza korunuyor, hesap değişiminde önbellek ve geç yanıtlar temizleniyor.
+- [ ] A10.4: İki hesap izolasyonu, tekrar, düzeltme, unutma/yeniden oluşmama,
+  ağ hatası, model yetki iptali ve zaman aşımı test edildi.
+- [ ] A10.5: Kalıcı güvenli oturum, token yenileme/rotation; kapat/aç, PC restart
+  ve güncelleme sonrası girişin korunması doğrulandı.
+- [ ] Ağ hatası token silmiyor; açık çıkış ve gerçek sunucu iptali ayrı test edildi.
+
+### A11 — En son tasarım
+
+- [ ] Nihai görsel yön kullanıcı tarafından seçildi.
+- [ ] Açık/koyu tema ve Windows ölçekleme/odak/okunabilirlik doğrulandı.
+- [ ] Tasarım sonrası sesli sohbet ve paket yönetimi tekrar doğrulandı.
+
+## 5. Adım kapanışı
+
+Her yeni adım kaydı: kullanıcı talimatı → değişen dosyalar → gerçek test kanıtı →
+bekleyen/başarısız işler → kullanıcıya sonuç. Plan kararları plan.md'ye, test kanıtı
+test.md'ye, yönlendirme/yanıt chat.md'ye, terminal özeti terminal.md'ye eklenir.
+
+**Güncel çalışma:** Kullanıcı tüm adımların uygulanmasını ve GitHub'a yüklenmesini istedi.
+Önceki kontrol listeleri kabul gereksinimlerini korur; bitmeyen işler işaretlenmez.
