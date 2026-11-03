@@ -43,3 +43,11 @@ ana cihazda denenmeli; otomatik testler kullanıcı oturumunu taklit ederek canl
 
 Referanslar: https://www.rfc-editor.org/rfc/rfc8252 ve
 https://www.electronjs.org/docs/latest/api/shell#shellopenexternalurl-options
+
+## [2026-11-04] Başarılı exchange yanıtı düzeltmesi
+exchange HTTP yanıt başlığı ayarlarken @Res({passthrough:true}) kullanır; sonuç
+nesnesini Nest gönderir. Önceki @Res() başarı yanıtını açık bırakıp masaüstünde
+zaman aşımına yol açıyordu. Gerçek Nest/Fastify katmanındaki regresyon testi
+`node tests/server-auth-http.cjs /path/to/api` komutuyla derlenmiş API bağımlılıkları
+üzerinde çalışır; DB ve kullanıcı doğrulaması bu izole testte sahtedir.
+Çalışan frontend imajı 0.1.2 controller katmanıyla güncellendi. Masaüstü 0.1.2 geçerlidir.
