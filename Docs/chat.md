@@ -178,3 +178,11 @@ Sunucu yeni modülü çalışan frontend imajına izole katman olarak aldı; di�
 site değişiklikleri dağıtılmadı. Sağlık kontrolü ve 9 canlı sınır testi geçti.
 19 Node / 3 Python / Electron smoke başarılı. Gerçek hesapla giriş manuel kabul bekliyor.
 İmzalama kullanıcının önceki isteğiyle ertelenmiş olarak kalıyor; 0.1.1 installer imzasız.
+
+## [2026-11-04] Mikrofon çalışmıyor
+Kullanıcı: Umay hızlı seslendiriyor ancak ben konuşamıyorum, kontrol et.
+Asistan: TTS davranışı korundu. Düşük mikrofon eşiği ve yeniden dinleme açılışı
+hataları doğrulanıp düzeltildi. Mikrofon seviyesi ve tanıma durumu görünür yapıldı.
+23 Node / 3 Python / iki Electron kontrolü başarılı. Gerçek worker düşük seviyeli
+Türkçe örneği tanıdı; CPU STT 49.31 sn olduğundan anlık STT iddiası yok.
+Yeni Windows test paketi 0.1.2 üretildi; kaynaklar GitHub’da güncellendi. Fiziksel giriş ana cihazda doğrulanacak.
