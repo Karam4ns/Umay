@@ -110,3 +110,14 @@ mikrofonun TTS kuyruğunda bekletilmesi kaldırıldı. Seslendirme akışı değ
 
 0.1.2 installer üretimi başarılı: dist/Umay Setup 0.1.2.exe, 494623604 bayt.
 Asar renderer/index birebir eşleşti; paket sürümü 0.1.2 doğrulandı.
+
+## [2026-11-04] Giriş aktarımı incelemesi ve dağıtım
+Kurulu kaynaklar karşılaştırıldı; auth canlı 9 sınır kontrolü ve Electron ağ isteği geçti.
+Kök neden: @Res() işaretli exchange nesne döndürüyor fakat reply.send çağırmıyor;
+Nest yanıtı uygulamanın yöneteceğini varsaydığı için başarılı HTTP isteği açık kalıyor.
+İzole Nest/Fastify test eski kodda 5 saniye zaman aşımı; passthrough fix sonrası PASS.
+Sunucu kaynak/derlenmiş controller yedeklendi: /root/umay-login-fix-1793741795.
+Çalışan imajdan türetilen veriussu-umay-auth:0.1.2 yalnız controller dekoratörünü değiştirir.
+Aday servis konteynerinde test, dağıtım sonrası test ve frontend sağlık kontrolü PASS.
+Diğer servisler yeniden oluşturulmadı; DB şeması veya kullanıcı hesapları değiştirilmedi.
+npm test 23 PASS; canlı auth sınırları 9 PASS. Gerçek giriş kabulü kullanıcı bekliyor.

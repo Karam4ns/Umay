@@ -643,3 +643,8 @@ Kapsam: çalışan TTS davranışını koruyarak mikrofon girişini onarmak.
 5. Node/Python, gerçek Electron yapay mikrofon ve düşük seviyeli Türkçe STT kontrolleri.
 6. 0.1.2 Windows test installer'ı üret; GitHub kaynaklarını güncelle.
 Fiziksel mikrofon/hoparlör geri besleme kabulü ana cihazda yapılacak.
+
+## [2026-11-04] Tarayıcı girişinin zaman aşımı
+Başarılı kod exchange HTTP yanıtını gerçek Nest/Fastify katmanında test et;
+yanıt yönetimini düzelt; yalnız controller değişikliğini sunucuya dağıt;
+sağlık/sınır testleri sonrası mevcut 0.1.2 uygulamayla kullanıcı kabulü iste.

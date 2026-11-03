@@ -228,3 +228,11 @@ anlık STT performansı veya kusursuz yankı bastırma kabulü anlamına gelmiyo
 
 0.1.2 installer üretimi başarılı: dist/Umay Setup 0.1.2.exe, 494623604 bayt.
 Asar renderer/index birebir eşleşti; paket sürümü 0.1.2 doğrulandı.
+
+## [2026-11-04] Giriş düzeltmesi (sunucu)
+- [x] Browser callback ulaşıyor, exchange başarı yanıtı gönderilmediği için zaman aşımı.
+- [x] exchange metodunda @Res({passthrough:true}); dönen JSON artık Nest tarafından gönderiliyor.
+- [x] Gerçek Nest/Fastify HTTP testi eski kodda FAIL, aday ve canlı imajda PASS.
+- [x] Yalnız controller dekoratör farkı dağıtıldı; frontend healthy.
+- [ ] Kullanıcının kurulu 0.1.2 ile gerçek hesap girişini yeniden doğrulaması.
+Masaüstü paketi değişmedi; yeniden kurulum gerekmiyor.

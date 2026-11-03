@@ -42,7 +42,7 @@ export class DesktopAuthController {
  }
  @Post('exchange')
  @RouteConfig({rateLimit:{max:30,timeWindow:60000}})
- async exchange(@Body() input:{code?:string;verifier?:string;redirectUri?:string},@Res() reply:FastifyReply){
+ async exchange(@Body() input:{code?:string;verifier?:string;redirectUri?:string},@Res({passthrough:true}) reply:FastifyReply){
   reply.header('Cache-Control','no-store');
   let grant;try{if(typeof input?.code!=='string'||input.code.length>4096)throw Error();grant=JSON.parse(decryptServerKey('umay-desktop-grant',input.code));policy.verify(grant,input);if(!/^[a-f0-9]{64}$/.test(grant.id))throw Error();}catch{throw new UnauthorizedException('INVALID_GRANT');}
   let issued:string|undefined,disconnected=false;

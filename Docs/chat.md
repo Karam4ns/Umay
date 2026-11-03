@@ -186,3 +186,11 @@ hataları doğrulanıp düzeltildi. Mikrofon seviyesi ve tanıma durumu görün�
 23 Node / 3 Python / iki Electron kontrolü başarılı. Gerçek worker düşük seviyeli
 Türkçe örneği tanıdı; CPU STT 49.31 sn olduğundan anlık STT iddiası yok.
 Yeni Windows test paketi 0.1.2 üretildi; kaynaklar GitHub’da güncellendi. Fiziksel giriş ana cihazda doğrulanacak.
+
+## [2026-11-04] Kurulu 0.1.2 giriş hatası
+Kullanıcı: Tarayıcı açılıyor; callback sayfası “Giriş aktarılamadı” diyor.
+Asistan: Kök neden sunucuda exchange metodunun @Res() kullanırken JSON'u göndermemesi.
+@Res({passthrough:true}) ile düzeltildi. Gerçek HTTP regresyonu önce FAIL sonra PASS;
+controller tek dosyalık imaj katmanıyla yayımlandı, frontend healthy. Yeniden kurulum
+istemeden kullanıcıdan Umay'da yeni giriş başlatıp hesabı bağlamasını denemesi istendi.
+Tek kullanımlık callback kodları veya oturum belirteçleri bu kayda alınmadı.
