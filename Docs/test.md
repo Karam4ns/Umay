@@ -95,3 +95,11 @@ Installer, imzalama, update feed, sunucu oturumu veya restart testi yapılmadı.
 - NSIS ilk test build'i üretildi (~356 MB); son kaynak düzeltmeleriyle yeniden build sürüyor.
 - Gerçek login, 4 GB GPU, AMD hızlandırma, hoparlör AEC/20 tur, klon benzerliği,
   desktop refresh oturumu ve vN→vN+1 update kabulü henüz yapılmadı.
+
+## [2026-11-03] Son regresyon ve klon testi
+npm test: 11 PASS; Python worker testleri: 3 PASS. Hesap çıkışından sonra geç gelen
+eski sohbet detayının gösterilmesini önleyen ek test dahil. Electron smoke yeniden PASS.
+Sentetik olarak üretilmiş Türkçe sesi gerçek MP3'e kodlayıp klon oluşturma, profil seçme
+ve silme denendi: PASS. Bu sonuç gerçek kişinin klon benzerliğini doğrulamaz.
+GitHub'da kaynak dosyaları mevcut. Workflow yoluna yazma 404 ile reddedildi;
+şablon scripts/windows-workflow.yml olarak yüklendi. Actions/CI çalıştı denmez.
