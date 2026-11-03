@@ -103,3 +103,10 @@ Sentetik olarak üretilmiş Türkçe sesi gerçek MP3'e kodlayıp klon oluşturm
 ve silme denendi: PASS. Bu sonuç gerçek kişinin klon benzerliğini doğrulamaz.
 GitHub'da kaynak dosyaları mevcut. Workflow yoluna yazma 404 ile reddedildi;
 şablon scripts/windows-workflow.yml olarak yüklendi. Actions/CI çalıştı denmez.
+
+## [2026-11-03] Son Windows paketi
+Son kaynaklarla NSIS installer üretildi: dist/Umay Setup 0.1.0.exe, 357193787 bayt.
+SHA256: 9E3DEFA9103EFC7EDA06FC2303E0F602C93DCE406FFBCA902D6263D071753258.
+Paketin app.asar renderer içeriği ve speech/worker.py son kaynaklarla birebir eşleşiyor.
+Paketlenmiş runtime/python.exe üzerinden gerçek worker status protokolü çalıştı.
+11 Node / 3 Python / Electron smoke sonuçları yukarıda; temiz cihaz kurulumu henüz denenmedi.

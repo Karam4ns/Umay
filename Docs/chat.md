@@ -145,3 +145,13 @@ Tüm hedefler bitmedi: kalıcı desktop refresh, erken yanıt metni akışı, AM
 4 GB GPU, güvenilir hoparlör barge-in ve gerçek kullanıcı hesabı testleri açık.
 Workflow yazma bağlantı tarafından reddedildi; Actions henüz çalışmadı. Kullanıcıya
 ana cihaz testi için README ve implementation.md sınırlarıyla birlikte aktarılacak.
+
+## [2026-11-03] Kullanıcıya sonuç
+İlk test edilebilir Windows sürümünü özel GitHub deposuna yükledim:
+https://github.com/Karam4ns/Umay
+11 JavaScript, 3 Python testi ve gerçek Electron açılış testi geçti.
+İmzasız Windows kurulum dosyası: dist/Umay Setup 0.1.0.exe (yaklaşık 357 MB).
+Tüm plan henüz tamamlanmadı: kalıcı desktop oturumu, erken yanıt akışı,
+AMD/4 GB GPU ve güvenilir hoparlör barge-in kabulü açık. Ayrıntılar implementation.md'de.
+GitHub workflow yazması reddedildi; CI etkin değil, şablon scripts/windows-workflow.yml'de.
+Ana cihaz test adımları README.md'de. Sunucu bilgileri depoya dahil edilmedi.

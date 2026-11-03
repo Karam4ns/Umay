@@ -72,3 +72,8 @@ dosyalar Contents API ile ayrı commit'lerle gönderildi. Workflow yolu 404 dön
 bunun yerine scripts/windows-workflow.yml şablonu yüklendi. Gerçek CI koşusu yok.
 Son hesap/iptal regresyonu düzeltildi: Node 11 PASS, Python 3 PASS, Electron smoke PASS.
 Sentetik MP3 ile klon oluştur/seç/sil gerçek testi PASS. Installer son kaynaklarla yenileniyor.
+
+## [2026-11-03] Son paket doğrulama
+NSIS installer 357193787 bayt; SHA256 test.md'ye kaydedildi. asar içindeki renderer
+ve paketlenmiş worker kaynaklarla eşit. Paketlenmiş Python worker status testi PASS.
+Git temiz, sunucu.txt ignored. Son kayıtlar GitHub Docs'a eşitlenecek.
