@@ -155,3 +155,26 @@ Tüm plan henüz tamamlanmadı: kalıcı desktop oturumu, erken yanıt akışı,
 AMD/4 GB GPU ve güvenilir hoparlör barge-in kabulü açık. Ayrıntılar implementation.md'de.
 GitHub workflow yazması reddedildi; CI etkin değil, şablon scripts/windows-workflow.yml'de.
 Ana cihaz test adımları README.md'de. Sunucu bilgileri depoya dahil edilmedi.
+
+## [2026-11-03] Windows imzalama talebi
+Kullanıcı: İmza yapalım, neden imzasız yaptık?
+Yanıt: Önceki soruda imzasız test sürümü seçildiği için öyle üretilmişti.
+İmzalı derleme yolu hazırlandı; bu cihazda kod imzalama sertifikası bulunmadığından
+henüz installer imzalanamadı. Mevcut sertifika veya bulut imzalama hesabı bilgisi istendi;
+parola/özel anahtar sohbete istenmedi. Ayrıntı Docs/signing.md.
+
+## [2026-11-03] İmzalama ertelendi
+Kullanıcı: Tamam sonra yapalım.
+Asistan: İmzalamayı sonraya bıraktık. Mevcut imzasız test sürümü korunuyor;
+sertifika edinimi, gerçek imzalama ve imzalı yayın başlatılmayacak.
+
+## [2026-11-03] Kullanıcı — Varsayılan tarayıcı
+İstek: Umay giriş/çıkış işlemleri sistemin varsayılan tarayıcısından yapılsın.
+Uygulama: Gömülü pencere kaldırıldı. Veriüssü authorize sayfası, loopback state/PKCE
+ve tek kullanımlık 90 saniyelik kodla bağımsız masaüstü oturumu ekleniyor.
+Tarayıcı cookie'si okunmuyor; kod exchange HTTPS yanıtındaki oturum main process'te kalıyor.
+Çıkış yerel/sunucu Umay oturumunu temizliyor ve tarayıcıda Veriüssü çıkış onayı açıyor.
+Sunucu yeni modülü çalışan frontend imajına izole katman olarak aldı; diğer bekleyen
+site değişiklikleri dağıtılmadı. Sağlık kontrolü ve 9 canlı sınır testi geçti.
+19 Node / 3 Python / Electron smoke başarılı. Gerçek hesapla giriş manuel kabul bekliyor.
+İmzalama kullanıcının önceki isteğiyle ertelenmiş olarak kalıyor; 0.1.1 installer imzasız.
