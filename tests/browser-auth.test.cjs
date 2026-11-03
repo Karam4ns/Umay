@@ -25,13 +25,14 @@ test('invalid state cannot consume a pending browser login',async()=>{
   callback.searchParams.set('state',opened.searchParams.get('state'));assert.equal((await fetch(callback)).status,200);assert.equal(await completion,true);
  }finally{auth.cancel();}
 });
-test('cancelled browser login cannot complete after token exchange resolves',async()=>{
- let opened,release;const discarded=[];const delayed=new Promise(resolve=>release=resolve);
- const auth=new BrowserAuth({openExternal:async u=>opened=new URL(u),exchange:async()=>delayed,discard:async result=>discarded.push(result)});
+test('cancelled browser login cannot complete after token exchange resolves',{timeout:5000},async()=>{
+ let opened,release,entered,disposed;const discarded=[];const delayed=new Promise(resolve=>release=resolve);
+ const exchanging=new Promise(resolve=>entered=resolve),discarding=new Promise(resolve=>disposed=resolve);
+ const auth=new BrowserAuth({openExternal:async u=>opened=new URL(u),exchange:async()=>{entered();return delayed;},discard:async result=>{discarded.push(result);disposed();}});
  const {completion}=await auth.start();const rejected=assert.rejects(completion,/iptal/);
  const callback=new URL(opened.searchParams.get('redirectUri'));callback.searchParams.set('state',opened.searchParams.get('state'));callback.searchParams.set('code','code');
- const request=fetch(callback).catch(()=>{});await new Promise(r=>setTimeout(r,20));auth.cancel();release({sessionToken:'secret'});
- await rejected;await request;await new Promise(r=>setImmediate(r));assert.deepEqual(discarded,[{sessionToken:'secret'}]);
+ const request=fetch(callback).catch(()=>{});await exchanging;auth.cancel();release({sessionToken:'secret'});
+ await rejected;await request;await discarding;assert.deepEqual(discarded,[{sessionToken:'secret'}]);
 });
 test('logout before the listener starts prevents the browser from opening',async()=>{
  let opens=0;
