@@ -1,7 +1,7 @@
 <!doctype html><html lang="tr"><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; media-src 'self' blob:; connect-src 'none'">
 <title>Umay</title><link rel="stylesheet" href="style.css">
-<header><h1>UMAY <small>Windows · 0.1.0</small></h1><button id="login">Veriüssü giriş / kayıt</button><button id="logout">Çıkış yap</button><button id="theme">Açık / koyu</button></header>
+<header><h1>UMAY <small>Windows · 0.1.1</small></h1><button id="login">Tarayıcıda giriş / kayıt</button><button id="logout">Çıkış yap</button><button id="theme">Açık / koyu</button></header>
 <nav><button data-page="chat">Sohbet</button><button data-page="settings">Ayarlar / Konuşma</button><button data-page="memory">Hafıza</button></nav>
 <p id="status" role="status">Hazır. Hesabınızı bağlayın ve konuşma paketlerini kurun.</p>
 <section id="chat"><aside><button id="refresh">Hesabı yenile</button><select id="models" aria-label="Model"></select><button id="new">Yeni sohbet</button><div id="history"></div></aside><main><div id="messages" aria-live="polite"></div><form id="send"><textarea id="input" placeholder="Umay’a sor" maxlength="12000" required></textarea><button>Gönder</button></form><button id="listen">Konuşmayı başlat</button><button id="stop">Durdur</button><label><input type="checkbox" id="speak" checked> Yanıtları seslendir</label><p id="voice-status"></p></main></section>

@@ -2,6 +2,8 @@
 
 **Güncelleme:** 2026-11-03
 **Mevcut adım:** Windows geliştirme sürümü — uygulama, doğrulama ve paketleme.
+**Son ek:** 0.1.1 varsayılan tarayıcı giriş/çıkışı uygulandı; sunucu frontend katmanı
+güncellendi ve sağlık/sınır testleri geçti. Gerçek hesapla tarayıcı girişi manuel kabul bekliyor.
 **Durum:** Kodlama başladı; tüm kabul koşulları henüz tamamlanmadı.
 Güncel kanıt ve sınırlar: [implementation.md](implementation.md).
 **Ana belge:** [plan.md](plan.md)
@@ -193,3 +195,22 @@ test.md'ye, yönlendirme/yanıt chat.md'ye, terminal özeti terminal.md'ye eklen
 
 **Güncel çalışma:** Kullanıcı tüm adımların uygulanmasını ve GitHub'a yüklenmesini istedi.
 Önceki kontrol listeleri kabul gereksinimlerini korur; bitmeyen işler işaretlenmez.
+
+## [2026-11-03] İmzalama — yeni talep
+- [x] İmzalı derlemenin sertifikasız sessizce devam etmesi engellendi; test geçti.
+- [ ] Mevcut sertifika veya imzalama hesabı kullanıcıdan beklenecek.
+- [ ] Gerçek Authenticode imzası ve doğrulanmış installer üretilecek.
+Ayrıntı: signing.md. Önceki imzasız test tercihi yeni talep ile değişti.
+
+## [2026-11-03] Varsayılan tarayıcı — 0.1.1
+- [x] Gömülü giriş penceresi kaldırıldı; shell.openExternal ile sistem tarayıcısı.
+- [x] Loopback callback, state, PKCE ve tek kullanımlık kod exchange.
+- [x] Eski/iptal edilmiş oturumların iptali; çıkışta tarayıcı onayı.
+- [x] Sunucu controller eklendi; mevcut tablolarda migration gerektirmiyor.
+- [x] Çalışan frontend üzerine yalnız yeni modülün katmanı dağıtıldı; sağlık kontrolü geçti.
+- [x] 19 Node testi, 9 canlı yetkisiz/sınır kontrolü ve Electron smoke geçti.
+- [ ] Gerçek kullanıcı hesabıyla varsayılan tarayıcı → Umay dönüşü ana cihazda denenecek.
+
+## [2026-11-03] Kullanıcı kararı — imzalama ertelendi
+İmzalama işi kullanıcı talebiyle sonraya bırakıldı. Mevcut installer imzasızdır;
+hazırlanan build:signed yolu korunuyor. Sertifika/hesap bekleme sorusu artık aktif değil.

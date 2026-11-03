@@ -90,7 +90,7 @@ async function packages(){
 }
 for(const b of document.querySelectorAll('[data-page]'))b.onclick=()=>{for(const id of ['chat','settings','memory'])$(id).hidden=id!==b.dataset.page;if(b.dataset.page==='settings')safe(packages)();};
 $('send').onsubmit=e=>{e.preventDefault();const text=$('input').value;$('input').value='';safe(()=>send(text))();};
-$('stop').onclick=safe(stop);$('login').onclick=safe(()=>api.login());$('refresh').onclick=safe(refresh);
+$('stop').onclick=safe(stop);$('login').onclick=safe(async()=>{await api.login();status('Varsayılan tarayıcı açıldı. Veriüssü girişi ardından hesabınızı Umay’a bağlayın.');});$('refresh').onclick=safe(refresh);
 $('logout').onclick=safe(async()=>{++sessionEpoch;accountId=null;await stop();listening=false;stream?.getTracks().forEach(t=>t.stop());const result=await api.logout();conversation=null;models=[];$('messages').replaceChildren();$('history').replaceChildren();$('models').replaceChildren();$('memory-data').textContent='';status(result.revoked?'Çıkış yapıldı.':'Yerel çıkış yapıldı; sunucu iptali doğrulanamadı.');});
 $('new').onclick=safe(async()=>{await stop();conversation=null;$('messages').replaceChildren();});
 $('models').onchange=safe(async()=>{await stop();conversation=null;$('messages').replaceChildren();status('Seçilen modelle yeni sohbet açılacak.');});

@@ -9,3 +9,6 @@ Docs/sunucu.txt
 .claude/
 *.log
 .superpowers/
+*.pfx
+*.p12
+*.key
