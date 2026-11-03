@@ -74,3 +74,14 @@ klon oluştur/seç/sil, mikrofon/STT, TTS ve iptali sırayla deneyin. CPU/GPU ad
 süresi ve hatayı kaydedin. Sonra Umay yalnız konuşurken yanlış kesilme, kullanıcı
 aynı anda konuşurken algılama ve ilk hecenin korunmasını ölçün. 4 GB destek iddiası
 bu ölçüm yapılmadan kullanılmamalıdır.
+
+### Mikrofon testi (0.1.2)
+
+Konuşmayı başlatın; mikrofon adı ve seviye göstergesini kontrol edin. Konuşma bitince
+kısa sessizlikten sonra “Konuşmanız metne çevriliyor” ve “Duyduğum” durumları görünür.
+Seviye hiç oynamıyorsa Windows Ayarlar → Sistem → Ses → Giriş bölümünden varsayılan
+mikrofonu ve mikrofon gizlilik iznini kontrol edin. STT paketi Ayarlar / Konuşma'dan kurulur.
+
+Geliştirici yakalama testi: `node_modules/.bin/electron.cmd tests/electron-microphone.cjs`.
+Yapay mikrofon kullanır; gerçek worklet/PCM ve kapat/aç akışını sınar. Model/API bu testte
+taklittir. Fiziksel mikrofon, hoparlör yankısı ve CPU/GPU STT süresi ayrıca ölçülmelidir.

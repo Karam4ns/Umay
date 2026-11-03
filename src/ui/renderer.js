@@ -1,6 +1,7 @@
 const $=id=>document.getElementById(id);const api=window.umay;
 let conversation=null,runId=null,ticket=0,models=[],voice='',audioContext,playHead=0,sources=[],listening=false,stream,capture,accountId=null,sessionEpoch=0;
-let pre=[],frames=[],voiced=0,silence=0,recording=false,transcribing=false,noise=.003;
+let pre=[],frames=[],voiced=0,silence=0,recording=false,transcribing=false,noise=.0005;
+let captureModule, microphoneSource, microphoneGain, inputFrames=0, microphoneEpoch=0;
 const status=text=>$('status').textContent=text;
 const safe=fn=>async(...args)=>{try{return await fn(...args);}catch(e){status(e.message);}};
 function clearAccount(){++sessionEpoch;accountId=null;conversation=null;models=[];$('messages').replaceChildren();$('history').replaceChildren();$('models').replaceChildren();$('memory-data').textContent='';void stop();}
@@ -60,25 +61,50 @@ function pcmBase64(parts){const floats=parts.flatMap(x=>Array.from(x));const out
  const bytes=new Uint8Array(output.buffer);let result='';for(let i=0;i<bytes.length;i+=8192)result+=String.fromCharCode(...bytes.subarray(i,i+8192));return btoa(result);
 }
 async function onFrame(frame){
- if(!listening||transcribing)return;
+ if(!listening)return;
  const rms=Math.sqrt(frame.reduce((sum,x)=>sum+x*x,0)/frame.length);
- const speech=rms>Math.max(.015,noise*3);if(!speech)noise=noise*.98+rms*.02;
+ $('microphone-level').value=Math.min(100,Math.round(rms*1500));inputFrames++;
+ if(transcribing)return;
+ if(!recording&&inputFrames%50===0)$('voice-status').textContent=rms<.0001?'Mikrofon açık ama ses gelmiyor. Windows giriş aygıtını kontrol edin.':'Mikrofon açık · Konuşabilirsiniz';
+ // Keep a stricter gate while playing output, after Chromium echo cancellation.
+ const speech=rms>Math.max(sources.length ? .015 : .0025,noise*3);if(!speech&&rms<.0025)noise=noise*.98+rms*.02;
  pre.push(frame);if(pre.length>15)pre.shift();
  if(speech){voiced++;silence=0;}else{silence++;if(!recording)voiced=0;}
  if(!recording&&voiced>=5){recording=true;frames=[...pre];$('voice-status').textContent='Seni dinliyorum';if(sources.length||runId)await stop(true,true);}
  else if(recording)frames.push(frame);
  if(recording&&(silence>=30||frames.length>=3000)){
-  recording=false;voiced=0;transcribing=true;const parts=frames;frames=[];pre=[];
-  const transcriptionTicket=ticket;try{const text=await api.speech('transcribe',{audio:pcmBase64(parts)});transcribing=false;if(listening&&transcriptionTicket===ticket&&text)void safe(()=>send(text))();}catch(e){status(e.message);}finally{transcribing=false;}
+  recording=false;voiced=0;transcribing=true;const parts=frames;frames=[];pre=[];$('voice-status').textContent='Konuşmanız metne çevriliyor…';
+  const transcriptionTicket=ticket;try{const text=await api.speech('transcribe',{audio:pcmBase64(parts)});transcribing=false;if(listening&&transcriptionTicket===ticket){$('voice-status').textContent=text?'Duyduğum: '+text:'Konuşma anlaşılamadı. Tekrar deneyin.';if(text)void safe(()=>send(text))();}}catch(e){status(e.message);}finally{transcribing=false;}
  }
 }
+function releaseMicrophone(){
+ ++microphoneEpoch;listening=false;stream?.getTracks().forEach(t=>t.stop());stream=null;
+ if(capture)capture.port.onmessage=null;capture?.disconnect();capture=null;
+ microphoneSource?.disconnect();microphoneGain?.disconnect();microphoneSource=null;microphoneGain=null;
+ $('listen').textContent='Konuşmayı başlat';$('microphone-level').value=0;$('voice-status').textContent='Mikrofon kapalı';
+}
 $('listen').onclick=safe(async()=>{
- if(listening){listening=false;stream?.getTracks().forEach(t=>t.stop());capture?.disconnect();await stop();$('listen').textContent='Konuşmayı başlat';return;}
- audioContext ||= new AudioContext();await audioContext.resume();
- stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
- await audioContext.audioWorklet.addModule('capture.js');capture=new AudioWorkletNode(audioContext,'capture');
- audioContext.createMediaStreamSource(stream).connect(capture);const zero=audioContext.createGain();zero.gain.value=0;capture.connect(zero).connect(audioContext.destination);
- capture.port.onmessage=e=>void onFrame(e.data);listening=true;$('listen').textContent='Dinlemeyi kapat';status('Dinleniyor. Hoparlör barge-in doğrulaması bu cihazda henüz tamamlanmadı.');
+ $('listen').disabled=true;
+ try{
+  if(listening){releaseMicrophone();await stop();return;}
+  const epoch=++microphoneEpoch,accountEpoch=sessionEpoch;
+  const stale=()=>epoch!==microphoneEpoch||accountEpoch!==sessionEpoch;
+  $('voice-status').textContent='Mikrofon açılıyor…';
+  audioContext ||= new AudioContext();await audioContext.resume();
+  if(stale())return;
+  const obtained=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
+  if(stale()){obtained.getTracks().forEach(t=>t.stop());return;}stream=obtained;
+  captureModule ||= audioContext.audioWorklet.addModule('capture.js').catch(e=>{captureModule=null;throw e;});await captureModule;
+  if(stale()){releaseMicrophone();return;}
+  capture=new AudioWorkletNode(audioContext,'capture');
+  microphoneSource=audioContext.createMediaStreamSource(stream);microphoneSource.connect(capture);
+  microphoneGain=audioContext.createGain();microphoneGain.gain.value=0;capture.connect(microphoneGain);microphoneGain.connect(audioContext.destination);
+  noise=.0005;pre=[];frames=[];voiced=0;silence=0;recording=false;inputFrames=0;
+  capture.port.onmessage=e=>void onFrame(e.data);listening=true;$('listen').textContent='Dinlemeyi kapat';
+  const track=stream.getTracks()[0];$('voice-status').textContent='Mikrofon açık · '+(track?.label||'Varsayılan giriş');
+  if(track)track.onended=()=>{releaseMicrophone();void stop();status('Mikrofon bağlantısı kesildi. Konuşmayı yeniden başlatın.');};
+  status('Dinleniyor. Konuşmanız bittikten sonra kısa bir süre susmanız yeterli.');
+ }catch(e){releaseMicrophone();throw e;}finally{$('listen').disabled=false;}
 });
 async function packages(){
  const state=await api.speech('status');$('packages').replaceChildren();
@@ -91,7 +117,7 @@ async function packages(){
 for(const b of document.querySelectorAll('[data-page]'))b.onclick=()=>{for(const id of ['chat','settings','memory'])$(id).hidden=id!==b.dataset.page;if(b.dataset.page==='settings')safe(packages)();};
 $('send').onsubmit=e=>{e.preventDefault();const text=$('input').value;$('input').value='';safe(()=>send(text))();};
 $('stop').onclick=safe(stop);$('login').onclick=safe(async()=>{await api.login();status('Varsayılan tarayıcı açıldı. Veriüssü girişi ardından hesabınızı Umay’a bağlayın.');});$('refresh').onclick=safe(refresh);
-$('logout').onclick=safe(async()=>{++sessionEpoch;accountId=null;await stop();listening=false;stream?.getTracks().forEach(t=>t.stop());const result=await api.logout();conversation=null;models=[];$('messages').replaceChildren();$('history').replaceChildren();$('models').replaceChildren();$('memory-data').textContent='';status(result.revoked?'Çıkış yapıldı.':'Yerel çıkış yapıldı; sunucu iptali doğrulanamadı.');});
+$('logout').onclick=safe(async()=>{++sessionEpoch;accountId=null;releaseMicrophone();await stop();const result=await api.logout();conversation=null;models=[];$('messages').replaceChildren();$('history').replaceChildren();$('models').replaceChildren();$('memory-data').textContent='';status(result.revoked?'Çıkış yapıldı.':'Yerel çıkış yapıldı; sunucu iptali doğrulanamadı.');});
 $('new').onclick=safe(async()=>{await stop();conversation=null;$('messages').replaceChildren();});
 $('models').onchange=safe(async()=>{await stop();conversation=null;$('messages').replaceChildren();status('Seçilen modelle yeni sohbet açılacak.');});
 $('hardware').onclick=safe(async()=>{$('devices').textContent=JSON.stringify(await api.speech('hardware'),null,2);});

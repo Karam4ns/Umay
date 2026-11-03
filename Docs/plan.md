@@ -633,3 +633,13 @@ plan.md kararları, walkthrought.md güncel durumu, test.md gerçek doğrulama k
 chat.md yönlendirme/yanıtı, terminal.md son terminal işlemlerini tutar.
 Çalıştırılmamış testler başarılı gösterilmez. Her tamamlanmış adımın ardından durulur;
 sonraki uygulama kullanıcı yönlendirmesini bekler.
+
+## [2026-11-04] Mikrofon / STT düzeltmesi — 0.1.2
+Kapsam: çalışan TTS davranışını koruyarak mikrofon girişini onarmak.
+1. Düşük seviyeli ses ve ikinci dinleme açılışını testte yeniden üret.
+2. Boşta düşük giriş eşiği, seslendirme sırasında daha yüksek kesme eşiği kullan.
+3. Worklet kaydını bir kez yap; mikrofon kaynaklarını kapat; geç açılışı çıkışta iptal et.
+4. Mikrofon seviyesi, yakalama ve metne çevirme durumlarını göster.
+5. Node/Python, gerçek Electron yapay mikrofon ve düşük seviyeli Türkçe STT kontrolleri.
+6. 0.1.2 Windows test installer'ı üret; GitHub kaynaklarını güncelle.
+Fiziksel mikrofon/hoparlör geri besleme kabulü ana cihazda yapılacak.

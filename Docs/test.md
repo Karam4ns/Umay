@@ -130,3 +130,21 @@ yabancı origin logout 403, mevcut auth/me 401, JS endpoint 200/sözdizimi geçe
 Gerçek hesaba otomatik giriş yapılmadı; kullanıcıyla manuel uçtan uca kabul bekleniyor.
 NSIS 0.1.1 installer üretildi: 494622999 bayt, imzasız. Paketteki main/browser-auth/
 renderer/index dosyaları kaynaklarla birebir karşılaştırıldı: hepsi eşleşiyor.
+
+## [2026-11-04] Mikrofon / 0.1.2 doğrulaması
+Önce kırmızı: .004 RMS ses sonrası sessizlik STT çağrısı üretmiyordu; ikinci worklet
+kaydı açılışı bozuyordu. Her iki regresyon düzeltme sonrası geçti.
+Çıkış sırasında bekleyen mikrofon izninin geç dönmesi testi de önce başarısızdı;
+nesil kontrolü sonrası geç stream durduruluyor ve dinleme yeniden açılmıyor.
+Son npm test: 23/23 PASS; pytest tests/test_worker.py: 3/3 PASS.
+Electron smoke PASS. tests/electron-microphone.cjs gerçek Chromium izin/worklet/
+16 kHz PCM hattını yapay WAV ile yürüttü; STT isteği, mesaj iletimi ve kapat/aç PASS.
+Bu testte model/API taklidi var; fiziksel mikrofon veya Türkçe tanıma testi değildir.
+Ayrı gerçek worker kontrolü: sentezlenmiş Türkçe ses .004 RMS'e indirildi; mevcut
+Whisper turbo + vad_filter=True yolu “Merhaba ben Umay. Bugün hava nasıl?” tanıdı.
+Bu cihaz CPU ölçümü: STT 49.31 sn. Gerçek konuşma doğruluğu/genel hız garantisi değildir.
+Tam testte eski auth testindeki sabit 20 ms bekleme yoğun yükte başarısız oldu;
+ürün auth kodu değişmeden test exchange başlangıcını bekleyecek şekilde düzeltildi.
+
+0.1.2 installer üretimi başarılı: dist/Umay Setup 0.1.2.exe, 494623604 bayt.
+Asar renderer/index birebir eşleşti; paket sürümü 0.1.2 doğrulandı.
