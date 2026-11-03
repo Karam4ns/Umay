@@ -2,8 +2,15 @@ const {app,BrowserWindow,ipcMain,session,dialog,shell}=require('electron');
 const path=require('node:path');const fs=require('node:fs');const {spawn}=require('node:child_process');
 const {randomUUID}=require('node:crypto');const readline=require('node:readline');
 const {autoUpdater}=require('electron-updater');const {validateReference}=require('./core.cjs');
-let win,worker,site,loginWindow;let pending=new Map();let running=false;let updateReady=false;let speechEpoch=0;
+const {BrowserAuth}=require('./browser-auth.cjs');
+let win,worker,site,browserAuth;let pending=new Map();let running=false;let updateReady=false;let speechEpoch=0;let authEpoch=0;let authMutation=Promise.resolve();
+function authTask(task){const result=authMutation.then(task,task);authMutation=result.catch(()=>{});return result;}
 const ORIGIN='https://veriussu.com';
+async function revokeSessionToken(token){
+ if(!/^[a-f0-9]{64}$/.test(token))return;
+ const response=await fetch(ORIGIN+'/site/auth/logout',{method:'POST',headers:{'Origin':ORIGIN,'Content-Type':'application/json','Cookie':'veriussu_web='+token},body:'{}',signal:AbortSignal.timeout(15000),redirect:'error'});
+ if(!response.ok&&response.status!==401)throw Error('Önceki oturum iptali doğrulanamadı.');
+}
 function publish(value){if(win&&!win.isDestroyed())win.webContents.send('event',value);}
 function startWorker(){
  if(worker)return;
@@ -39,6 +46,13 @@ async function api(route,body){
 function trusted(event){if(event.sender!==win?.webContents)throw Error('Güvenilmeyen pencere.');}
 app.whenReady().then(()=>{
  site=session.fromPartition('persist:veriussu');
+ browserAuth=new BrowserAuth({openExternal:url=>shell.openExternal(url),discard:result=>revokeSessionToken(result.sessionToken),exchange:async(input,signal)=>{
+  const response=await fetch(ORIGIN+'/site/desktop-auth/exchange',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input),signal:AbortSignal.any([signal,AbortSignal.timeout(30000)]),redirect:'error'});
+  if(!response.ok)throw Error('Tarayıcı girişi sunucuda doğrulanamadı.');
+  const result=await response.json();
+  if(!/^[a-f0-9]{64}$/.test(result.sessionToken)||!Number.isFinite(result.expiresAt)||result.expiresAt<=Date.now())throw Error('Geçersiz oturum yanıtı.');
+  return result;
+ }});
  session.defaultSession.setPermissionRequestHandler((contents,permission,callback)=>callback(contents===win?.webContents&&permission==='media'));
  win=new BrowserWindow({width:1150,height:820,minWidth:800,minHeight:620,show:false,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
  win.removeMenu();win.loadFile(path.join(__dirname,'ui','index.html'));win.once('ready-to-show',()=>win.show());
@@ -57,17 +71,25 @@ app.whenReady().then(()=>{
   validateReference(file,fs.statSync(file).size,head);return speech('clone',{path:file,name:path.basename(file,'.mp3')});
  });
  handle('api',api);
- handle('login',()=>{
-  if(loginWindow&&!loginWindow.isDestroyed()){loginWindow.focus();return;}
-  loginWindow=new BrowserWindow({width:1000,height:780,parent:win,webPreferences:{session:site,nodeIntegration:false,contextIsolation:true,sandbox:true}});
-  const valid=url=>{try{return new URL(url).origin===ORIGIN;}catch{return false;}};
-  loginWindow.webContents.on('will-navigate',(e,url)=>{if(!valid(url))e.preventDefault();});
-  loginWindow.webContents.setWindowOpenHandler(()=>({action:'deny'}));
-  loginWindow.loadURL(ORIGIN);loginWindow.on('closed',()=>{site.cookies.flushStore();publish({event:'session-changed'});});
+ handle('login',async()=>{
+  const epoch=++authEpoch;const {completion}=await browserAuth.start();
+  completion.then(result=>authTask(async()=>{
+   try{
+   if(epoch!==authEpoch){await revokeSessionToken(result.sessionToken);return;}
+   const old=await site.cookies.get({url:ORIGIN,name:'veriussu_web'});
+   for(const cookie of old)if(cookie.value!==result.sessionToken)await revokeSessionToken(cookie.value);
+   if(epoch!==authEpoch){await revokeSessionToken(result.sessionToken);return;}
+   await site.clearStorageData();
+   await site.cookies.set({url:ORIGIN,name:'veriussu_web',value:result.sessionToken,path:'/',secure:true,httpOnly:true,sameSite:'strict',expirationDate:result.expiresAt/1000});
+   await site.cookies.flushStore();publish({event:'session-changed'});win.show();win.focus();
+   }catch(error){await revokeSessionToken(result.sessionToken).catch(()=>{});throw error;}
+  })).catch(()=>{if(epoch===authEpoch)publish({event:'error',message:'Tarayıcı girişi tamamlanmadı. Yeniden deneyebilirsiniz.'});});
+  return {started:true};
  });
  handle('logout',async()=>{
-  let revoked=true;try{await api('/site/auth/logout',{});}catch{revoked=false;}
-  await site.clearStorageData();if(loginWindow&&!loginWindow.isDestroyed())loginWindow.close();return {revoked};
+  ++authEpoch;browserAuth.cancel();
+  const result=await authTask(async()=>{let revoked=true;try{await api('/site/auth/logout',{});}catch{revoked=false;}await site.clearStorageData();await site.cookies.flushStore();return {revoked};});
+  await shell.openExternal(ORIGIN+'/site/desktop-auth/logout').catch(()=>publish({event:'error',message:'Umay’dan çıkış yapıldı; tarayıcı çıkış sayfası açılamadı.'}));return result;
  });
  handle('update',async()=>{if(!app.isPackaged)return {development:true};return autoUpdater.checkForUpdates();});
  handle('busy',busy=>{running=!!busy;if(!running&&updateReady)publish({event:'update-ready'});});
@@ -77,4 +99,4 @@ app.whenReady().then(()=>{
  autoUpdater.on('update-downloaded',()=>{updateReady=true;if(!running)publish({event:'update-ready'});});
  if(app.isPackaged){autoUpdater.checkForUpdatesAndNotify();setInterval(()=>autoUpdater.checkForUpdatesAndNotify(),21600000).unref();}
 });
-app.on('before-quit',()=>{if(worker)worker.kill();});app.on('window-all-closed',()=>app.quit());
+app.on('before-quit',()=>{browserAuth?.cancel();if(worker)worker.kill();});app.on('window-all-closed',()=>app.quit());
