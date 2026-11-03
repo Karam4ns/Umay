@@ -136,3 +136,12 @@ Uygulama: Electron + Python 3.12, CPU testleri, mevcut NestJS API adapter'ı ve
 Windows installer çalışmaları. Güncel sınırlar implementation.md'de. Private GitHub
 hedefi Karam4ns/Umay. Kullanıcı sırrı hiçbir commit/yüklemeye dahil edilmedi.
 Bu kayıt tüm gereksinimlerin tamamlandığını iddia etmez.
+
+## [2026-11-03] Test sürümü durumu
+Kaynaklar özel https://github.com/Karam4ns/Umay deposunda. 11 Node ve 3 Python testi
+ile Electron açılış/IPC/gezinme testi geçti. Sentetik Türkçe TTS/STT ve MP3 klon profil
+işlemleri gerçek motorla denendi. Windows imzasız test installer'ı hazırlanıyor.
+Tüm hedefler bitmedi: kalıcı desktop refresh, erken yanıt metni akışı, AMD/Vulkan,
+4 GB GPU, güvenilir hoparlör barge-in ve gerçek kullanıcı hesabı testleri açık.
+Workflow yazma bağlantı tarafından reddedildi; Actions henüz çalışmadı. Kullanıcıya
+ana cihaz testi için README ve implementation.md sınırlarıyla birlikte aktarılacak.

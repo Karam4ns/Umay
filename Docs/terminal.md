@@ -65,3 +65,10 @@ Gerçek TTS/STT CPU turu ve 3 sentetik sıcak ölçüm yapıldı. İlk yanlış 
 resmi dönüşüm kartından doğrulanıp Dropbox Dash repo adıyla düzeltildi.
 NSIS paket üretimi, özel GitHub repo oluşturma ve sır taraması yürütüldü.
 Docs/sunucu.txt, .superpowers, .venv, runtime, model dosyaları Git dışında.
+
+## [2026-11-03] GitHub ve son düzeltmeler
+Özel Karam4ns/Umay deposuna kaynaklar yüklendi. Git tree toplu yazması reddedildi;
+dosyalar Contents API ile ayrı commit'lerle gönderildi. Workflow yolu 404 döndü,
+bunun yerine scripts/windows-workflow.yml şablonu yüklendi. Gerçek CI koşusu yok.
+Son hesap/iptal regresyonu düzeltildi: Node 11 PASS, Python 3 PASS, Electron smoke PASS.
+Sentetik MP3 ile klon oluştur/seç/sil gerçek testi PASS. Installer son kaynaklarla yenileniyor.

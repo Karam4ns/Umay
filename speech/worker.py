@@ -144,7 +144,9 @@ def run(request):
             import torch
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
-            shutil.rmtree(ROOT / 'packages' / kind, ignore_errors=True)
+            package = ROOT / 'packages' / kind
+            if package.exists():
+                shutil.rmtree(package)
             result = True
         elif method == 'transcribe':
             load('stt')
