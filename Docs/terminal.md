@@ -98,3 +98,15 @@ Salt okunur inceleme sonrası AppModule ve kaynak dosya yedekleri root altında 
 sadece derlenmiş auth dosyaları/controller kaydı eklenerek oluşturuldu. Frontend healthy.
 Live auth sınır kontrolü 9 PASS. Veritabanı şeması değiştirilmedi, gerçek hesap taklit edilmedi.
 Installer 0.1.1 üretildi, son app kaynakları asar ile eşleşti. Sunucu sırları Git dışında.
+
+## [2026-11-04] Mikrofon hata incelemesi
+Renderer/capture/worker ve Electron izin hattı okundu. .004 RMS regresyonu önce FAIL;
+worklet ikinci kayıt ve geç mikrofon/çıkış testi önce FAIL, düzeltme sonrası PASS.
+npm test: 23 PASS. Python pytest: 3 PASS. Electron smoke + microphone testleri PASS.
+Gerçek yerel worker'da düşük seviyeli Türkçe örnek doğru tanındı; 49.31 sn CPU STT.
+Kod incelemesindeki geç açılış yarışı giderildi; STT load/status ön kontrolüyle
+mikrofonun TTS kuyruğunda bekletilmesi kaldırıldı. Seslendirme akışı değiştirilmedi.
+0.1.2 build: NSIS zip, compression level 1, önceki kullanıcı kararıyla imzasız.
+
+0.1.2 installer üretimi başarılı: dist/Umay Setup 0.1.2.exe, 494623604 bayt.
+Asar renderer/index birebir eşleşti; paket sürümü 0.1.2 doğrulandı.
