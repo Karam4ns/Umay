@@ -110,3 +110,23 @@ SHA256: 9E3DEFA9103EFC7EDA06FC2303E0F602C93DCE406FFBCA902D6263D071753258.
 Paketin app.asar renderer içeriği ve speech/worker.py son kaynaklarla birebir eşleşiyor.
 Paketlenmiş runtime/python.exe üzerinden gerçek worker status protokolü çalıştı.
 11 Node / 3 Python / Electron smoke sonuçları yukarıda; temiz cihaz kurulumu henüz denenmedi.
+
+## [2026-11-03] İmzalı derleme önkoşulu
+npm test: 12 PASS. Yeni test, imzalama girdisi yokken signed build'in açık hata ile
+durmasını doğruluyor. node --check scripts/build-signed.cjs PASS.
+Windows sertifika depolarında CodeSigning sertifikası ve projede PFX/P12 bulunamadı.
+Mevcut installer Get-AuthenticodeSignature: NotSigned. Gerçek imzalama yapılmadı.
+
+## [2026-11-03] Varsayılan tarayıcı — 0.1.1
+npm test: 19/19 PASS. Gerçek loopback HTTP callback, yanlış state/PKCE/URI,
+expiry, eşzamanlı giriş, listener açılmadan iptal ve geç token iptali kontrolleri dahil.
+Python worker: 3/3 PASS. Electron gerçek açılış/IPC/ayar gezinmesi yeniden PASS.
+Sunucu Docker build içindeki TypeScript derlemesi başarılı. Başlangıçta mevcut
+user-memory.controller.ts layers.notes nullable hatası çıktı; yedeklenip tür-only !
+bildirimi eklendi. Canlı imaj bu dosyayı içermiyor; yalnız yeni auth modülü katmanı var.
+Frontend yeniden oluşturuldu; healthy. 9 canlı kontrol PASS: authorize 200, kötü URI 400,
+oturumsuz authorize 401, yabancı origin 400, bozuk exchange 401, logout sayfası 200,
+yabancı origin logout 403, mevcut auth/me 401, JS endpoint 200/sözdizimi geçerli.
+Gerçek hesaba otomatik giriş yapılmadı; kullanıcıyla manuel uçtan uca kabul bekleniyor.
+NSIS 0.1.1 installer üretildi: 494622999 bayt, imzasız. Paketteki main/browser-auth/
+renderer/index dosyaları kaynaklarla birebir karşılaştırıldı: hepsi eşleşiyor.
