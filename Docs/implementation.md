@@ -22,7 +22,8 @@ Kullanıcı tüm adımların uygulanmasına, test edilmesine ve GitHub'a yüklen
 ## Gerçek sunucu sözleşmeleri
 
 - `/site/auth/me`, `/site/auth/logout`: Veriüssü web oturumu.
-- Giriş/kayıt: izole, Node erişimi olmayan uzak Veriüssü penceresi; kalıcı Electron partition.
+- Giriş/kayıt 0.1.1: sistemin varsayılan tarayıcısı; loopback + PKCE tek kullanımlık
+  koduyla bağımsız masaüstü oturumuna aktarım. Ayrıntı: browser-auth.md.
 - `/site/chat/models`: mevcut hesaba yetkili PERSONAL/SUBSCRIPTION modelleri.
 - `/site/chat/conversations`, detay ve messages: mevcut sohbetler, sürümlü yazma,
   requestId tekilleştirme ve run durumu.
