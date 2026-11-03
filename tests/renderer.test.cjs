@@ -105,3 +105,24 @@ test(cancelled?'Stop discards transcription that completes after cancellation':'
   assert.equal(app.run('transcribing'),false);
 });
 }
+
+test('logout discards an earlier history detail response',async()=>{
+  const detail=deferred();
+  const app=renderer({
+    logout:async()=>({revoked:true}),
+    api:async route=>{
+      if(route==='/site/auth/me')return {id:'account-a',email:'a@example.test'};
+      if(route==='/site/chat/models')return {models:[]};
+      if(route==='/site/chat/conversations')return {conversations:[{id:'old',title:'Old private conversation'}]};
+      if(route==='/site/chat/conversations/old')return detail.promise;
+      throw Error('Unexpected route '+route);
+    }
+  });
+  await app.run('refresh()');
+  const loading=app.node('history').children[0].onclick();
+  await app.node('logout').onclick();
+  detail.resolve({conversation:{id:'old',version:1},messages:[{role:'assistant',content:'Old private content'}]});
+  await loading;
+  assert.equal(app.node('messages').children.length,0);
+  assert.equal(app.run('conversation'),null);
+});
