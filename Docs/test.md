@@ -148,3 +148,15 @@ Tam testte eski auth testindeki sabit 20 ms bekleme yoğun yükte başarısız o
 
 0.1.2 installer üretimi başarılı: dist/Umay Setup 0.1.2.exe, 494623604 bayt.
 Asar renderer/index birebir eşleşti; paket sürümü 0.1.2 doğrulandı.
+
+## [2026-11-04] Gerçek HTTP exchange regresyonu
+Kullanıcı tarayıcıda “Giriş aktarılamadı” gördü. Kurulu 0.1.2 main/browser-auth
+kaynakla eşleşti. Electron 45 içinden yetkisiz exchange erişimi 401 INVALID_GRANT;
+ağ/TLS erişimi çalışıyor. Sunucu controller doğrudan çağrıldığında geçiyordu,
+ancak bu test Nest yanıt yaşam döngüsünü kapsamıyordu.
+Yeni tests/server-auth-http.cjs izole Nest/Fastify örneği ve sahte DB kullanır;
+gerçek kullanıcıya giriş yapmaz. Eski controller 5 sn'de HTTP yanıtı üretmeyip FAIL.
+@Res({passthrough:true}) sonrası authorize HTTP yanıtı, exchange token/expiry/no-store
+ve tek kullanımlık kod tekrarı 401 kontrolleri aday ve canlı imajda PASS.
+23 Node testi PASS. Dokuz canlı yetkisiz/sınır kontrolü PASS.
+Frontend healthy; gerçek hesap kabulü kullanıcıya bırakıldı.
