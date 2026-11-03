@@ -1,0 +1,36 @@
+name: Windows validation and installer
+on:
+  push:
+    branches: [main, development]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: astral-sh/setup-uv@v6
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - run: npm test
+      - run: uv venv --python 3.12 .venv
+      - run: uv pip sync --python .venv/Scripts/python.exe speech/requirements-lock.txt
+      - run: .venv/Scripts/python.exe -m pytest tests/test_worker.py -q
+      - shell: pwsh
+        run: ./scripts/prepare-runtime.ps1
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Umay-Windows-test-installer
+          path: |
+            dist/*.exe
+            dist/*.yml
+            dist/*.blockmap
+          retention-days: 7
