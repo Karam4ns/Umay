@@ -214,3 +214,17 @@ Ayrıntı: signing.md. Önceki imzasız test tercihi yeni talep ile değişti.
 ## [2026-11-03] Kullanıcı kararı — imzalama ertelendi
 İmzalama işi kullanıcı talebiyle sonraya bırakıldı. Mevcut installer imzasızdır;
 hazırlanan build:signed yolu korunuyor. Sertifika/hesap bekleme sorusu artık aktif değil.
+
+## [2026-11-04] Mikrofon girişi — 0.1.2
+- [x] RMS .004 girişin önceki .015 sabit eşiğinde STT'ye ulaşmaması yeniden üretildi.
+- [x] Boşta .0025 alt eşik ve gürültü tabanı; oynatım sırasında .015 korundu.
+- [x] Tek worklet kaydı, kapat/aç, kaynak temizleme ve çıkışta geç açılış iptali.
+- [x] Mikrofon seviyesi, kullanılan giriş adı, metne çevirme ve duyulan metin görünür.
+- [x] 23 Node, 3 Python, Electron smoke ve gerçek worklet/yapay mikrofon testi geçti.
+- [x] Gerçek STT, düşük seviyeli Türkçe sentez örneğini doğru tanıdı.
+- [ ] Fiziksel mikrofon, doğru Windows giriş aygıtı ve gerçek hoparlör barge-in kabulü.
+Seslendirme kodu/modeli değiştirilmedi. CPU STT bu cihazda hâlâ yavaş; bu düzeltme
+anlık STT performansı veya kusursuz yankı bastırma kabulü anlamına gelmiyor.
+
+0.1.2 installer üretimi başarılı: dist/Umay Setup 0.1.2.exe, 494623604 bayt.
+Asar renderer/index birebir eşleşti; paket sürümü 0.1.2 doğrulandı.
