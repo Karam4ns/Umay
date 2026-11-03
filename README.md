@@ -24,8 +24,10 @@ npm start
 npm run build
 ```
 
-Çıktı `dist/` altındadır. GitHub Actions da indirilebilir Windows test installer'ı
-oluşturur. Depoya model ağırlığı, çalışma zamanı veya sunucu sırrı konulmaz.
+Çıktı `dist/` altındadır. Depoya model ağırlığı, çalışma zamanı veya sunucu sırrı konulmaz.
+GitHub bağlantısı `.github/workflows` yazmasını reddettiği için Actions henüz etkin değil.
+`scripts/windows-workflow.yml` şablonunu GitHub üzerinde yetkili bir kullanıcı
+`.github/workflows/windows.yml` olarak ekleyince test installer'ı artifact olarak üretilir.
 
 ## Kullanım
 
