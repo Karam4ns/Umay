@@ -1,0 +1,57 @@
+{
+  "name": "umay",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Umay Windows Turkish voice assistant",
+  "author": "Karam4ns",
+  "main": "src/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test tests/*.test.cjs",
+    "build": "electron-builder --win nsis --publish never"
+  },
+  "dependencies": {
+    "electron-updater": "^6.6.2"
+  },
+  "devDependencies": {
+    "electron": "^45.2.1",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "com.veriussu.umay",
+    "productName": "Umay",
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "speech",
+        "to": "speech",
+        "filter": [
+          "**/*.py",
+          "requirements.txt"
+        ]
+      },
+      {
+        "from": "runtime",
+        "to": "runtime"
+      }
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://umay.veriussu.com/releases/"
+      }
+    ]
+  }
+}
