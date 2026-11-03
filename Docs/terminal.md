@@ -77,3 +77,24 @@ Sentetik MP3 ile klon oluştur/seç/sil gerçek testi PASS. Installer son kaynak
 NSIS installer 357193787 bayt; SHA256 test.md'ye kaydedildi. asar içindeki renderer
 ve paketlenmiş worker kaynaklarla eşit. Paketlenmiş Python worker status testi PASS.
 Git temiz, sunucu.txt ignored. Son kayıtlar GitHub Docs'a eşitlenecek.
+
+## [2026-11-03] İmzalama incelemesi
+Sertifika depoları ve proje sertifika dosyaları salt okunur kontrol edildi; bulunamadı.
+Yerel electron-builder şemasında signing seçenekleri doğrulandı. Eksik sertifikada
+başarısız olacak build:signed betiği eklendi; npm test 12 PASS; installer NotSigned.
+Sertifika/private key/parola oluşturulmadı veya dışarı gönderilmedi.
+
+## [2026-11-03] İmzalama erteleme kaydı
+Son sohbet/ilerleme kayıtları okundu; kullanıcının erteleme kararı iki dosyaya eklendi.
+Ürün kodu, sertifika veya installer değiştirilmedi; yeni test gerektiren değişiklik yok.
+
+## [2026-11-03] Varsayılan tarayıcı uygulama işlemleri
+Mevcut main/preload/site auth sözleşmeleri okundu. RFC8252 ve Electron shell docs incelendi.
+Client loopback/PKCE ve server desktop-auth controller/policy eklendi; testler önce yazıldı.
+Kod incelemesinde bulunan startup-cancel/orphan-session ve pool/close yarışları düzeltildi.
+Npm 19 PASS, Python 3 PASS, Electron smoke PASS; backend Docker TypeScript build PASS.
+Salt okunur inceleme sonrası AppModule ve kaynak dosya yedekleri root altında korundu.
+İlgisiz bekleyen site değişiklikleri nedeniyle yeni frontend imajı, çalışan imaj üzerinde
+sadece derlenmiş auth dosyaları/controller kaydı eklenerek oluşturuldu. Frontend healthy.
+Live auth sınır kontrolü 9 PASS. Veritabanı şeması değiştirilmedi, gerçek hesap taklit edilmedi.
+Installer 0.1.1 üretildi, son app kaynakları asar ile eşleşti. Sunucu sırları Git dışında.
