@@ -330,4 +330,4 @@ sıcak TTS ilk parça 110ms, 26 ses parçası PASS.
 - [x] İptalde model jeneratörü kapanır; sonraki cümle başlamaz, yeniden konuşma çalışır.
 - [x] 44 Python +65 Node test; gerçek worker ses üretimi/iptal/yeniden konuşma.
 - [x] Windows0.3.4 paket bütünlüğü; paket içindeki Python ile gerçek speak/iptal/yeniden konuşma.
-- [ ] GitHub kaynak eşleştirmesi.
+- [x] GitHub main:14 dosya yerel Git blob SHA değerleriyle birebir doğrulandı.
