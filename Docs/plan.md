@@ -673,3 +673,16 @@ CPU'da büyük Whisper yerine gerçek akış destekli Seda v0.2 balanced int8 ku
 Metin konuşurken görünür, 600ms duraklamada final gönderilir; mikrofon yanıt sırasında
 kapanmaz. Kullanıcı söze girince yanıt iptal edilir, devam eden tanıma sıfırlanmaz.
 Eski kurulumlar Ayarlar/Konuşma STT güncellemesiyle geçer. 0.3.0 test installer hazır.
+
+## [2026-11-04] STT / yanıt / TTS regresyonu — 0.3.1
+Kullanıcı: tanıma eksik, mesaj gelmiyor, önceden hızlı başlayan seslendirme bekliyor.
+Önce gerçek kurulu uygulama durumu ve mevcut sunucu sözleşmesi okundu; model
+motorları değiştirilmeden hatalar kırmızı testlerle üretildi.
+1. Ham enerji bekleyen run'ı iptal etmesin; yeni tanınmış söz iptal etsin.
+2. Oynatım sonrası bastırmayı kaldır; sessiz konuşma partial/final metnini koru.
+3. Kuyruk paketini 20ms adımlarla kes; endpoint sonrası yeni kelimeyi kaybetme.
+4. Başarısız run'da eski mesajı seslendirme; hata durumunu görünür tut.
+5. Native kütüphaneleri Windows ana iş parçacığında başlat; ilk model yüklemelerini sırala.
+6. Gerçek mikrofon/STT → renderer gönderimi → run → gerçek TTS → oynatım testini ekle.
+Selamlamalarda bilinen Ummay/Hümay hatası yalnız doğrudan hitapta Umay olarak düzeltilir;
+başka insan adları ve normal metin değiştirilmez. Yeni model indirmesi gerekmez.
