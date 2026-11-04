@@ -342,4 +342,4 @@ sıcak TTS ilk parça 110ms, 26 ses parçası PASS.
 - [x] 60 Python /67 Node testi; gerçek Electron klon ayarları/önizleme/hata kontrolleri.
 - [x] Üç gerçek profilde eski/yeni ses örneği üretimi; özgün dosyalar hash olarak korundu.
 - [x] Paket içindeki gerçek ses motoruyla profil/iptal kontrolleri; kurulum bütünlüğü.
-- [ ] GitHub kaynak eşleştirmesi.
+- [x] GitHub main:16 dosya yerel Git blob SHA değerleriyle birebir doğrulandı.
