@@ -1,4 +1,5 @@
-const {app,BrowserWindow,ipcMain,session,dialog,shell}=require('electron');
+const {app,BrowserWindow,ipcMain,session,dialog,shell,screen}=require('electron');
+const {systemStatus,windowAction}=require('./desktop.cjs');
 const path=require('node:path');const fs=require('node:fs');const {spawn}=require('node:child_process');
 const {randomUUID}=require('node:crypto');const readline=require('node:readline');
 const {autoUpdater}=require('electron-updater');const {validateReference}=require('./core.cjs');
@@ -54,10 +55,15 @@ app.whenReady().then(()=>{
   return result;
  }});
  session.defaultSession.setPermissionRequestHandler((contents,permission,callback)=>callback(contents===win?.webContents&&permission==='media'));
- win=new BrowserWindow({width:1150,height:820,minWidth:800,minHeight:620,show:false,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+ const area=screen.getPrimaryDisplay().workAreaSize;
+ const iconPath=path.join(__dirname,'ui','assets','umay.png');
+ win=new BrowserWindow({icon:fs.existsSync(iconPath)?iconPath:undefined,width:Math.min(1500,area.width-20),height:Math.min(920,area.height-20),minWidth:Math.min(960,area.width-20),minHeight:Math.min(680,area.height-20),frame:false,backgroundColor:'#030d14',show:false,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
  win.removeMenu();win.loadFile(path.join(__dirname,'ui','index.html'));win.once('ready-to-show',()=>win.show());
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-navigate',e=>e.preventDefault());
  const handle=(name,fn)=>ipcMain.handle(name,async(e,...args)=>{trusted(e);return fn(...args);});
+ handle('system-status',()=>systemStatus(app.getPath('userData'),require('../package.json').version));
+ handle('window-action',action=>windowAction(win,action));
+ handle('cancel-login',()=>{++authEpoch;browserAuth.cancel();return true;});
  handle('speech',async(method,params)=>{
   if(!['hardware','status','install','remove','load','transcribe','speak','cancel','voices','select_voice','delete_voice'].includes(method))throw Error('İşlem izinli değil.');
   if(['install','load','remove'].includes(method)&&!['stt','tts'].includes(params?.kind))throw Error('Paket geçersiz.');
@@ -71,8 +77,9 @@ app.whenReady().then(()=>{
   validateReference(file,fs.statSync(file).size,head);return speech('clone',{path:file,name:path.basename(file,'.mp3')});
  });
  handle('api',api);
- handle('login',async()=>{
-  const epoch=++authEpoch;const {completion}=await browserAuth.start();
+ handle('login',async(entry='login')=>{
+  if(!['login','register'].includes(entry))throw Error('Giriş seçimi geçersiz.');
+  const epoch=++authEpoch;const {completion}=await browserAuth.start({entry});
   completion.then(result=>authTask(async()=>{
    try{
    if(epoch!==authEpoch){await revokeSessionToken(result.sessionToken);return;}
