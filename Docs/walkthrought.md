@@ -318,4 +318,4 @@ sıcak TTS ilk parça 110ms, 26 ses parçası PASS.
 - [x] 0.3.3 installer üretildi; sürüm +6 runtime dosyası birebir eşleşti.
 - [x] Frontend/chat UI yayında; healthy, 3 varlık hash eşleşmesi, ortam/port eşitliği.
 - [x] Canlı10203 HTML/JS/CSS200 ve kimliksiz API401 doğrulandı.
-- [ ] GitHub kaynak kontrolü.
+- [x] GitHub main:23 dosya yerel Git blob SHA değerleriyle birebir doğrulandı.
