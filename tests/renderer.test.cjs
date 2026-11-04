@@ -22,7 +22,7 @@ function renderer(overrides={}){
     ...overrides
   };
   const context=vm.createContext({
-    window:{umay:bridge,LiveTranscriber,UmayErrors:require('../src/ui/user-errors.js')},
+    window:{umay:bridge,LiveTranscriber,PlaybackEcho:require('../src/ui/playback-echo.js').PlaybackEcho,UmayErrors:require('../src/ui/user-errors.js')},
     document:{getElementById:node,querySelectorAll:()=>[],createElement:element,body:element()},
     localStorage:{getItem:key=>saved.get(key)||null,setItem:(key,value)=>saved.set(key,value),removeItem:key=>saved.delete(key)},crypto:{randomUUID},
     Option:function(text,value){return {textContent:text,value};},
@@ -125,6 +125,40 @@ test('quiet residual output does not interrupt Umay',async()=>{
  app.run('listening=true; interrupted=0; sources=[{stop(){interrupted++}}]');
  for(let i=0;i<60;i++)await app.run('onFrame(new Float32Array(320).fill(0.004))');
  assert.equal(app.run('interrupted'),0);assert.equal(app.run('recording'),false);
+});
+
+test('loud delayed playback echo cannot cancel speech after its first clause',async()=>{
+ let stopped=0,clock=0;
+ const samples=Float32Array.from({length:16000},(_,i)=>.07*Math.sin(i*.083+Math.sin(i*.001)*3)+.025*Math.sin(i*.179));
+ class Context{
+  get currentTime(){return clock;}get destination(){return {};}
+  async resume(){}async decodeAudioData(){return {duration:1,sampleRate:16000,getChannelData:()=>samples};}
+  createBufferSource(){return {connect(){},start(){},stop(){stopped++;}};}
+ }
+ const app=renderer({AudioContext:Context});await new Promise(r=>setImmediate(r));
+ await app.run("play('AA==')");app.run('listening=true');
+ app.run('testFrames=[]');
+ for(let i=0;i<5;i++){
+  clock=.35+i*.02;
+  const frame=Float32Array.from(samples.slice(1280+i*320,1600+i*320),v=>v*.6+.001);
+  app.run('testFrames.push(new Float32Array('+JSON.stringify(Array.from(frame))+'))');
+  await app.run('onFrame(testFrames.at(-1))');
+ }
+ assert.equal(stopped,0,'own output must not be treated as a new user turn');
+ assert.equal(app.run('recording'),false);
+});
+
+test('different human speech still interrupts playback and keeps the microphone running',async()=>{
+ let stopped=0;
+ class Context{
+  constructor(){this.currentTime=1.5;this.destination={};}
+  async resume(){}async decodeAudioData(){return {duration:2,sampleRate:16000,getChannelData:()=>Float32Array.from({length:32000},(_,i)=>.05*Math.sin(i*.063))};}
+  createBufferSource(){return {connect(){},start(){},stop(){stopped++;}};}
+ }
+ const app=renderer({AudioContext:Context});await new Promise(r=>setImmediate(r));
+ await app.run("play('AA==')");app.run('listening=true');
+ for(let i=0;i<5;i++)await app.run('onFrame(Float32Array.from({length:320},(_,i)=>.08*Math.sin(i*.227+Math.sin(i*.013)*4)))');
+ assert.equal(stopped,1);assert.equal(app.run('listening'),true);assert.equal(app.run('recording'),true);
 });
 
 test('microphone can stop and restart without registering the worklet twice',async()=>{
