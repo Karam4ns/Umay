@@ -13,7 +13,7 @@ function element(){return {value:'',checked:false,textContent:'',dataset:{},chil
   replaceChildren(...children){this.children=children;},scrollIntoView(){},
   classList:{contains:()=>false,toggle(){},remove(){}}};}
 function renderer(overrides={}){
-  const nodes=new Map();let eventListener;
+  const nodes=new Map(),saved=new Map();let eventListener;
   const node=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};
   const bridge={
     onEvent(callback){eventListener=callback;},busy:async()=>{},
@@ -24,7 +24,8 @@ function renderer(overrides={}){
   const context=vm.createContext({
     window:{umay:bridge,LiveTranscriber,UmayErrors:require('../src/ui/user-errors.js')},
     document:{getElementById:node,querySelectorAll:()=>[],createElement:element,body:element()},
-    localStorage:{getItem:()=>null,setItem(){}},crypto:{randomUUID},
+    localStorage:{getItem:key=>saved.get(key)||null,setItem:(key,value)=>saved.set(key,value),removeItem:key=>saved.delete(key)},crypto:{randomUUID},
+    Option:function(text,value){return {textContent:text,value};},
     atob,btoa,Uint8Array,Int16Array,Float32Array,setTimeout,
     AudioContext:overrides.AudioContext,navigator:overrides.navigator,AudioWorkletNode:overrides.AudioWorkletNode
   });
@@ -33,6 +34,37 @@ function renderer(overrides={}){
 }
 test('historical uppercase USER messages retain the user appearance',()=>{
  const app=renderer();app.run("message('USER','earlier question')");assert.equal(app.node('messages').children[0].className,'message user');
+});
+
+test('new cloned voice is selected for preview and quality feedback stays visible',async()=>{
+ const calls=[];
+ const app=renderer({clone:async()=>({id:'profile-id',name:'My voice',voice:'unique-voice',quality:{warnings:['Daha sessiz bir kayıt deneyebilirsin.']}}),
+  speech:async(method,params)=>{calls.push({method,params});if(method==='status')return {stt:{installed:false},tts:{installed:false}};if(method==='voices')return [{id:'profile-id',name:'My voice'}];return true;}});
+ await new Promise(r=>setImmediate(r));
+ await app.node('clone').onclick();
+ assert.equal(app.run('voice'),'unique-voice');
+ assert.equal(app.run("localStorage.getItem('voice-profile')"),'profile-id');
+ assert.equal(app.node('voices').value,'profile-id');
+ assert.match(app.node('clone-quality').textContent,/Daha sessiz/);
+ assert.equal(app.node('clone').disabled,false);
+ await app.node('preview').onclick();
+ assert.equal(calls.findLast(c=>c.method==='speak').params.voice,'unique-voice');
+ await app.run('packages()');
+ assert.equal(app.node('voices').value,'profile-id');
+});
+
+test('failed or dismissed cloning keeps the active voice and re-enables the action',async()=>{
+ let fail=true;
+ const app=renderer({clone:async()=>{if(fail)throw Error('Kayıt uygun değil.');return undefined;}});
+ await new Promise(r=>setImmediate(r));app.run("voice='previous-voice';localStorage.setItem('voice-profile','previous-id')");
+ await app.node('clone').onclick();
+ assert.equal(app.run('voice'),'previous-voice');
+ assert.equal(app.run("localStorage.getItem('voice-profile')"),'previous-id');
+ assert.match(app.node('status').textContent,/Kayıt uygun değil/);
+ assert.equal(app.node('clone').disabled,false);
+ fail=false;await app.node('clone').onclick();
+ assert.equal(app.run('voice'),'previous-voice');
+ assert.equal(app.node('clone').disabled,false);
 });
 test('a stale failed account lookup cannot overwrite the connected account status',async()=>{
  let rejectEarlier,checks=0;const earlier=new Promise((_yes,no)=>rejectEarlier=no);
