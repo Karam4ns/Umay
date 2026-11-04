@@ -244,3 +244,10 @@ sıcak TTS ilk parça 110ms, 26 ses parçası PASS.
 Run ID henüz dönmeyen ilk /messages POST'u sırasında söz kesme de FAIL üretildi.
 Sunucu yazımları ve stale run iptali tek gönderim kuyruğuna alındı; sonraki POST
 önceki yazım ve iptalin bitmesini bekler. Ek regresyonla Node 50 PASS.
+
+Son 0.3.1 paketi üretildi: 478040745 byte; asar sürümü ve tüm değişen UI/speech
+kaynakları son commit ile birebir eşleşti. Installer SHA256:
+95d846aa1f559c37d005ca62721ebb3e730b2c6f9defba7c80180a63514ceb51.
+Son tam zincir tekrarı: ilk ses parçası 196ms, oynatım kaynağı 220ms, 2 mesaj,
+listening=true, temiz kapanış PASS. GitHub main üzerinde 16 kaynak dosyası yerel
+Git blob SHA değerleriyle birebir doğrulandı.
