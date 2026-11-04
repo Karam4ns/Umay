@@ -217,3 +217,10 @@ varsayılan tarayıcıda; gerçek oturumdan sonra uygulama açılır. Gerçek si
 kullanılır, hazır olmayan ajan/dosya/otomasyon alanları “Yakında” olarak işaretlidir.
 35 Node / 3 Python / gerçek Electron arayüz ve mikrofon kontrolleri başarılı;
 yeni installer üretildi; kaynaklar GitHub’a aktarılıyor.
+
+## [2026-11-04] Kullanıcı — Jarvis gibi sürekli konuşma
+İstek: yanlış yazmıyor, geç yazıyor; konuşurken metin gelsin ve sürekli sohbet edelim.
+Yanıt/uygulama: 0.3.0 gerçek akış tanıması, konuşurken canlı yazı, kısa duraklamada
+otomatik gönderim, yanıt boyunca açık mikrofon ve söz kesmede yanıt iptali.
+Gerçek örnekte ilk yazı yaklaşık 1.5s; art arda iki konuşma ve TTS regresyonu PASS.
+Yeni installer hazır; eski cihazda STT canlı paketini Ayarlar/Konuşma'dan güncellemek gerekir.
