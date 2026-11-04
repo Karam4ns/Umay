@@ -24,13 +24,15 @@ function clearVoiceDraft(){
 async function stop(advance=true,preserveCapture=false){
  if(advance)++ticket;const hadPlayback=sources.length>0;sources.forEach(source=>{try{source.stop();}catch{}});sources=[];playHead=0;if(hadPlayback)echoGuardUntil=Date.now()+200;window.umayShell?.speaking(false);
  const previous=runId;runId=null;responseActive=false;
- const cancel=api.speech('cancel').catch(()=>{});
+ // Local output is stopped synchronously. A cold Python worker must not hold
+ // a text message behind speech-library startup before its cancel ack arrives.
+ void api.speech('cancel').catch(()=>{});
  const cancelRun=previous?api.api('/site/chat/runs/'+previous+'/cancel',{}).catch(()=>{}):Promise.resolve();
  pendingRunCancel=Promise.all([pendingRunCancel,cancelRun]).then(()=>{});
  const idle=api.busy(false);
  let reset=Promise.resolve();
  if(!preserveCapture){recording=false;frames=[];pre=[];voiced=0;silence=0;gateFrames=[];clearVoiceDraft();if(liveRecognizer)reset=liveRecognizer.reset().catch(error=>{releaseMicrophone();status(error.message);});}
- await Promise.all([cancel,pendingRunCancel,idle,reset]);
+ await Promise.all([pendingRunCancel,idle,reset]);
 }
 function submitMessage(text,current){
  // A run can be committed while its POST response is still in flight. Complete
@@ -58,7 +60,11 @@ async function send(text,fromVoice=false){
    const {run}=await api.api('/site/chat/runs/'+runId);if(current!==ticket)return;
    if(!['QUEUED','RUNNING'].includes(run.status)){
     runId=null;
-    if(!['COMPLETED','SUCCEEDED'].includes(run.status)){status(`Yanıt alınamadı: ${run.errorCode||run.status}`);return;}
+    if(!['COMPLETED','SUCCEEDED'].includes(run.status)){
+     const hints={PROVIDER_TOOL_UNAVAILABLE:'Model bu bağlantıda kullanılamayan bir araç istedi. Farklı bir model seçebilir veya soruyu yeniden gönderebilirsin.',INVALID_PROVIDER_RESPONSE:'Model sağlayıcısı geçerli bir cevap döndürmedi. Yeniden deneyebilir veya farklı model seçebilirsin.',PROVIDER_TIMEOUT:'Model sağlayıcısı zamanında cevap vermedi. Yeniden deneyebilirsin.'};
+     const code=run.errorCode||run.status,text=`Yanıt alınamadı: ${hints[code]||'Model isteği tamamlanamadı.'} (${code})`;
+     message('error',text,false);status(text);return;
+    }
     const detail=await api.api('/site/chat/conversations/'+conversation.id);
     if(current!==ticket)return;conversation=detail.conversation;
     const last=[...detail.messages].reverse().find(m=>m.role.toLowerCase()==='assistant');
@@ -66,7 +72,8 @@ async function send(text,fromVoice=false){
     runId=null;break;
    }
    if(Date.now()>deadline)throw Error('Yanıt zaman aşımı; durdurup yeniden deneyin.');
-   await new Promise(r=>setTimeout(r,600));
+   status(run.phase==='reviewing'?'Yanıt kontrol ediliyor…':run.status==='QUEUED'?'Model sırası bekleniyor…':'Model yanıtı hazırlanıyor…');
+   await new Promise(r=>setTimeout(r,250));
   }
   if(current===ticket)status('Hazır.');
  }finally{if(current===ticket){responseActive=false;if(!sources.length)await api.busy(false);}}
