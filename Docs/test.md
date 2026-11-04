@@ -360,3 +360,28 @@ yeni klon248.1/279.9/274.0ms(ortanca274.0). Bu küçük örneklemde klon
 hazırlama değişikliğine bağlı belirgin bir ilk ses gecikmesi görülmedi.
 Önceki çalışmalardaki125–156ms farklı zaman/ortam ölçümüdür; aynı koşul karşılaştırması
 olarak kullanılmaz. Onaylanan turkish_speech.py HEAD ile aynı; ağır ses efekti yok.
+
+## [2026-11-04] İlk ifadeden sonra susma — 0.3.6
+Aynı tam kullanıcı örneği varsayılan +üç klonda gerçek TTS ile üretildi; sesler
+5.60/5.28/5.36/5.28s. Seda geri yazımı her birinde sorularınızı...bilgiler veriyorum...
+şef son bölümünü de içerir. Çok cümleli ikinci metin de son cümleye kadar üretildi.
+Seda'da bazı ad/çekim hataları var; tanıma sonucu sesin varlığı kontrolüdür.
+Python/TTS/klon kodu değiştirilmedi; daha önce geçen60 Python testi tekrar koşulmadı.
+Renderer'da aynı gecikmeli sesle düzeltme öncesi test FAIL: own output stop sayısı1.
+playback-echo.js: 2kHz/100ms PCM karşılaştırması, sınırlı gecikme aralığı, kazanç/
+polaritete tolerans; bağımsız örnekleme saatleri için kesirli gecikme uydurma.
+Açıklanamayan ikinci ses baskılanmaz. Oynanmayan gelecek veri Stop'ta atılır.
+75 Node PASS; yeni yankı testleri +mevcut mikrofon, Stop, sohbet ve hata regresyonları.
+Gerçek Electron/WebAudio testi: gerçek TTS'den alınmış WAV80ms parçalarla geldi,
+yankı16kHz mikrofon karelerine benzetildi. Eski kontrol matches=false ile1 iptal;
+yeni kontrol ardışık2 tam yanıt, insan sesi1 iptal ve ardından tam yanıt0 iptal PASS.
+Sunucu/worker taşıması bu testte taklittir; WebAudio decode/oynatma ve renderer
+gate gerçektir. Fiziksel mikrofon/hoparlör kabul testi yerine geçmez.
+İlk akustik eşleştirme yerel saf PCM testini geçti ama gerçek AudioContext örnekleme
+fazında kesildi. Kesirli örnek gecikmesi eklendi; testin tamamı tekrar geçti.
+
+Paket0.3.6: asar sürümü +3 değişen uygulama varlığı ve4 değişmeyen konuşma
+dosyası byte eşit. Installer 478053877 byte; SHA256:ceed6fa2ab27e48fe8a69c74adf6628bd882050175be97a6ece360d3f811b542.
+Yankı eşleştirmesi sıcak30 çağrı (bu cihaz, arka planda build): ortanca1.94ms,
+p955.70ms. Kontrol100ms mikrofon bağlamında ve yalnız kesme eşiğinde yapılır;
+TTS'nin ilk parçasını bekleten bir ön üretim eklenmedi.
