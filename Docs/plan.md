@@ -734,3 +734,13 @@ Profil kimliği ses adı olarak benzersizdir; aynı görünen ad birbirini ezmez
 Eski profil seçilince yerel referans hazırlanır; model yeniden konuşma/seçimde
 tekrar kodlanmaz. Yeni profil doğrudan seçilir, önizleme aynı sesi kullanır.
 Pocket TTS0.1.0/model/speech text katmanı aynen kalır. Yeni bağımlılık yoktur.
+
+## [2026-11-04] Yanıtın ilk ifadeden sonra kesilmesi — 0.3.6
+Kapsam yalnız hata: kullanıcı örneğindeki virgüllü yanıtın devamı okunmuyor.
+Önce aynı metin varsayılan ve üç klonla üretildi; WAV'ların geri yazımı son
+bölümün de üretildiğini gösterdi. Kurulu Program Files sürümü0.3.5 ve kaynaklar eşleşti.
+Renderer testi: oynatılan sesin gecikmeli/yüksek seviyeli dönüşü100ms enerji
+eşiğini aşınca stop(true,true) çağrılıyor. Model kesmiyor, mikrofon çıkışı kesebiliyor.
+Dar düzeltme: gerçek oynatım PCM'ine göre kısa akustik eşleşme; açık yankı yeni
+kullanıcı konuşması sayılmaz. Farklı/üstüne konuşan ses eski barge-in yolunu kullanır.
+STT/TTS modelleri, klonlama, Türkçe okuma/duraklama ve sunucu değiştirilmez.
