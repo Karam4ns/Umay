@@ -1,5 +1,7 @@
 import importlib.util
+import sys
 from pathlib import Path
+sys.path.insert(0,str(Path(__file__).parents[1]/'speech'))
 
 spec = importlib.util.spec_from_file_location('worker', Path(__file__).parents[1] / 'speech' / 'worker.py')
 worker = importlib.util.module_from_spec(spec)
