@@ -5,7 +5,8 @@ const ORIGIN='https://veriussu.com';
 class BrowserAuth {
  constructor({openExternal,exchange,discard=async()=>{},timeoutMs=300000}){this.openExternal=openExternal;this.exchange=exchange;this.discard=discard;this.timeoutMs=timeoutMs;this.generation=0;}
  cancel(){++this.generation;this.pending?.cancel();}
- async start(){
+ async start({entry='login'}={}){
+  if(!['login','register'].includes(entry))throw Error('Giriş seçimi geçersiz.');
   this.cancel();
   const generation=this.generation;
   const state=randomBytes(32).toString('base64url'),verifier=randomBytes(32).toString('base64url');
@@ -39,6 +40,7 @@ class BrowserAuth {
   this.pending=pending;
   timer=setTimeout(pending.cancel,this.timeoutMs);timer.unref();
   const url=new URL('/site/desktop-auth/authorize',ORIGIN);url.search=new URLSearchParams({redirectUri,state,challenge}).toString();
+  if(entry==='register')url.searchParams.set('entry','register');
   try{await this.openExternal(url.toString());}catch(e){pending.cancel();throw e;}
   return {completion};
  }
