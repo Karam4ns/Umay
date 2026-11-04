@@ -4,6 +4,7 @@ const path=require('node:path');const fs=require('node:fs');const {spawn}=requir
 const {randomUUID}=require('node:crypto');const readline=require('node:readline');
 const {autoUpdater}=require('electron-updater');const {validateReference}=require('./core.cjs');
 const {BrowserAuth}=require('./browser-auth.cjs');
+const {readSiteResponse}=require('./site-response.cjs');
 let win,worker,site,browserAuth;let pending=new Map();let running=false;let updateReady=false;let speechEpoch=0;let authEpoch=0;let authMutation=Promise.resolve();let activeRecognition=null;
 function authTask(task){const result=authMutation.then(task,task);authMutation=result.catch(()=>{});return result;}
 const ORIGIN='https://veriussu.com';
@@ -40,9 +41,8 @@ function speech(method,params={}){
 async function api(route,body){
  const allowed=/^\/site\/(auth\/(me|logout)|chat\/(models|conversations(?:\/[a-f0-9-]+(?:\/(messages|model))?)?|runs\/[a-f0-9-]+(?:\/cancel)?)|user-memory(?:\/(summary|notes))?)$/;
  if(!allowed.test(route))throw Error('İzin verilmeyen API yolu.');
- const response=await site.fetch(ORIGIN+route,{method:body===undefined?'GET':'POST',headers:{'Origin':ORIGIN,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(30000),redirect:'error'});
- if(!response.ok)throw Error(response.status===401?'Oturum doğrulaması gerekli. Veriüssü girişini açın.':`Sunucu isteği başarısız (${response.status}).`);
- return response.json();
+ let response;try{response=await site.fetch(ORIGIN+route,{method:body===undefined?'GET':'POST',headers:{'Origin':ORIGIN,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(30000),redirect:'error'});}catch(error){throw Error(['TimeoutError','AbortError'].includes(error.name)?'REQUEST_TIMEOUT':'NETWORK_ERROR');}
+ return readSiteResponse(response);
 }
 function trusted(event){if(event.sender!==win?.webContents)throw Error('Güvenilmeyen pencere.');}
 app.whenReady().then(()=>{
