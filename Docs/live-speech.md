@@ -23,7 +23,7 @@ TTS çıkışının örnekleme hızı değişmez. Her kare, tanıma sürerken de
 - [x] Model güncelleme/kurulum/kaldırma ve lisans atfı; runtime bağımlılıklarını paketle.
 - [x] Birim, gerçek worker ve Electron gecikme kontrolleri.
 - [x] Kurulum paketi sürüm/kaynak/runtime bütünlüğü.
-- [ ] GitHub kaynak aktarımı.
+- [x] GitHub main: 30 kaynak dosyası yerel Git blob SHA değerleriyle birebir doğrulandı.
 
 ## Ölçüm ve kabul sınırı
 
