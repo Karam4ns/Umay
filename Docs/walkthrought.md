@@ -319,3 +319,15 @@ sıcak TTS ilk parça 110ms, 26 ses parçası PASS.
 - [x] Frontend/chat UI yayında; healthy, 3 varlık hash eşleşmesi, ortam/port eşitliği.
 - [x] Canlı10203 HTML/JS/CSS200 ve kimliksiz API401 doğrulandı.
 - [x] GitHub main:23 dosya yerel Git blob SHA değerleriyle birebir doğrulandı.
+
+## [2026-11-04] Türkçe okuma / noktalama — 0.3.4
+- [x] Mevcut motorun sınırlı sıra sayısı bağlamları ve eksik TRT okunuşu yeniden üretildi.
+- [x] TDK sayı/kısaltma/noktalama kaynakları incelendi; okuma ile sayısal değer ayrıldı.
+- [x] speech/turkish_speech.py: Türkçe kısaltma, sıra sayısı, Markdown temizliği.
+- [x] Sayısal tarih, saat, binlik, ondalık ve miktar cümle sonu regresyonları.
+- [x] Cümle anlamını koruyan noktalama; üç nokta ve paragraf için ayrı kısa aralar.
+- [x] Aynı worker speak yolu: yanıt ve önizleme, varsayılan/klon ses kimliği korunur.
+- [x] İptalde model jeneratörü kapanır; sonraki cümle başlamaz, yeniden konuşma çalışır.
+- [x] 44 Python +65 Node test; gerçek worker ses üretimi/iptal/yeniden konuşma.
+- [x] Windows0.3.4 paket bütünlüğü; paket içindeki Python ile gerçek speak/iptal/yeniden konuşma.
+- [ ] GitHub kaynak eşleştirmesi.

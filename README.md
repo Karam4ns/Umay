@@ -137,3 +137,11 @@ ve ekran okuyucuya uygun görünür; teknik kodlar ve sağlayıcı hata içerikl
 Bu değişiklik token bakiyesini veya bekleyen rezervasyonları değiştirmez.
 Yeni modeller indirmek gerekmez. Ortak mesaj kataloğu src/ui/user-errors.js içindedir;
 webde dağıtılan aynı katalog tests/web-errors.test.cjs ile eşleştirilir.
+
+### Türkçe okuma ve noktalama — 0.3.4
+`4.` ve `4. adım` gibi sıra sayıları, TRT/TDK gibi bilinen harf kısaltmaları ve
+ekleri seslendirmeden önce Türkçeye hazırlanır. Mesajın görünen metni korunur.
+Tarih, saat, ondalık ve cümle sonundaki miktarlar ayrılır. Noktalama modele
+korunarak verilir; cümle/paragraf aralarına kısa duraklamalar eklenir.
+Mevcut TTS ve klon sesler kullanılır; konuşma paketini yeniden indirmek gerekmez.
+Python kontrolleri: `uv run --no-project --python .venv/Scripts/python.exe --with pytest python -m pytest tests/test_turkish_speech.py tests/test_worker.py tests/test_live_stt.py -q`.

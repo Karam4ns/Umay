@@ -14,6 +14,7 @@ import subprocess
 import time
 import wave
 from live_stt import LiveSTT
+from turkish_speech import stream_speech
 
 ROOT = Path(os.environ.get('UMAY_DATA', Path.home() / '.umay'))
 ROOT.mkdir(parents=True, exist_ok=True)
@@ -186,7 +187,8 @@ def run(request):
             text = str(p['text'])[:4000]
             model = MODELS['tts'][0]
             with contextlib.redirect_stdout(sys.stderr):
-                for chunk in model.stream(text, voice=p.get('voice') or 'female_1'):
+                cancelled = lambda: CANCEL.is_set() or request.get('_epoch', EPOCH) != EPOCH
+                for chunk in stream_speech(model, text, p.get('voice') or 'female_1', cancelled):
                     if CANCEL.is_set() or request.get('_epoch',EPOCH)!=EPOCH:
                         break
                     import numpy as np

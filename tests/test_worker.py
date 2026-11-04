@@ -51,3 +51,32 @@ def test_protocol_survives_library_stdout_redirection():
         assert library_output.getvalue() == ''
     finally:
         worker.PROTOCOL_OUT = original
+
+
+def test_speak_uses_turkish_pronunciation_with_selected_voice(monkeypatch):
+    import base64
+    import io
+    import wave
+    import numpy as np
+
+    calls, events = [], []
+
+    class Model:
+        sample_rate = 24000
+
+        def stream(self, text, **options):
+            calls.append((text, options))
+            yield np.ones(24, dtype=np.float32) * .1
+
+    monkeypatch.setattr(worker, 'load', lambda kind: None)
+    monkeypatch.setattr(worker, 'MODELS', {'tts': (Model(), 'cpu')})
+    monkeypatch.setattr(worker, 'emit', events.append)
+    worker.run({'id': 'speak', 'method': 'speak', 'params': {
+        'text': "TRT'de 4. adım hazır!", 'voice': 'personal-voice',
+    }})
+    assert calls == [('teretede dördüncü adım hazır!', {
+        'voice': 'personal-voice', 'sentence_gap_ms': 0,
+    })]
+    with wave.open(io.BytesIO(base64.b64decode(events[0]['audio']))) as wav:
+        assert (wav.getframerate(), wav.getnframes()) == (24000, 24)
+    assert events[-1] == {'id': 'speak', 'result': {'cancelled': False}}

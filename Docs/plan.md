@@ -708,3 +708,16 @@ Windows'ta uyarı mesajı sohbet içinde görünür. Kod/ham sağlayıcı yanıt
 Sunucuda yalnız chat.js/chat.html/chat.css varlıkları değişir; host checkout içindeki
 başka mevcut değişiklikleri korumak için çalışan sürüme göre dar git patch uygulanır.
 Frontend ve chat imajları kendi çalışan temelinden üretilir; ortam/port eşitliği kontrol edilir.
+
+## [2026-11-04] Doğal Türkçe seslendirme — 0.3.4
+Kullanıcı: 4. → dördüncü, TRT → terete; noktalama/vurgu Türkçe kurallarına uygun olsun.
+Seslendirme girişinde ayrı Türkçe okuma katmanı; sohbet metni değiştirilmez.
+Sıra sayıları: tek başına, liste, açık isim/sıralama bağlamı ve kesmeli ekler.
+Cümle sonundaki miktarlar korunur; tarih, saat, binlik ve ondalık sayı ayrılır.
+Bilinen harf kısaltmaları Türkçe okunur, kesmeli ek son harfe bağlanır;
+TÜBİTAK/ASELSAN gibi sözcük olarak okunan kısaltmalar hecelenmez.
+Virgül/noktalı virgül/iki nokta aynı cümlede modele verilir; soru/ünlem korunur.
+Nokta180ms, soru220ms, ünlem200ms, üç nokta320ms, satır260ms, boş paragraf320ms
+ara PCM sessizlik hedefidir; başta/sonda yapay bekleme yoktur. Bunlar TDK'nin
+belirlediği süreler değildir. Ton ve vurgu akustik modelin yeteneğiyle sınırlıdır.
+Mevcut pocket-tts-turkish0.1.0 ve klon sesler korunur; yeni model indirilmez.
