@@ -184,3 +184,23 @@ sıcak TTS ilk parça 110ms, 26 ses parçası PASS.
 Run ID henüz dönmeyen ilk /messages POST'u sırasında söz kesme de FAIL üretildi.
 Sunucu yazımları ve stale run iptali tek gönderim kuyruğuna alındı; sonraki POST
 önceki yazım ve iptalin bitmesini bekler. Ek regresyonla Node 50 PASS.
+
+## [2026-11-04] 0.3.2 sunucu / gönderici
+SSH: chat_runs durum/süre/araştırma-aşaması metadata okundu. Sağlayıcı anahtarı sadece
+sunucuda çözüldü; çıktı olarak yalnız yanıt yapısı, uzunluk, süre ve tool adı verildi.
+Başarısız geçmişle boş content/search_web yeniden üretildi. Real-provider devamda
+311 karakter normal cevap alındı. Kayıtlar .superpowers'ta, sır/sohbet Git'e eklenmez.
+Aday imaj veriussu-umay-chat:0.3.2, mevcut worker imajından yalnız chat-execution ve
+chat-tool-recovery modülleri. DB migration/ayar/sır değişikliği yok.
+Gerçek compose.yaml + compose.chat-workers.yaml + compose.chat-streams.yaml gerekir;
+yalnız eski compose.yaml test ağı PostgreSQL DNS'ini bulamaz. Doğru ağda HTTP test PASS.
+55 Node; aday29 stream/evidence/quality PASS. Electron sesli zincir240ms/271ms PASS.
+
+0.3.2 installer üretildi (478041146 byte), asar sürümü ve son renderer/index eşleşti.
+Değişen iki sunucu modülünde tam TS programından filtrelenen tanı 0; prod imajında
+@types/ssh2/ws gibi dev tiplerinin yokluğu başka modüllerde 88 tanı oluşturuyor.
+Bu nedenle tüm proje typecheck başarılı sayılmadı. Aday HTTP ve29 regresyon PASS.
+
+Canlıya yalnız chat-worker servisi 2 replica ile aktarıldı; iki worker healthy ve
+yardımcı modül yükleme PASS. Frontend/DB değiştirilmedi. Geri dönüş dosyaları:
+/root/umay-chat-fix-1793813162; önce aktif run sayısı 0 kontrol edildi.
