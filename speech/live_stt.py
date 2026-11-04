@@ -1,5 +1,6 @@
 """Single-owner streaming session. The worker schedules these calls on the STT queue."""
 import base64
+import re
 import numpy as np
 
 class LiveSTT:
@@ -21,13 +22,17 @@ class LiveSTT:
         raw=base64.b64decode(audio,validate=True)
         if len(raw)>16000 or len(raw)%2:raise ValueError('Canlı ses paketi geçersiz.')
         samples=np.frombuffer(raw,dtype='<i2').astype('float32')/32768
-        partial=self.stream.accept(samples,sample_rate=16000)
-        if partial!=self.last:
-            self.last=partial;self.publish(partial,False)
-        if self.stream.is_endpoint:
-            # Capture continues queueing audio while this short final formatting step runs.
-            text=self.stream.end_utterance();self.publish(text,True);self.utterance+=1;self.last=''
+        # IPC batches may span a pause and the next word. Check endpoints every
+        # 20 ms, so cutting an utterance never consumes the next one's onset.
+        for offset in range(0,len(samples),320):
+            partial=self.stream.accept(samples[offset:offset+320],sample_rate=16000)
+            if partial!=self.last:
+                self.last=partial;self.publish(partial,False)
+            if self.stream.is_endpoint:
+                text=self.stream.end_utterance();self.publish(text,True);self.utterance+=1;self.last=''
         return {'samples':len(samples)}
 
     def publish(self,text,final):
+        # Domain spelling in direct greetings only; other people's names remain intact.
+        text=re.sub(r'^((?:selam|merhaba|hey)[,\s]+)(?:ummay|hümay)(?=$|[\s,.!?])',lambda match:match[1]+'Umay',text,flags=re.IGNORECASE)
         self.emit({'event':'transcript','streamId':self.session,'generation':self.generation,'utterance':self.utterance,'text':text,'final':final})
