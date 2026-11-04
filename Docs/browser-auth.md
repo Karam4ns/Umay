@@ -51,3 +51,11 @@ zaman aşımına yol açıyordu. Gerçek Nest/Fastify katmanındaki regresyon te
 `node tests/server-auth-http.cjs /path/to/api` komutuyla derlenmiş API bağımlılıkları
 üzerinde çalışır; DB ve kullanıcı doğrulaması bu izole testte sahtedir.
 Çalışan frontend imajı 0.1.2 controller katmanıyla güncellendi. Masaüstü 0.1.2 geçerlidir.
+
+## [2026-11-04] Yeni onay ekranı
+Umay/Veriüssü hesap onayı ortalı kart, aktif hesap satırı, erişim özeti ve açık
+onay düğmesi içerir. /site/auth/me aynı kaynak cookie'siyle okunur; bu GET bağlama yapmaz.
+Kullanıcı yeni sekmede giriş yapıp döndüğünde profil yenilenir. Oturumsuzluk/ağ hatası
+onayı açmaz. CSS ve client script aynı kaynaktan sunulur; CSP style-src self ile sınırlıdır.
+Tema tercihi yalnız bu tarayıcıda tutulur. İstek nesli geç profil yanıtlarını eler;
+DOM'a kullanıcı adı/e-posta textContent ile yazılır. state/PKCE/exchange değişmedi.

@@ -160,3 +160,16 @@ gerçek kullanıcıya giriş yapmaz. Eski controller 5 sn'de HTTP yanıtı üret
 ve tek kullanımlık kod tekrarı 401 kontrolleri aday ve canlı imajda PASS.
 23 Node testi PASS. Dokuz canlı yetkisiz/sınır kontrolü PASS.
 Frontend healthy; gerçek hesap kabulü kullanıcıya bırakıldı.
+
+## [2026-11-04] Hesap bağlama sayfası
+İlk test çalışması yeni view modülü eksik olduğundan FAIL; uygulama sonrası 7 yeni
+sayfa/client testi PASS: dış assetler, tema/responsive CSS, güvenilmeyen hesap adının
+textContent ile yazılması, açık onay, oturumsuzluk, izinli callback, ağ hatası,
+geç profil yanıtının atılması ve çıkış tamamlanması. Toplam npm test: 30/30 PASS.
+Gerçek Electron görsel fixture'ı örnek Deniz Yılmaz / deniz@example.com hesabı kullanır;
+masaüstü açık/koyu, 390px mobil ve oturumsuz mobil görüntüleri .superpowers altında.
+Düğmeler/oturum durumu ve yatay taşma kontrolleri PASS. Gerçek hesap verisi kullanılmadı.
+Derlenmiş aday ve canlı sunucuda izole Nest/Fastify sayfa/CSS/JS/CSP ve başarılı
+exchange/tekrar 401 testi PASS. 10 canlı sınır kontrolü PASS. Canlı CSS/JS içeriği
+kaynak sabitleriyle birebir karşılaştırıldı: eşleşiyor. Gerçek kullanıcı hesabıyla
+onay, önceki kabul maddesi olarak ayrıca kullanıcı tarafından doğrulanmalıdır.

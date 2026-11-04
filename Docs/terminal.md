@@ -121,3 +121,13 @@ Sunucu kaynak/derlenmiş controller yedeklendi: /root/umay-login-fix-1793741795.
 Aday servis konteynerinde test, dağıtım sonrası test ve frontend sağlık kontrolü PASS.
 Diğer servisler yeniden oluşturulmadı; DB şeması veya kullanıcı hesapları değiştirilmedi.
 npm test 23 PASS; canlı auth sınırları 9 PASS. Gerçek giriş kabulü kullanıcı bekliyor.
+
+## [2026-11-04] Bağlama ekranı tasarımı ve dağıtım
+server/desktop-auth-view.ts ve desktop-auth-client.ts eklendi; controller style.css
+ve yeni görünümü sunuyor. Client profil bilgisini textContent ile yazar; POST yalnız
+kullanıcı onayıyla; CSP inline script izni almadı. PKCE/exchange davranışı korundu.
+Node 30 PASS; gerçek Electron görsel/oturum fixture PASS; kod incelemesinde önemli bulgu yok.
+Çalışan imaj tabanında yalnız 3 modül TypeScript ile derlendi; aday test PASS sonrası
+frontend yenilendi, healthy. İmaj veriussu-umay-auth:0.1.3; yedek/geri dönüş:
+/root/umay-auth-design-1793801133. Aday/canlı HTTP regresyonu ve 10 dış sınır kontrolü PASS.
+CSS/client.js canlı içeriği kaynakla eşleşiyor. Masaüstü installer değiştirilmedi.

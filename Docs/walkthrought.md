@@ -236,3 +236,12 @@ Asar renderer/index birebir eşleşti; paket sürümü 0.1.2 doğrulandı.
 - [x] Yalnız controller dekoratör farkı dağıtıldı; frontend healthy.
 - [ ] Kullanıcının kurulu 0.1.2 ile gerçek hesap girişini yeniden doğrulaması.
 Masaüstü paketi değişmedi; yeniden kurulum gerekmiyor.
+
+## [2026-11-04] GPT benzeri bağlama ekranı
+- [x] Nötr siyah-beyaz palet, tek ortalı onay kartı ve Umay/Veriüssü kimliği.
+- [x] Aktif ad/e-posta; oturum yoksa giriş/kayıt; sekmeye dönüşte hesap yenileme.
+- [x] Sistem temasına uyum ve kullanıcı açık/koyu tema seçimi.
+- [x] 390px mobil ve masaüstü görsel kontrol; yatay taşma yok.
+- [x] 30 Node testi; gerçek Nest/Fastify sayfa/asset/CSP/exchange/replay kontrolleri.
+- [x] Sunucu aday/canlı imajı test edildi; frontend healthy; 10 canlı sınır kontrolü.
+Aynı masaüstü sürümü yeni sayfayı kullanır; yeniden kurulum gerekmez.

@@ -648,3 +648,9 @@ Fiziksel mikrofon/hoparlör geri besleme kabulü ana cihazda yapılacak.
 Başarılı kod exchange HTTP yanıtını gerçek Nest/Fastify katmanında test et;
 yanıt yönetimini düzelt; yalnız controller değişikliğini sunucuya dağıt;
 sağlık/sınır testleri sonrası mevcut 0.1.2 uygulamayla kullanıcı kabulü iste.
+
+## [2026-11-04] Hesap bağlama tasarımı
+Kullanıcı GPT benzeri sade bağlama sayfası istedi. Görsel yön ve uygulama adımları
+account-link-design.md'de: aktif hesap satırı, erişim özeti, tek onay düğmesi,
+açık/koyu tema, mobil düzen ve oturumsuz giriş/kayıt yönlendirmesi.
+Sayfa/component ve client script ayrıldı; mevcut PKCE/exchange sözleşmesi korundu.
