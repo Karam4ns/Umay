@@ -173,3 +173,10 @@ Derlenmiş aday ve canlı sunucuda izole Nest/Fastify sayfa/CSS/JS/CSP ve başar
 exchange/tekrar 401 testi PASS. 10 canlı sınır kontrolü PASS. Canlı CSS/JS içeriği
 kaynak sabitleriyle birebir karşılaştırıldı: eşleşiyor. Gerçek kullanıcı hesabıyla
 onay, önceki kabul maddesi olarak ayrıca kullanıcı tarafından doğrulanmalıdır.
+
+## [2026-11-04] Marka varlıkları
+Özgün logo apps/api/public/home.html içindeki V path'lerinden; favicon mevcut
+/favicon.svg?v=2 adresinden alındı. Açık/koyu/mobil Electron kontrolü PASS; Node 30 PASS.
+Aday ve canlı Nest/Fastify HTTP regresyonu PASS; canlı sınırlar 10 PASS.
+Bağlama ve çıkış HTML'inde resmi logo/favicon ve img-src self başlığı doğrulandı;
+favicon HTTP 200 image/svg+xml ve özgün V içeriği PASS.
