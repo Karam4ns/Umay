@@ -6,5 +6,8 @@ contextBridge.exposeInMainWorld('umay',{
  logout:()=>ipcRenderer.invoke('logout'),clone:()=>ipcRenderer.invoke('clone'),
  update:()=>ipcRenderer.invoke('update'),busy:value=>ipcRenderer.invoke('busy',value),
  restartUpdate:()=>ipcRenderer.invoke('restart-update'),
+ local:(method,input)=>ipcRenderer.invoke('local-memory',method,input),
+ environment:(method,input)=>ipcRenderer.invoke('environment',method,input),
+ computer:(method,input)=>ipcRenderer.invoke('computer',method,input),
  onEvent:callback=>ipcRenderer.on('event',(_event,data)=>callback(data))
 });
