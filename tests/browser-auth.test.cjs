@@ -1,6 +1,11 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {BrowserAuth}=require('../src/browser-auth.cjs');
+test('registration entry reaches the browser without changing the callback security parameters',async()=>{
+ let opened;const auth=new BrowserAuth({openExternal:async url=>opened=new URL(url),exchange:async()=>true});
+ const {completion}=await auth.start({entry:'register'});completion.catch(()=>{});
+ try{assert.equal(opened.searchParams.get('entry'),'register');assert.equal(opened.searchParams.get('state').length,43);assert.equal(opened.searchParams.get('challenge').length,43);assert.equal(new URL(opened.searchParams.get('redirectUri')).hostname,'127.0.0.1');}finally{auth.cancel();}
+});
 
 test('external browser callback exchanges a code using the matching PKCE verifier',async()=>{
  let opened,exchange;
