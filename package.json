@@ -1,6 +1,6 @@
 {
   "name": "umay",
-  "version": "0.3.6",
+  "version": "0.4.0",
   "private": true,
   "description": "Umay Windows Turkish voice assistant",
   "author": "Karam4ns",
@@ -15,7 +15,8 @@
     "prebuild:signed": "electron scripts/export-icon.cjs"
   },
   "dependencies": {
-    "electron-updater": "^6.6.2"
+    "electron-updater": "^6.6.2",
+    "fast-xml-parser": "5.12.0"
   },
   "devDependencies": {
     "electron": "^45.2.1",
@@ -59,6 +60,9 @@
         "provider": "generic",
         "url": "https://umay.veriussu.com/releases/"
       }
+    ],
+    "asarUnpack": [
+      "src/native-desktop.ps1"
     ]
   }
 }
