@@ -305,4 +305,4 @@ sıcak TTS ilk parça 110ms, 26 ses parçası PASS.
   modüllerin eksik development tiplerinden 88 tanı var, tüm proje typecheck PASS denmedi.
 - [x] İki canlı worker healthy; yeni yardımcı modül yüklemesi PASS.
 - [x] Canlı imajda ayrı DB HTTP regresyonu PASS; iki işçi healthy.
-- [ ] GitHub son kontrol.
+- [x] GitHub main: 15 dosya yerel Git blob SHA değerleriyle birebir doğrulandı.
