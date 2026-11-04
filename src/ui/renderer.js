@@ -4,7 +4,9 @@ let conversation=null,runId=null,ticket=0,models=[],voice='',audioContext,playHe
 let pre=[],frames=[],voiced=0,silence=0,recording=false,transcribing=false,noise=.0005;
 let captureModule, microphoneSource, microphoneGain, inputFrames=0, microphoneEpoch=0,inputContext,liveRecognizer=null,liveDraft='',voiceEdited=false,echoGuardUntil=0,playbackSuppressed=false,gateFrames=[];
 const status=text=>{$('status').textContent=text;window.umayShell?.status(text);};
-const safe=fn=>async(...args)=>{try{return await fn(...args);}catch(e){status(e.message.replace(/^Error invoking remote method '[^']+': (?:Error: )?/,''));}};
+const safe=fn=>async(...args)=>{try{return await fn(...args);}catch(e){const text=e.message.replace(/^Error invoking remote method '[^']+': (?:Error: )?/,'');status(window.UmayErrors.isKnown(text)?errorText(text):text);}};
+function errorText(code){const info=window.UmayErrors.describe(code);return info.title+'\n'+info.message;}
+function showChatError(code){const text=errorText(code);const node=message('error',text,false);node.setAttribute?.('role','alert');status(text);}
 function clearAccount(){++sessionEpoch;accountId=null;conversation=null;models=[];releaseMicrophone();$('messages').replaceChildren();$('history').replaceChildren();$('models').replaceChildren();$('memory-data').textContent='';window.umayShell?.history(0);window.umayShell?.account(null);return stop();}
 function message(role,text,record=true){const node=document.createElement('div');node.className='message '+String(role).toLowerCase();node.textContent=text;$('messages').append(node);window.umayShell?.message(role,record);node.scrollIntoView();return node;}
 async function refresh(){
@@ -61,9 +63,7 @@ async function send(text,fromVoice=false){
    if(!['QUEUED','RUNNING'].includes(run.status)){
     runId=null;
     if(!['COMPLETED','SUCCEEDED'].includes(run.status)){
-     const hints={PROVIDER_TOOL_UNAVAILABLE:'Model bu bağlantıda kullanılamayan bir araç istedi. Farklı bir model seçebilir veya soruyu yeniden gönderebilirsin.',INVALID_PROVIDER_RESPONSE:'Model sağlayıcısı geçerli bir cevap döndürmedi. Yeniden deneyebilir veya farklı model seçebilirsin.',PROVIDER_TIMEOUT:'Model sağlayıcısı zamanında cevap vermedi. Yeniden deneyebilirsin.'};
-     const code=run.errorCode||run.status,text=`Yanıt alınamadı: ${hints[code]||'Model isteği tamamlanamadı.'} (${code})`;
-     message('error',text,false);status(text);return;
+     showChatError(run.errorCode||run.status);return;
     }
     const detail=await api.api('/site/chat/conversations/'+conversation.id);
     if(current!==ticket)return;conversation=detail.conversation;
@@ -76,7 +76,7 @@ async function send(text,fromVoice=false){
    await new Promise(r=>setTimeout(r,250));
   }
   if(current===ticket)status('Hazır.');
- }finally{if(current===ticket){responseActive=false;if(!sources.length)await api.busy(false);}}
+ }catch(error){if(current===ticket)showChatError(error.message);}finally{if(current===ticket){responseActive=false;if(!sources.length)await api.busy(false);}}
 }
 async function play(data){
  const generation=ticket;audioContext ||= new AudioContext();await audioContext.resume();if(generation!==ticket)return;const raw=Uint8Array.from(atob(data),c=>c.charCodeAt(0));
