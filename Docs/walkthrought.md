@@ -353,4 +353,4 @@ sıcak TTS ilk parça 110ms, 26 ses parçası PASS.
 - [x] Gerçek Electron/WebAudio: önceki hata kontrolü, tam yanıt, sonraki yanıt, insan araya
   girişi ve iptalden sonraki tam yanıt PASS. Mikrofon girdisi yankı benzetimi, fiziksel cihaz değil.
 - [x] 0.3.6 kurulum bütünlüğü: sürüm,3 uygulama varlığı,4 değişmeyen ses dosyası.
-- [ ] GitHub kaynak eşleştirmesi.
+- [x] GitHub main:13 dosya yerel Git blob SHA değerleriyle birebir doğrulandı.
