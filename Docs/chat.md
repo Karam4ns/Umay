@@ -260,3 +260,11 @@ açıklandı. Kaynaktan uygun kısa ara seçimi, ölçülü seviye düzenleme, h
 referans kalıcılığı, bağımsız profil anahtarları ve önbellek eklendi.
 Model/okuma/duraklama kodu korunur. Üç profilde eski/yeni örnek üretildi; özgün
 dosyalara dokunulmadı. Yeni ilk ses125–156ms; 60 Python/67 Node PASS.
+
+## [2026-11-04] Kullanıcı — ses ilk ifadeden sonra kesiliyor
+Örnek: Şu anda size yardımcı oluyorum, sorularınızı yanıtlamakta ve size bilgiler
+veriyorum, bane şef. Yeni mesajlarda da devamı okunmuyor; yalnız sorunla ilgilen,
+yapıyı bozma. Mikrofon kapalı kontrolünü henüz denemediğini belirtti.
+TTS metnin tamamını üretir; gecikmeli kendi sesinin enerji kapısından stop üretmesi
+yeniden gösterildi. Oynatım PCM eşleşmesiyle dar yankı düzeltmesi eklendi.
+Ses modelleri, klonlama ve onaylanan okuma ayarları değiştirilmedi.
