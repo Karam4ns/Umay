@@ -224,3 +224,10 @@ Yanıt/uygulama: 0.3.0 gerçek akış tanıması, konuşurken canlı yazı, kıs
 otomatik gönderim, yanıt boyunca açık mikrofon ve söz kesmede yanıt iptali.
 Gerçek örnekte ilk yazı yaklaşık 1.5s; art arda iki konuşma ve TTS regresyonu PASS.
 Yeni installer hazır; eski cihazda STT canlı paketini Ayarlar/Konuşma'dan güncellemek gerekir.
+
+## [2026-11-04] Kullanıcı — STT eksik algılama ve TTS gecikmesi
+İstek: derhal kontrol; mesaj gelmiyor ve önce anında seslenen cevap bekliyor.
+Uygulama: yanlış enerji iptali, yapışan playback bastırması, endpoint'te sonraki
+kelime kaybı ve Windows native-kütüphane açılış takılması düzeltildi. TTS motoru
+korundu. Gerçek tam zincirde yanıt metninden ilk ses parçasına 243ms ölçüldü.
+50 Node / 7 Python ve tam Electron konuşma hattı PASS; 0.3.1 installer hazırlanıyor.

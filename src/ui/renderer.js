@@ -1,5 +1,6 @@
 const $=id=>document.getElementById(id);const api=window.umay;
-let conversation=null,runId=null,ticket=0,models=[],voice='',audioContext,playHead=0,sources=[],listening=false,stream,capture,accountId=null,sessionEpoch=0;
+let pendingRunCancel=Promise.resolve(),pendingSubmission=Promise.resolve();
+let conversation=null,runId=null,ticket=0,models=[],voice='',audioContext,playHead=0,sources=[],listening=false,stream,capture,accountId=null,sessionEpoch=0,responseActive=false;
 let pre=[],frames=[],voiced=0,silence=0,recording=false,transcribing=false,noise=.0005;
 let captureModule, microphoneSource, microphoneGain, inputFrames=0, microphoneEpoch=0,inputContext,liveRecognizer=null,liveDraft='',voiceEdited=false,echoGuardUntil=0,playbackSuppressed=false,gateFrames=[];
 const status=text=>{$('status').textContent=text;window.umayShell?.status(text);};
@@ -22,41 +23,53 @@ function clearVoiceDraft(){
 }
 async function stop(advance=true,preserveCapture=false){
  if(advance)++ticket;const hadPlayback=sources.length>0;sources.forEach(source=>{try{source.stop();}catch{}});sources=[];playHead=0;if(hadPlayback)echoGuardUntil=Date.now()+200;window.umayShell?.speaking(false);
- const previous=runId;runId=null;
+ const previous=runId;runId=null;responseActive=false;
  const cancel=api.speech('cancel').catch(()=>{});
  const cancelRun=previous?api.api('/site/chat/runs/'+previous+'/cancel',{}).catch(()=>{}):Promise.resolve();
+ pendingRunCancel=Promise.all([pendingRunCancel,cancelRun]).then(()=>{});
  const idle=api.busy(false);
  let reset=Promise.resolve();
  if(!preserveCapture){recording=false;frames=[];pre=[];voiced=0;silence=0;gateFrames=[];clearVoiceDraft();if(liveRecognizer)reset=liveRecognizer.reset().catch(error=>{releaseMicrophone();status(error.message);});}
- await Promise.all([cancel,cancelRun,idle,reset]);
+ await Promise.all([cancel,pendingRunCancel,idle,reset]);
 }
-async function send(text,fromVoice=false){
- if(!text.trim())return;
- const current=++ticket;await stop(false,fromVoice);if(current!==ticket)return;await api.busy(true);message('user',text);status('Yanıt hazırlanıyor…');
- try{
+function submitMessage(text,current){
+ // A run can be committed while its POST response is still in flight. Complete
+ // that write (and cancel its stale run) before the next turn writes to the chat.
+ const submission=pendingSubmission.then(async()=>{
+  if(current!==ticket)return null;
   if(!conversation){const m=models.find(x=>x.id===$('models').value);if(!m)throw Error('Önce giriş yapıp bir model seçin.');
    const created=await api.api('/site/chat/conversations',{source:m.source,modelId:m.id,title:text.slice(0,140),requestId:crypto.randomUUID()});
    if(current!==ticket)return;conversation=created.conversation;
   }
   const posted=await api.api('/site/chat/conversations/'+conversation.id+'/messages',{content:text,requestId:crypto.randomUUID(),expectedVersion:Number(conversation.version),kind:'CHAT'});
   if(current!==ticket){if(posted.run?.id)await api.api('/site/chat/runs/'+posted.run.id+'/cancel',{});return;}
+  return posted;
+ });
+ pendingSubmission=submission.then(()=>{},()=>{});return submission;
+}
+async function send(text,fromVoice=false){
+ if(!text.trim())return;
+ const current=++ticket;await stop(false,fromVoice);if(current!==ticket)return;await api.busy(true);if(current!==ticket)return;responseActive=true;message('user',text);status('Yanıt hazırlanıyor…');
+ try{
+  const posted=await submitMessage(text,current);if(!posted||current!==ticket)return;
   runId=posted.run.id;
   const deadline=Date.now()+180000;
   while(current===ticket){
-   const {run}=await api.api('/site/chat/runs/'+runId);
+   const {run}=await api.api('/site/chat/runs/'+runId);if(current!==ticket)return;
    if(!['QUEUED','RUNNING'].includes(run.status)){
-    if(run.status!=='COMPLETED'&&run.status!=='SUCCEEDED')status(`Yanıt durumu: ${run.status}`);
+    runId=null;
+    if(!['COMPLETED','SUCCEEDED'].includes(run.status)){status(`Yanıt alınamadı: ${run.errorCode||run.status}`);return;}
     const detail=await api.api('/site/chat/conversations/'+conversation.id);
     if(current!==ticket)return;conversation=detail.conversation;
     const last=[...detail.messages].reverse().find(m=>m.role.toLowerCase()==='assistant');
-    if(last){message('assistant',last.content);if($('speak').checked)await api.speech('speak',{text:last.content,voice});}
+    if(last){message('assistant',last.content);if($('speak').checked){status('Seslendiriliyor…');await api.speech('speak',{text:last.content,voice});}}
     runId=null;break;
    }
    if(Date.now()>deadline)throw Error('Yanıt zaman aşımı; durdurup yeniden deneyin.');
    await new Promise(r=>setTimeout(r,600));
   }
   if(current===ticket)status('Hazır.');
- }finally{if(current===ticket&&!sources.length)await api.busy(false);}
+ }finally{if(current===ticket){responseActive=false;if(!sources.length)await api.busy(false);}}
 }
 async function play(data){
  const generation=ticket;audioContext ||= new AudioContext();await audioContext.resume();if(generation!==ticket)return;const raw=Uint8Array.from(atob(data),c=>c.charCodeAt(0));
@@ -72,6 +85,9 @@ function createLiveRecognizer(){
  return new window.LiveTranscriber({speech:(method,params)=>api.speech(method,params),
   onPartial:text=>{
    if(!listening||playbackSuppressed)return;
+   // Raw microphone energy is not a new turn. Interrupt a pending response only
+   // after the recognizer has actual words; playback has its stricter local gate.
+   if(responseActive&&text.trim())void stop(true,true).catch(error=>status(error.message));
    if($('input').value!==liveDraft&&$('input').value.trim())voiceEdited=true;
    if(!voiceEdited){$('input').value=text;liveDraft=text;}
    $('live-caption').hidden=!text;$('live-text').textContent=text;$('voice-status').textContent='Seni dinliyorum…';
@@ -91,6 +107,7 @@ async function onFrame(frame){
  const rms=Math.sqrt(frame.reduce((sum,x)=>sum+x*x,0)/frame.length);
  $('microphone-level').value=Math.min(100,Math.round(rms*1500));inputFrames++;
  const gated=sources.length>0||Date.now()<echoGuardUntil;
+ if(!gated)playbackSuppressed=false;
  const speech=rms>Math.max(gated ? .015 : .0025,noise*3);if(!speech&&rms<.0025)noise=noise*.98+rms*.02;
  if(gated&&!recording){gateFrames.push(frame);if(gateFrames.length>5)gateFrames.shift();playbackSuppressed=true;}
  if(speech){voiced++;silence=0;}else{silence++;if(!recording)voiced=0;}
@@ -98,7 +115,7 @@ async function onFrame(frame){
  if(!recording&&voiced>=5){
   recording=true;playbackSuppressed=false;$('voice-status').textContent='Seni dinliyorum…';
   if(gated){for(const part of gateFrames)liveRecognizer?.accept(part);gateFrames=[];replayed=true;}
-  if(sources.length||runId)void stop(true,true).catch(error=>status(error.message));
+  if(sources.length)void stop(true,true).catch(error=>status(error.message));
  }
  if(!gated||recording){if(!replayed)liveRecognizer?.accept(frame);}else liveRecognizer?.accept(new Float32Array(frame.length));
  if(!gated)gateFrames=[];

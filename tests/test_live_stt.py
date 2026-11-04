@@ -24,3 +24,19 @@ def test_stale_audio_cannot_enter_a_replaced_stream():
     live.reset('session',1);live.feed('session',0,base64.b64encode(bytes(3200)).decode())
     assert events==[]
     live.stop('session');live.feed('session',1,base64.b64encode(bytes(3200)).decode());assert events==[]
+
+
+def test_endpoint_inside_a_queued_packet_preserves_the_next_utterance():
+    events=[];live=LiveSTT(events.append);live.start(Model(),'session',0)
+    # Two utterances can cross an IPC packet while the decoder catches up.
+    live.feed('session',0,base64.b64encode(bytes(6400*2)).decode())
+    finals=[event for event in events if event['final']]
+    assert [event['utterance'] for event in finals]==[0,1]
+
+
+def test_known_assistant_name_in_a_greeting_is_not_a_different_name():
+    events=[];live=LiveSTT(events.append);live.start(Model(),'session',0)
+    live.publish('Selam Ummay',False);live.publish('Merhaba Hümay.',True)
+    assert [event['text'] for event in events]==['Selam Umay','Merhaba Umay.']
+    live.publish('Arkadaşım Hümay bugün geliyor.',True)
+    assert events[-1]['text']=='Arkadaşım Hümay bugün geliyor.'

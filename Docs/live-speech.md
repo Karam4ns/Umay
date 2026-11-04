@@ -47,3 +47,11 @@ TTS ve klon profillerini korur. Seda model lisansı CC BY-SA 4.0; NOTICE.txt pak
 
 Kaynaklar: https://pypi.org/project/sedalib/1.1.0/ ve
 https://huggingface.co/atasoglu/seda-v0.2 (üreticinin ölçümleri, bizim cihazın garantisi değil).
+
+## 0.3.1 düzeltmesi
+0.3.0'ın yalnız tanıma testi yanıt gönderimi ve TTS soğuk başlangıcını kapsamıyordu.
+Yeni tam zincir testi eklendi. Ham enerji ağ yanıtını iptal edemez; tanınmış yeni söz
+edebilir. Playback kuyruğu bitince bastırma temizlenir. Worker 20ms sınırlarında
+endpoint keser. Native ML import'ları Windows ana thread'inde yapılır; iki modelin
+ilk yüklenmesi sıralanır, sıcak çıkarım kuyrukları ayrı kalır. Model/paket revision'ı
+ve TTS motoru değişmedi. Mevcut paketler 0.3.1 ile doğrudan kullanılabilir.
