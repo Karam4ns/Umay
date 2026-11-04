@@ -194,3 +194,11 @@ Asistan: Kök neden sunucuda exchange metodunun @Res() kullanırken JSON'u gönd
 controller tek dosyalık imaj katmanıyla yayımlandı, frontend healthy. Yeniden kurulum
 istemeden kullanıcıdan Umay'da yeni giriş başlatıp hesabı bağlamasını denemesi istendi.
 Tek kullanımlık callback kodları veya oturum belirteçleri bu kayda alınmadı.
+
+## [2026-11-04] Kullanıcı — hesap bağlama sayfası tasarımı
+İstek: Hesabımı bağla sayfasını güzelleştir, hesap bağlama GPT'deki gibi olsun.
+Yanıt: Umay/Veriüssü kimliğiyle ortalı, siyah-beyaz onay ekranı hazırlandı ve yayımlandı.
+Aktif hesap kartı, kısa erişim özeti, tek bağlama düğmesi, açık/koyu tema ve mobil
+uyum eklendi. Oturumsuz durum giriş/kayıt sunuyor; sekmeye dönünce hesap yenileniyor.
+30 Node ve 10 canlı kontrol başarılı; masaüstü/mobil önizleme örnek hesapla üretildi.
+Yeniden kurulum gerekmez; Umay'dan yeni giriş açıldığında yeni sayfa görünür.
