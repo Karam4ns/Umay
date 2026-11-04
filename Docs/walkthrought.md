@@ -343,3 +343,14 @@ sıcak TTS ilk parça 110ms, 26 ses parçası PASS.
 - [x] Üç gerçek profilde eski/yeni ses örneği üretimi; özgün dosyalar hash olarak korundu.
 - [x] Paket içindeki gerçek ses motoruyla profil/iptal kontrolleri; kurulum bütünlüğü.
 - [x] GitHub main:16 dosya yerel Git blob SHA değerleriyle birebir doğrulandı.
+
+## [2026-11-04] Sesin devamının kesilmesi — 0.3.6
+- [x] Verilen tam cümle, varsayılan +üç klon: motor sonuna kadar WAV üretir.
+- [x] Kurulu0.3.5 /yerel worker ve ses modüllerinin eşitliği doğrulandı.
+- [x] Eski renderer'da gecikmeli/yüksek kendi sesinin stop üretmesi FAIL ile kanıtlandı.
+- [x] Oynatma referansını kullanan yankı kontrolü; mikrofon ve çıktı örnekleme fazı ele alındı.
+- [x] 75 Node testi; gerçek kullanıcının araya girişi ve Stop regresyonları PASS.
+- [x] Gerçek Electron/WebAudio: önceki hata kontrolü, tam yanıt, sonraki yanıt, insan araya
+  girişi ve iptalden sonraki tam yanıt PASS. Mikrofon girdisi yankı benzetimi, fiziksel cihaz değil.
+- [x] 0.3.6 kurulum bütünlüğü: sürüm,3 uygulama varlığı,4 değişmeyen ses dosyası.
+- [ ] GitHub kaynak eşleştirmesi.
