@@ -245,3 +245,8 @@ Masaüstü paketi değişmedi; yeniden kurulum gerekmiyor.
 - [x] 30 Node testi; gerçek Nest/Fastify sayfa/asset/CSP/exchange/replay kontrolleri.
 - [x] Sunucu aday/canlı imajı test edildi; frontend healthy; 10 canlı sınır kontrolü.
 Aynı masaüstü sürümü yeni sayfayı kullanır; yeniden kurulum gerekmez.
+
+## [2026-11-04] Logo / favicon
+- [x] Sitedeki özgün V logosu ve VERİÜSSÜ. marka yazısı kullanıldı.
+- [x] Bağlama/çıkış sayfalarında SVG favicon ve img-src self izni.
+- [x] Açık/koyu/mobil görünüm, 30 Node ve 10 canlı kontrol başarılı; yayında.
