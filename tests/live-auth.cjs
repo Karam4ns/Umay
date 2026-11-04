@@ -10,6 +10,8 @@ async function request(path,status,body,siteOrigin=origin){
  const page=await request('/site/desktop-auth/authorize?'+new URLSearchParams(p),200);
  assert.ok((await page.text()).includes('Hesabımı Umay'));
  assert.ok(page.headers.get('content-security-policy').includes("frame-ancestors 'none'"));
+ assert.ok(page.headers.get('content-security-policy').includes("style-src 'self'"));
+ const css=await request('/site/desktop-auth/style.css',200);assert.ok(css.headers.get('content-type').includes('text/css'));assert.ok((await css.text()).includes('prefers-color-scheme'));
  await request('/site/desktop-auth/authorize?'+new URLSearchParams({...p,redirectUri:'https://invalid.example/callback'}),400);
  await request('/site/desktop-auth/authorize',401,p);
  await request('/site/desktop-auth/authorize',400,p,'https://invalid.example');
