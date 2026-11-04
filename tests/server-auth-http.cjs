@@ -24,6 +24,11 @@ const deadline=setTimeout(()=>{console.error('FAIL successful exchange did not s
  const app=await NestFactory.create(TestModule,new FastifyAdapter(),{logger:false});
  await app.init();const server=app.getHttpAdapter().getInstance();await server.ready();
  const verifier='v'.repeat(43);const parameters={redirectUri:'http://127.0.0.1:34567/umay-auth/callback',state:'s'.repeat(43),challenge:createHash('sha256').update(verifier).digest('base64url')};
+ const page=await server.inject({method:'GET',url:'/site/desktop-auth/authorize?'+new URLSearchParams(parameters)});
+ assert.equal(page.statusCode,200);assert.match(page.body,/Umay ile devam et/);assert.match(page.body,/\/site\/desktop-auth\/style.css/);
+ assert.ok(page.headers['content-security-policy'].includes("style-src 'self'"));assert.ok(page.headers['content-security-policy'].includes("frame-ancestors 'none'"));
+ const css=await server.inject({method:'GET',url:'/site/desktop-auth/style.css'});assert.equal(css.statusCode,200);assert.match(css.headers['content-type'],/text\/css/);
+ const script=await server.inject({method:'GET',url:'/site/desktop-auth/client.js'});assert.equal(script.statusCode,200);new Function(script.body);
  const approval=await server.inject({method:'POST',url:'/site/desktop-auth/authorize',headers:{origin:process.env.FRONTEND_ORIGIN||'https://veriussu.com'},payload:parameters});
  assert.equal(approval.statusCode,201,approval.body);
  const code=new URL(approval.json().redirectUrl).searchParams.get('code');
@@ -34,5 +39,5 @@ const deadline=setTimeout(()=>{console.error('FAIL successful exchange did not s
  assert.ok(response.json().expiresAt>Date.now());
  assert.equal(response.headers['cache-control'],'no-store');
  const replay=await server.inject({method:'POST',url:'/site/desktop-auth/exchange',payload});assert.equal(replay.statusCode,401);
- await app.close();clearTimeout(deadline);console.log('PASS Nest/Fastify HTTP authorization, successful exchange body and one-use replay');
+ await app.close();clearTimeout(deadline);console.log('PASS Nest/Fastify page/assets/CSP, HTTP authorization, exchange body and one-use replay');
 })().catch(error=>{clearTimeout(deadline);console.error(error);process.exit(1);});
