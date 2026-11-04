@@ -306,3 +306,16 @@ sıcak TTS ilk parça 110ms, 26 ses parçası PASS.
 - [x] İki canlı worker healthy; yeni yardımcı modül yüklemesi PASS.
 - [x] Canlı imajda ayrı DB HTTP regresyonu PASS; iki işçi healthy.
 - [x] GitHub main: 15 dosya yerel Git blob SHA değerleriyle birebir doğrulandı.
+
+## [2026-11-04] Anlaşılır uyarılar — 0.3.3
+- [x] Ortak katalog: token yetersizliği, kullanım limiti, bekleyen işlem, oturum,
+  bağlantı, zaman aşımı, model, özellik ve doğrulama hataları.
+- [x] HTTP 409 sebebi kaybolmaz; bilinmeyen sunucu mesajları kullanıcıya yansıtılmaz.
+- [x] Web terminal run ve gönderim hatası sohbet içinde görünür; role=alert.
+- [x] Windows terminal run / POST hatası Türkçe uyarı; teknik kod görünmez.
+- [x] 65 Node testi; gerçek Electron web gönderim/SSE hata akışı ve Windows IPC PASS.
+- [x] Web açık masaüstü / koyu390px; Windows açık/koyu görsel kontrol PASS.
+- [x] 0.3.3 installer üretildi; sürüm +6 runtime dosyası birebir eşleşti.
+- [x] Frontend/chat UI yayında; healthy, 3 varlık hash eşleşmesi, ortam/port eşitliği.
+- [x] Canlı10203 HTML/JS/CSS200 ve kimliksiz API401 doğrulandı.
+- [ ] GitHub kaynak kontrolü.
