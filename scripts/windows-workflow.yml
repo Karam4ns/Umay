@@ -22,7 +22,7 @@ jobs:
       - run: npm test
       - run: uv venv --python 3.12 .venv
       - run: uv pip sync --python .venv/Scripts/python.exe speech/requirements-lock.txt
-      - run: .venv/Scripts/python.exe -m pytest tests/test_worker.py -q
+      - run: uv run --no-project --python .venv/Scripts/python.exe --with pytest python -m pytest tests/test_worker.py tests/test_live_stt.py -q
       - shell: pwsh
         run: ./scripts/prepare-runtime.ps1
       - run: npm run build

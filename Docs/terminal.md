@@ -153,3 +153,14 @@ PNG/ICO, SVG kaynaktan build öncesi üretilir; Git'e generated raster eklenmez.
 
 Son 0.2.0 installer üretildi; asar sürümü ve 14 kaynak/asset dosyası birebir eşleşti.
 İmzalama önceki kullanıcı kararıyla ertelenmiş durumda.
+
+## [2026-11-04] Canlı konuşma 0.3.0
+sedalib[format]==1.1.0 + sherpa-onnx==2.0.1, Seda revision
+62e2cc1615a63c433b6956214a548267ada5a774 gerçek CPU ölçümüyle seçildi.
+uv pip compile -> requirements-lock; prepare-runtime.ps1 -> import doğrulaması PASS.
+npm test: 44 PASS. uv run --with pytest: test_worker.py/test_live_stt.py 5 PASS.
+Electron: desktop-ui.cjs, electron-smoke.cjs, electron-microphone.cjs PASS.
+electron-live-stt.cjs: 1517ms partial, 7048ms final, continuousTurns=2 PASS.
+Runtime gerçek TTS 26 audio chunk PASS. Windows build (useZip=true,
+differentialPackage=false, compression level 1) PASS.
+Asar sürüm/kaynak + speech dosyaları eşleştirmesi PASS; shipped runtime/STT PASS.

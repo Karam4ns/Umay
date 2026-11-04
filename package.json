@@ -1,6 +1,6 @@
 {
   "name": "umay",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Umay Windows Turkish voice assistant",
   "author": "Karam4ns",
@@ -34,7 +34,9 @@
         "to": "speech",
         "filter": [
           "**/*.py",
-          "requirements.txt"
+          "requirements.txt",
+          "requirements-lock.txt",
+          "NOTICE.txt"
         ]
       },
       {

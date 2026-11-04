@@ -31,7 +31,7 @@
   if(changed){messageCount=0;navigate('home');activity('Hesabın Umay’a bağlandı.');}void system();
  }
  function speech(state){
-  let ready=0;for(const kind of ['stt','tts']){const info=state[kind]||{};if(info.resident)ready++;$(kind+'-state').textContent=info.resident?'Hazır · '+(info.device||'Cihazında'):info.installed?'Kurulu · Hazırlanıyor':'Paket henüz indirilmedi';$(kind+'-dot').classList.toggle('ready',!!info.resident);}
+  let ready=0;for(const kind of ['stt','tts']){const info=state[kind]||{};if(info.resident)ready++;$(kind+'-state').textContent=info.resident?'Hazır · '+(info.device||'Cihazında'):info.installed?'Kurulu · Hazırlanıyor':info.upgradeAvailable?'Canlı STT güncellemesi gerekli':'Paket henüz indirilmedi';$(kind+'-dot').classList.toggle('ready',!!info.resident);}
   $('speech-value').textContent=ready+'/2';
  }
  async function system(){

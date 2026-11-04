@@ -262,3 +262,15 @@ Aynı masaüstü sürümü yeni sayfayı kullanır; yeniden kurulum gerekmez.
 - [x] Kayıt yönlendirmesi sunucuda yayında; aday/canlı HTTP ve 10 sınır kontrolü PASS.
 Geliştirilmemiş ajan/otomasyon/dosya alanları “Yakında” olarak pasiftir.
 Gerçek kullanıcı hesabıyla yeni giriş/kayıt kabulü ana cihazda denenmelidir.
+
+## [2026-11-04] Canlı STT — 0.3.0
+- [x] Kullanıcının gecikme önceliği kaydedildi; Seda balanced/accurate gerçek ölçümü.
+- [x] Yerel, sabit revision'lı Seda/sherpa-onnx; 2 thread CPU/RAM'de kalıcı model.
+- [x] Ayrı STT kuyruğu, 16kHz yakalama, 100ms kuyruklama; meşgulken kare atılmıyor.
+- [x] Konuşurken partial, duraklamada final; elle düzenlenen/silinen taslak korunuyor.
+- [x] Mikrofon yanıt boyunca açık; barge-in yalnız yanıtı iptal ediyor.
+- [x] Çıkışta daha yüksek eşik + ön tampon, yankı azaltma ve eski olayları reddetme.
+- [x] Eski STT güncellemesi, kaldırma, lisanslar ve kilitli runtime bağımlılıkları.
+- [x] 44 Node, 5 Python; Electron UI/smoke/mikrofon/gerçek STT, paket eşleştirme PASS.
+- [x] Windows 0.3.0 installer üretildi; paketlenmiş Python/worker gerçek STT PASS.
+Fiziksel mikrofon/hoparlör aynı anda konuşma kabulü kullanıcı cihazında yapılmalıdır.

@@ -13,6 +13,7 @@ import threading
 import subprocess
 import time
 import wave
+from live_stt import LiveSTT
 
 ROOT = Path(os.environ.get('UMAY_DATA', Path.home() / '.umay'))
 ROOT.mkdir(parents=True, exist_ok=True)
@@ -23,7 +24,18 @@ CANCEL = threading.Event()
 EPOCH = 0
 MODELS = {}
 EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-IDS = {'stt': 'dropbox-dash/faster-whisper-large-v3-turbo', 'tts': 'wite-tech/pocket-tts-turkish'}
+STT_EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+IDS = {'stt': 'atasoglu/seda-v0.2', 'tts': 'wite-tech/pocket-tts-turkish'}
+STT_REVISION = '62e2cc1615a63c433b6956214a548267ada5a774'
+STT_READY = IDS['stt'] + '@' + STT_REVISION
+LIVE_METHODS = {'stt_start','stt_feed','stt_reset','stt_stop'}
+
+def package_path(kind):
+    return ROOT / 'packages' / ('stt-live' if kind=='stt' else kind)
+
+def installed(kind):
+    ready=package_path(kind)/'.ready'
+    return ready.exists() and (kind!='stt' or ready.read_text(encoding='utf-8')==STT_READY)
 
 
 def emit(value):
@@ -35,7 +47,6 @@ def emit(value):
 def hardware():
     import platform
     import torch
-    import ctranslate2
     result = {'platform': platform.system(), 'arch': platform.machine(), 'devices': [], 'stt': 'cpu', 'tts': 'cpu'}
     if platform.system() == 'Windows':
         try:
@@ -44,41 +55,36 @@ def hardware():
             result['detected'] = devices if isinstance(devices, list) else [devices]
         except (ValueError, OSError, subprocess.TimeoutExpired):
             result['detected'] = []
-    result['note'] = 'Yalnız gerçek yükleme testi geçen hızlandırma kullanılır; AMD/Intel GPU sağlayıcısı bu sürümde bağlı değil.'
+    result['note'] = 'Canlı Türkçe STT, CPU üzerinde Seda/sherpa-onnx kullanır. TTS yalnız gerçek yükleme testi geçen hızlandırmayı kullanır.'
     if torch.cuda.is_available():
         for i in range(torch.cuda.device_count()):
             free, total = torch.cuda.mem_get_info(i)
             result['devices'].append({'name': torch.cuda.get_device_name(i), 'index': i, 'free': free, 'total': total})
         # Each model performs a real load below; failed acceleration falls back to CPU.
         result['tts'] = 'cuda'
-    try:
-        if ctranslate2.get_cuda_device_count() > 0:
-            result['stt'] = 'cuda'
-    except RuntimeError:
-        pass
     return result
 
 
 def load(kind):
     if kind in MODELS:
         return {'device': MODELS[kind][1], 'resident': True}
-    location = ROOT / 'packages' / kind
-    if not (location / '.ready').exists():
-        raise ValueError('Önce konuşma paketini indirin.')
+    location = package_path(kind)
+    if not installed(kind):
+        raise ValueError('Ayarlar / Konuşma bölümünden canlı STT paketini indir veya güncelle.' if kind=='stt' else 'Önce konuşma paketini indirin.')
+    if kind=='stt':
+        from sedalib import Recognizer
+        with contextlib.redirect_stdout(sys.stderr):
+            model=Recognizer(location,mode='balanced',chunk=16,punctuate=True,num_threads=2,endpoint_silence=.6)
+        MODELS[kind]=(model,'cpu')
+        return {'device':'cpu','resident':True,'engine':'Seda v0.2'}
     selected = hardware()[kind]
     fallback = None
     for device in ([selected, 'cpu'] if selected != 'cpu' else ['cpu']):
         try:
             with contextlib.redirect_stdout(sys.stderr):
-                if kind == 'stt':
-                    from faster_whisper import WhisperModel
-                    model = WhisperModel(str(location), device=device, compute_type='int8_float16' if device == 'cuda' else 'int8', cpu_threads=4)
-                    import numpy as np
-                    list(model.transcribe(np.zeros(16000, dtype='float32'), language='tr')[0])
-                else:
-                    from pocket_tts_turkish import TurkishTTS
-                    model = TurkishTTS.from_pretrained(str(location), device=device)
-                    model.generate('Merhaba.', voice='female_1')
+                from pocket_tts_turkish import TurkishTTS
+                model = TurkishTTS.from_pretrained(str(location), device=device)
+                model.generate('Merhaba.', voice='female_1')
             MODELS[kind] = (model, device)
             return {'device': device, 'resident': True, 'fallback': fallback}
         except Exception as exc:
@@ -89,16 +95,17 @@ def load(kind):
 
 
 def install(kind, request_id):
+    epoch=EPOCH
     from huggingface_hub import snapshot_download
     if kind not in IDS:
         raise ValueError('Bilinmeyen paket.')
-    target = ROOT / 'packages' / kind
+    target = package_path(kind)
     emit({'event': 'progress', 'id': request_id, 'stage': 'İndiriliyor', 'kind': kind})
     # Library supports checksum-aware cached retries; no arbitrary remote URL is accepted.
     from tqdm.auto import tqdm
     class Progress(tqdm):
         def update(self, amount=1):
-            if CANCEL.is_set():
+            if CANCEL.is_set() or epoch!=EPOCH:
                 raise InterruptedError('İndirme iptal edildi.')
             value = super().update(amount)
             now = time.monotonic()
@@ -107,10 +114,11 @@ def install(kind, request_id):
                 emit({'event': 'progress', 'id': request_id, 'kind': kind,
                       'stage': 'İndiriliyor', 'completed': self.n, 'total': self.total})
             return value
-    snapshot_download(IDS[kind], local_dir=target, tqdm_class=Progress)
-    if CANCEL.is_set():
+    options={'revision':STT_REVISION,'allow_patterns':['c16/*','lm/*','formatter/*','tokens.txt','vad/*','README.md']} if kind=='stt' else {}
+    snapshot_download(IDS[kind], local_dir=target, tqdm_class=Progress,**options)
+    if CANCEL.is_set() or epoch!=EPOCH:
         raise InterruptedError('İndirme iptal edildi; önbellekten tekrar denenebilir.')
-    (target / '.ready').write_text(IDS[kind], encoding='utf-8')
+    (target / '.ready').write_text(STT_READY if kind=='stt' else IDS[kind], encoding='utf-8')
     try:
         return load(kind)
     except Exception:
@@ -123,14 +131,20 @@ def run(request):
     try:
         method = request['method']
         p = request.get('params') or {}
-        if request.get('_epoch', EPOCH) != EPOCH:
+        if method not in LIVE_METHODS and request.get('_epoch', EPOCH) != EPOCH:
             raise InterruptedError('Eski işlem iptal edildi.')
-        CANCEL.clear()
-        if method == 'hardware':
+        if method not in LIVE_METHODS:CANCEL.clear()
+        if method=='stt_start':
+            load('stt');LIVE.start(MODELS['stt'][0],p['streamId'],p['generation']);result=True
+        elif method=='stt_feed':result=LIVE.feed(p['streamId'],p['generation'],p['audio'])
+        elif method=='stt_reset':result=LIVE.reset(p['streamId'],p['generation'])
+        elif method=='stt_stop':LIVE.stop(p['streamId']);result=True
+        elif method == 'hardware':
             result = hardware()
         elif method == 'status':
-            result = {k: {'installed': (ROOT / 'packages' / k / '.ready').exists(), 'resident': k in MODELS,
-                          'device': MODELS[k][1] if k in MODELS else None} for k in IDS}
+            result = {k: {'installed': installed(k), 'resident': k in MODELS,
+                          'device': MODELS[k][1] if k in MODELS else None,'model':IDS[k]} for k in IDS}
+            result['stt']['upgradeAvailable']=(ROOT/'packages'/'stt'/'.ready').exists() and not installed('stt')
         elif method == 'install':
             result = install(p['kind'], request_id)
         elif method == 'load':
@@ -140,13 +154,14 @@ def run(request):
             if kind not in IDS:
                 raise ValueError('Bilinmeyen paket.')
             MODELS.pop(kind, None)
+            if kind=='stt':LIVE.stop(LIVE.session)
             gc.collect()
-            import torch
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-            package = ROOT / 'packages' / kind
-            if package.exists():
-                shutil.rmtree(package)
+            if kind=='tts':
+                import torch
+                if torch.cuda.is_available():torch.cuda.empty_cache()
+            for package in [package_path(kind)]+([ROOT/'packages'/'stt'] if kind=='stt' else []):
+                if not package.resolve().is_relative_to((ROOT/'packages').resolve()):raise ValueError('Paket yolu geçersiz.')
+                if package.exists():shutil.rmtree(package)
             result = True
         elif method == 'transcribe':
             load('stt')
@@ -156,15 +171,14 @@ def run(request):
             import numpy as np
             audio = np.frombuffer(raw, dtype='<i2').astype('float32') / 32768
             with contextlib.redirect_stdout(sys.stderr):
-                segments, _ = MODELS['stt'][0].transcribe(audio, language='tr', vad_filter=True, beam_size=1)
-                result = ''.join(s.text for s in segments).strip()
+                result = MODELS['stt'][0].transcribe(audio,16000).strip()
         elif method == 'speak':
             load('tts')
             text = str(p['text'])[:4000]
             model = MODELS['tts'][0]
             with contextlib.redirect_stdout(sys.stderr):
                 for chunk in model.stream(text, voice=p.get('voice') or 'female_1'):
-                    if CANCEL.is_set():
+                    if CANCEL.is_set() or request.get('_epoch',EPOCH)!=EPOCH:
                         break
                     import numpy as np
                     pcm = (np.clip(chunk, -1, 1) * 32767).astype('<i2')
@@ -215,6 +229,8 @@ def run(request):
         emit({'id': request_id, 'error': str(exc)[:500]})
 
 
+LIVE=LiveSTT(emit)
+
 if __name__ == '__main__':
     emit({'event': 'ready'})
     for line in sys.stdin:
@@ -226,7 +242,9 @@ if __name__ == '__main__':
                 emit({'id': request['id'], 'result': True})
             else:
                 request['_epoch'] = EPOCH
-                EXECUTOR.submit(run, request)
+                stt_job=request.get('method') in LIVE_METHODS or (request.get('params',{}).get('kind')=='stt' and request.get('method') in {'install','load','remove'}) or request.get('method')=='transcribe'
+                (STT_EXECUTOR if stt_job else EXECUTOR).submit(run, request)
         except (ValueError, KeyError):
             emit({'error': 'Geçersiz işçi isteği.'})
     EXECUTOR.shutdown(wait=True)
+    STT_EXECUTOR.shutdown(wait=True)

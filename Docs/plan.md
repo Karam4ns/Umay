@@ -664,3 +664,12 @@ Kullanıcının fütüristik Umay kontrol merkezi görseli ana tasarım referans
 Uygulama içi Codex benzeri giriş/kayıt karşılaması, koyu turkuaz kontrol merkezi,
 yeni sohbet/ayar/hafıza düzeni, gerçek sistem göstergeleri ve Windows simgesi tamamlandı.
 Kararlar ve adımlar desktop-design.md'de. Kimlik doğrulama varsayılan tarayıcıda kalır.
+
+## [2026-11-04] Kesintisiz ve canlı Türkçe konuşma — 0.3.0
+Kullanıcı açıklaması: tanıma doğruluğu değil, metnin gecikmesi sorun; Jarvis gibi
+karşılıklı sürekli konuşma istiyor. Ayrıntılı karar/yol haritası live-speech.md'de.
+CPU'da büyük Whisper yerine gerçek akış destekli Seda v0.2 balanced int8 kullanıldı.
+100ms taşıma, 320ms model adımı, ayrı STT kuyruğu; TTS motoru korundu.
+Metin konuşurken görünür, 600ms duraklamada final gönderilir; mikrofon yanıt sırasında
+kapanmaz. Kullanıcı söze girince yanıt iptal edilir, devam eden tanıma sıfırlanmaz.
+Eski kurulumlar Ayarlar/Konuşma STT güncellemesiyle geçer. 0.3.0 test installer hazır.

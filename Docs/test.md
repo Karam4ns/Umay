@@ -198,3 +198,22 @@ Installer build ve paket/kaynak eşleştirmesi son düzeltme sonrasında yeniden
 
 Son 0.2.0 installer üretildi; asar sürümü ve 14 kaynak/asset dosyası birebir eşleşti.
 İmzalama önceki kullanıcı kararıyla ertelenmiş durumda.
+
+## [2026-11-04] 0.3.0 canlı konuşma kanıtları
+Kök neden: tüm cümleyi sessizlikten sonra tanıma; transcribing sırasında gelen
+kareleri atma; STT/TTS'nin aynı executor'da birbirini beklemesi.
+Önce kırmızı testlerle partial/final, meşgulken ses koruma, geç nesli reddetme,
+kuyruk taşması, elle silinen metin, Stop taslağı ve yavaş reset altında iptal üretildi.
+Son npm test 44/44 PASS; uv run ile Python 5/5 PASS.
+Gerçek Electron: UI, smoke, 16kHz worklet mikrofon/yeniden açma PASS.
+Gerçek Seda + gerçek worker + Electron yakalama: ilk partial 1517ms, ilk final
+7048ms, mikrofon kapatılmadan 2 konuşma, yanıtı kesme sonrası listening=true PASS.
+Hesap ve sohbet gönderimi taklit, ses kaynağı kamuya açık FLEURS Türkçe dev kaydı.
+Tek örnek doğruluk garantisi değildir; fiziksel akustik geri beslemeyi kanıtlamaz.
+CPU benchmark: 7.24s ses, balanced toplam hesaplama 1.062s, 100ms paket p95 41.3ms;
+accurate 2.426s, aynı final. Balanced seçildi. Kaynaklar live-speech.md/NOTICE.txt.
+Runtime yeniden hazırlandı; faster-whisper/ctranslate2 prod bağımlılıklarından çıktı.
+Paketli Python ile mevcut TTS gerçek sentez 26 ses parçası PASS; motor/ses korunuyor.
+0.3.0 installer 478039831 byte. Asar sürümü + 7 değişen uygulama dosyası + 5 speech
+kaynağı birebir eşleşti. Installer içindeki Python + worker + gerçek model: 13 partial
+ve doğru nihai cümle PASS. İmza önceki kullanıcı kararıyla ertelendi.
