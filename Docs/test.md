@@ -180,3 +180,21 @@ onay, önceki kabul maddesi olarak ayrıca kullanıcı tarafından doğrulanmal�
 Aday ve canlı Nest/Fastify HTTP regresyonu PASS; canlı sınırlar 10 PASS.
 Bağlama ve çıkış HTML'inde resmi logo/favicon ve img-src self başlığı doğrulandı;
 favicon HTTP 200 image/svg+xml ve özgün V içeriği PASS.
+
+## [2026-11-04] Desktop 0.2.0 doğrulaması
+Önce kırmızı: register entry taşınmıyordu, USER geçmiş mesajı yanlış etiketleniyordu,
+eski başarısız hesap isteği ve bekleyen hesap temizliği yeni oturum durumunu eziyordu.
+Regresyonlar düzeltildi; npm test son çalışması 35/35 PASS. Python 3/3 PASS.
+tests/desktop-ui.cjs gerçek Electron/preload ile sahte API hesabı kullanır: giriş/kayıt,
+register IPC, hesap kapısı, ana sayfa, ayar paketleri, sohbet yanıtı, temalar, 1024px
+düzen/geçmiş çekmecesi ve çıkış PASS. Önizlemelerde Deniz Yılmaz örnek hesabı kullanılır.
+Görseller .superpowers/desktop-{login,register,home,chat,settings,light,compact}.png.
+Electron smoke ve yapay mikrofon → gerçek worklet → STT isteği hattı PASS.
+Bu testler gerçek kullanıcı kimlik doğrulaması veya fiziksel mikrofon kabulü değildir.
+Sunucu aday/canlı Nest/Fastify HTTP regresyonu PASS; dış sınırlar 10 PASS;
+entry=register canlı HTML ana düğmesi /register doğrulandı. Frontend healthy.
+Vektör işaretinden Windows PNG/ICO dışa aktarımı prebuild adımında PASS.
+Installer build ve paket/kaynak eşleştirmesi son düzeltme sonrasında yeniden doğrulanır.
+
+Son 0.2.0 installer üretildi; asar sürümü ve 14 kaynak/asset dosyası birebir eşleşti.
+İmzalama önceki kullanıcı kararıyla ertelenmiş durumda.

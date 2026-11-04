@@ -207,3 +207,13 @@ Yeniden kurulum gerekmez; Umay'dan yeni giriş açıldığında yeni sayfa gör�
 İstek: Logo ve faviconumuzu bu sayfalara koy.
 Yanıt: Veriüssü'nün mevcut V logosu başlığa ve sağlayıcı kartına; mevcut SVG faviconu
 bağlama/çıkış sayfalarına eklendi ve yayınlandı. Açık/koyu/mobil ve canlı kontroller geçti.
+
+## [2026-11-04] Kullanıcı — uygulama tasarımı
+İstek: Gönderilen fütüristik Umay görseli referans olsun; Codex gibi login/register
+sayfaları da bu görsel dile uysun.
+Yanıt: 0.2.0 Windows tasarımı uygulandı. Ayrı giriş/kayıt karşılaması, turkuaz/koyu
+kontrol merkezi, vektör Umay küresi, sohbet ve ayarlar düzeni eklendi. Hesap işlemi
+varsayılan tarayıcıda; gerçek oturumdan sonra uygulama açılır. Gerçek sistem değerleri
+kullanılır, hazır olmayan ajan/dosya/otomasyon alanları “Yakında” olarak işaretlidir.
+35 Node / 3 Python / gerçek Electron arayüz ve mikrofon kontrolleri başarılı;
+yeni installer üretildi; kaynaklar GitHub’a aktarılıyor.

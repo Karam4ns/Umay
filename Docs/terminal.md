@@ -138,3 +138,18 @@ Controller img-src self ile faviconu açıyor. Node 30, Electron görsel kontrol
 aday/canlı HTTP regresyonu ve 10 canlı sınır PASS. İki sayfanın favicon/logo/CSP ve
 favicon MIME kontrolü PASS. İmaj veriussu-umay-auth:0.1.4; frontend healthy;
 yedek/geri dönüş /root/umay-auth-design-1793801516. Desktop installer değişmedi.
+
+## [2026-11-04] Windows 0.2.0 tasarım uygulaması
+Referans resim okundu; mevcut renderer/preload/main ve ses hattı incelendi.
+Docs/desktop-design.md karar/yol haritası; native HTML/CSS/SVG shell eklendi.
+BrowserAuth entry=register, kayıt ana eylemi, güvenli pencere IPC ve os/fs sistem
+ölçümleri eklendi. Renderer bağları mevcut ses/sohbet motorunu koruyor.
+İnceleme bulguları: dar pencerede geçmiş erişimi ve USER etiketleri düzeltildi.
+Eski hesap hatası/temizliği yarışları kırmızı testle üretildi, nesil kontrolüyle düzeltildi.
+Node35 PASS, Python3 PASS, Electron tasarım/smoke/mikrofon PASS.
+Sunucu veriussu-umay-auth:0.2.0 yalnız controller/view/client katmanı; healthy.
+Aday/canlı HTTP regresyonu PASS; yedek /root/umay-auth-design-1793805595.
+PNG/ICO, SVG kaynaktan build öncesi üretilir; Git'e generated raster eklenmez.
+
+Son 0.2.0 installer üretildi; asar sürümü ve 14 kaynak/asset dosyası birebir eşleşti.
+İmzalama önceki kullanıcı kararıyla ertelenmiş durumda.

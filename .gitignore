@@ -12,3 +12,5 @@ Docs/sunucu.txt
 *.pfx
 *.p12
 *.key
+src/ui/assets/umay.png
+src/ui/assets/umay.ico

@@ -85,3 +85,14 @@ mikrofonu ve mikrofon gizlilik iznini kontrol edin. STT paketi Ayarlar / Konuşm
 Geliştirici yakalama testi: `node_modules/.bin/electron.cmd tests/electron-microphone.cjs`.
 Yapay mikrofon kullanır; gerçek worklet/PCM ve kapat/aç akışını sınar. Model/API bu testte
 taklittir. Fiziksel mikrofon, hoparlör yankısı ve CPU/GPU STT süresi ayrıca ölçülmelidir.
+
+### Yeni masaüstü arayüzü — 0.2.0
+
+Umay açılışında giriş/kayıt karşılaması görünür. İşlem varsayılan tarayıcıdan tamamlanır;
+onaydan sonra kontrol merkezi açılır. Sohbet, ses ayarları ve hafıza yeni düzendedir.
+Ajanlar/otomasyon/dosyalar henüz geliştirilmediği için “Yakında” görünür.
+Dar pencerede üstteki sohbet simgesi geçmiş çekmecesini açar. Escape ile kapanır.
+
+`npm run build` öncesinde Windows simgesi SVG kaynaktan otomatik üretilir.
+`node_modules/.bin/electron.cmd tests/desktop-ui.cjs` örnek hesapla arayüz akışını
+sınar ve .superpowers altında önizleme görüntüleri üretir; gerçek hesaba giriş yapmaz.
