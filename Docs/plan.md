@@ -658,3 +658,9 @@ Sayfa/component ve client script ayrıldı; mevcut PKCE/exchange sözleşmesi ko
 ## [2026-11-04] Özgün logo ve favicon
 Veriüssü sitesinin mevcut V vektörü üst marka ve sağlayıcı işaretine; aynı sitenin
 /favicon.svg?v=2 faviconu hesap bağlama/çıkış sayfalarına eklendi.
+
+## [2026-11-04] Referans görselle Windows tasarımı — 0.2.0
+Kullanıcının fütüristik Umay kontrol merkezi görseli ana tasarım referansı seçildi.
+Uygulama içi Codex benzeri giriş/kayıt karşılaması, koyu turkuaz kontrol merkezi,
+yeni sohbet/ayar/hafıza düzeni, gerçek sistem göstergeleri ve Windows simgesi tamamlandı.
+Kararlar ve adımlar desktop-design.md'de. Kimlik doğrulama varsayılan tarayıcıda kalır.
