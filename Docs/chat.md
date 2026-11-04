@@ -251,3 +251,12 @@ Talep: 4. dördüncü, trt terete okunsun; noktalama ve vurguya dikkat edilsin.
 Seslendirme öncesi Türkçe okuma katmanı, sayı/kısaltma bağlamı, modelin
 noktalama bağlamını koruyan kısa duraklamalar eklendi. TTS modeli/klonlar aynı.
 44 Python ve65 Node PASS; gerçek ilk ses127,1ms, iptal64,5ms.
+
+## [2026-11-04] Kullanıcı — klon ses insan doğallığı
+İstek: klon metalik olmasın, kişiye benzesin, doğal vurgulasın. Açıklama:1,2,3
+sorun birlikte var; ses %100 uysun, hız ve önceki konuşma ayarları bozulmasın.
+%100 benzerliğin garanti edilemeyeceği ve dinleyerek değerlendirme gerektiği
+açıklandı. Kaynaktan uygun kısa ara seçimi, ölçülü seviye düzenleme, hazırlanmış
+referans kalıcılığı, bağımsız profil anahtarları ve önbellek eklendi.
+Model/okuma/duraklama kodu korunur. Üç profilde eski/yeni örnek üretildi; özgün
+dosyalara dokunulmadı. Yeni ilk ses125–156ms; 60 Python/67 Node PASS.
