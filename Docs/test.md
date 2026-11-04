@@ -217,3 +217,30 @@ Paketli Python ile mevcut TTS gerçek sentez 26 ses parçası PASS; motor/ses ko
 0.3.0 installer 478039831 byte. Asar sürümü + 7 değişen uygulama dosyası + 5 speech
 kaynağı birebir eşleşti. Installer içindeki Python + worker + gerçek model: 13 partial
 ve doğru nihai cümle PASS. İmza önceki kullanıcı kararıyla ertelendi.
+
+## [2026-11-04] 0.3.1 doğrulama
+Önce FAIL: yalnız enerjiyle run iptali, playback sonrası sessiz konuşmanın görünmemesi,
+FAILED run için eski cevabın seslenmesi, aynı pakette ikinci utterance kaybı.
+Bunlar düzeltildi. Doğrudan selamlamada Umay adının yanlış yazımı ayrıca sınandı.
+Son Node 50/50 PASS; Python 7/7 PASS.
+TTS sıcak motor ölçümü (sentetik 3 Türkçe komut): ilk parça 144/159/165ms.
+Seda accurate ikinci geçişi aynı örneklerde düzeltme getirmeden gecikmeyi artırdı;
+motor değiştirilmedi. Selamlamadaki Umay adının yazımı dar bağlamda düzeltilir.
+Gerçek soğuk worker: ONNX Runtime ve SciPy BLAS create_module içinde ayrı executor
+thread'lerinde takılma; 20s faulthandler traceback ve 36s zaman aşımı ile doğrulandı.
+Yalnız model kilidi yeterli olmadı. Native import'lar ana thread'e alınca gerçek
+Electron tam zinciri geçti. Yanıt metninden ilk ses parçasına 243ms, oynatma kaynağına
+266ms; 2 mesaj, listening=true. tests/electron-conversation.cjs pencereyi gizler,
+sahte hesap/API ve kamuya açık FLEURS kaydı kullanır; gerçek getUserMedia/worklet,
+Seda, renderer send, Pocket TTS, ses çözme/oynatma hattı çalışır.
+Gerçek kullanıcının fiziksel mikrofon kalitesi ve hoparlör double-talk kabulü değildir.
+Gerçek STT art arda iki tur testi de 1590ms partial / 7026ms final ile PASS.
+
+Son incelemede yavaş HTTP iptali tamamlanmadan yeni sesli turun gönderilmesi de
+kırmızı testle üretildi; yeni tur önceki sunucu iptalini bekliyor. 50 Node / 7 Python
+PASS. Paketli Python soğuk eşzamanlı yükleme istekleri 11.711s içinde tamamlandı;
+sıcak TTS ilk parça 110ms, 26 ses parçası PASS.
+
+Run ID henüz dönmeyen ilk /messages POST'u sırasında söz kesme de FAIL üretildi.
+Sunucu yazımları ve stale run iptali tek gönderim kuyruğuna alındı; sonraki POST
+önceki yazım ve iptalin bitmesini bekler. Ek regresyonla Node 50 PASS.
