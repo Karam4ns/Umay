@@ -299,3 +299,25 @@ anahtar/değerler sıralanarak karşılaştırıldı. BACKUP=/root/umay-error-ui
 Canlı chat10203 / HTML uyarı alanı, /chat.js ve/chat.css200; 10203/10202 oturumsuz
 /site/auth/me401 PASS. Backend model işçileri0.3.2 healthy. Bu adım DB mutasyonu yapmaz.
 Installer SHA256:561bec448512e5252de8afd8c8a8545e523f4cacc645870697038c7ebc9dad23.
+
+## [2026-11-04] Türkçe seslendirme — 0.3.4
+44 Python PASS: sıra sayıları/ekleri, TR kısaltma/ekleri, sözcük kısaltmaları,
+tarih4.11.2026, saat09.15,1.234 kişi,3,14 puan, miktar4 cümle sonu,
+Markdown, paragraf, üç nokta, klon kimliğinin aktarımı, iptalde jeneratörün kapanması.
+65 Node PASS; mevcut mikrofon/yanıt/oynatım ve hata uyarıları regresyonu.
+Gerçek JSON-lines worker, kurulu CPU TTS, female_1: sıcak ilk WAV127,1ms;
+7,72s ses,92 parça,24kHz; toplam üretim3,48s; pik26563/32767, geçerli PCM.
+Barge-in iptal+tamamlanma64,5ms; iptalden sonra ses parçası0; yeni speak başarılı.
+Bu ölçüm bu cihaz ve tek örnek içindir; tüm cihazlar için hız garantisi değildir.
+Örnek: TRT'de 4. bölüm başladı. Hazır mısın? Harika! Önce dinleyelim, sonra konuşalım…
+Seda ile sesin geri yazımı: TRT'de dördüncü bölüm başladı. Hazır mısın? Harika?
+Önce dinleyelim, sonra konuşalım. Sözcükler doğrulandı; ASR noktalaması akustik
+vurgu kalitesini kanıtlamaz. İnsan dinleme değerlendirmesi için WAV hazırlandı.
+
+Paket doğrulaması: asar0.3.4 +3 uygulama dosyası ve3 Python dosyası birebir.
+Paket içindeki runtime/python.exe ile gerçek worker: ilk ses130,2ms,
+91 parça,7,64s ses, üretim3,35s; iptal85,9ms, iptal sonrası0 parça; yeniden speak PASS.
+Installer 478047979 byte, SHA256:0ac3fbfbd13a3a3a96d18dcb770d2bb41eb3b1153701fcdf955d53cd77de27f3.
+İlk paket kontrolünün package.json tam metin eşitliği varsayımı yanlıştı: builder
+development/build alanlarını çıkarır. Sürüm/main/name/dependencies alanları ayrı
+karşılaştırıldı; uygulama ve Python kaynakları byte olarak eşleştirildi.
