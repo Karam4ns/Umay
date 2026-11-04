@@ -10,7 +10,7 @@ function deferred(){let resolve;const promise=new Promise(r=>{resolve=r;});retur
 function element(){return {value:'',checked:false,textContent:'',dataset:{},children:[],
   append(...children){this.children.push(...children);},
   replaceChildren(...children){this.children=children;},scrollIntoView(){},
-  classList:{contains:()=>false,toggle(){}}};}
+  classList:{contains:()=>false,toggle(){},remove(){}}};}
 function renderer(overrides={}){
   const nodes=new Map();
   const node=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};
@@ -30,6 +30,31 @@ function renderer(overrides={}){
   vm.runInContext(source,context,{filename:'renderer.js'});
   return {node,run:code=>vm.runInContext(code,context)};
 }
+test('historical uppercase USER messages retain the user appearance',()=>{
+ const app=renderer();app.run("message('USER','earlier question')");assert.equal(app.node('messages').children[0].className,'message user');
+});
+test('a stale failed account lookup cannot overwrite the connected account status',async()=>{
+ let rejectEarlier,checks=0;const earlier=new Promise((_yes,no)=>rejectEarlier=no);
+ const app=renderer({api:async route=>{
+  if(route==='/site/auth/me')return ++checks===1?earlier:{id:'new-account',email:'new@example.test'};
+  if(route==='/site/chat/models')return {models:[]};return {conversations:[]};
+ }});
+ await app.run('refresh()');rejectEarlier(Error('Old disconnected account'));await new Promise(r=>setImmediate(r));
+ assert.equal(app.node('status').textContent,'Bağlı hesap: new@example.test');
+});
+test('expired account cleanup cannot hide a newer successful login',async()=>{
+ let checks=0,block=false;const cancels=[];
+ const app=renderer({api:async route=>{
+  if(route==='/site/auth/me'){checks++;if(checks===2)throw Error('Oturum doğrulaması gerekli.');return {id:checks===1?'old':'new',email:checks===1?'old@example.test':'new@example.test'};}
+  return route==='/site/chat/models'?{models:[]}:{conversations:[]};
+ },speech:async method=>{
+  if(method==='status')return {stt:{installed:false},tts:{installed:false}};
+  if(method==='cancel'&&block){const wait=deferred();cancels.push(wait);return wait.promise;}return true;
+ }});
+ await new Promise(r=>setImmediate(r));block=true;const expired=app.run('refresh()');await new Promise(r=>setImmediate(r));block=false;
+ await app.run('refresh()');cancels.forEach(wait=>wait.resolve());await expired;
+ assert.equal(app.node('status').textContent,'Bağlı hesap: new@example.test');assert.equal(app.run('accountId'),'new');
+});
 
 test('overlapping sends only post the newest question after cancellation resolves',async()=>{
   const cancels=[],requests=[];
