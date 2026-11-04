@@ -113,3 +113,11 @@ Dar pencerede üstteki sohbet simgesi geçmiş çekmecesini açar. Escape ile ka
 `npm run build` öncesinde Windows simgesi SVG kaynaktan otomatik üretilir.
 `node_modules/.bin/electron.cmd tests/desktop-ui.cjs` örnek hesapla arayüz akışını
 sınar ve .superpowers altında önizleme görüntüleri üretir; gerçek hesaba giriş yapmaz.
+
+### Ses akışı düzeltmesi — 0.3.1
+Mevcut STT/TTS paketleri kullanılır; yeniden indirme gerekmez. Yanıt beklerken
+mikrofon enerjisi tek başına yanıtı iptal etmez. Oynatım sonrası sessiz konuşma ve
+kuyruktaki yeni sözcük başlangıcı korunur. Windows native kütüphane başlangıcı sıraya
+alındı. `tests/electron-conversation.cjs` gerçek STT, gönderici ve TTS/oynatımı
+birlikte sınar; yalnız sunucu API'si taklittir. İki ses paketinin de kurulu olması ve
+`scripts/download-stt-fixture.py` örneğinin hazırlanması gerekir.
