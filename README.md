@@ -121,3 +121,11 @@ kuyruktaki yeni sözcük başlangıcı korunur. Windows native kütüphane başl
 alındı. `tests/electron-conversation.cjs` gerçek STT, gönderici ve TTS/oynatımı
 birlikte sınar; yalnız sunucu API'si taklittir. İki ses paketinin de kurulu olması ve
 `scripts/download-stt-fixture.py` örneğinin hazırlanması gerekir.
+
+### Model yanıt düzeltmesi — 0.3.2
+Yazılı mesaj, ses motorunun soğuk açılışındaki iptal onayını beklemez. Hazır cevap
+250ms aralıklarla kontrol edilir; başarısız run sohbette açıklanır. Sunucuda modelin
+istenmeyen araç çağrısı boş yanıt olarak tekrarlanmaz: çalıştırılmadığı açıkça belirtilir,
+bir final devamı istenir; aynı sağlayıcı/model için kısa süreli metin modu öğrenilir.
+Bu akış bir web araştırması çalıştırmaz. Modelin sağlayıcı kaynaklı bekleme süresini
+ortadan kaldırdığı iddia edilmez. Mevcut STT/TTS paketlerini yeniden indirmeyin.
