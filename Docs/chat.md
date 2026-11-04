@@ -245,3 +245,9 @@ Uygulama: web ve Windows ortak hata kataloğu, neden+çözüm açıklaması, gö
 uyarısı. Token yetersizliği / kullanım sınırı / bekleyen tüketim ayrı anlatılır;
 sağlayıcı ve ağ hatalarının teknik kodları ekranda gösterilmez. 65 test ve gerçek
 Electron web/Windows uyarı akışları PASS; 0.3.3 installer hazır.
+
+## [2026-11-04] Kullanıcı — doğal Türkçe konuşma
+Talep: 4. dördüncü, trt terete okunsun; noktalama ve vurguya dikkat edilsin.
+Seslendirme öncesi Türkçe okuma katmanı, sayı/kısaltma bağlamı, modelin
+noktalama bağlamını koruyan kısa duraklamalar eklendi. TTS modeli/klonlar aynı.
+44 Python ve65 Node PASS; gerçek ilk ses127,1ms, iptal64,5ms.
