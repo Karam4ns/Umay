@@ -541,7 +541,66 @@ unutma tutarlıdır. Asistanın uydurduğu bilgi kullanıcı hafızasına dönü
 - [ ] Yeni sunucu kaydı onaylanınca oturum önbelleğini tazele; başka cihazdan değişiklikleri
   mevcut sürüm/zaman mekanizmasıyla yenile. Model değişimi hesabın hafızasını kaybettirmez.
 - [ ] Hafıza erişimi zaman aşımına uğrarsa beklemeyi sınırla, erişilebilir bağlamla yanıtla;
-  kullanıcı bilgisi uydurma. Getirm…1322 tokens truncated…
+  kullanıcı bilgisi uydurma. Getirme/yazma gecikmesini ayrı ölç.
+
+**Kabul:** Yeni sohbette doğrulanmış bilgi/kararlar ilgili olduğunda kullanılır;
+hesap değişimi/çıkış diğer hesaba bilgi taşımaz. Kalıcılık veriussu.com'dadır.
+
+#### A10.4 — Kabul testleri
+
+- [ ] İki hesapla model/sohbet/mesaj/hafıza yetki izolasyonu; hesap değişirken geç yanıt.
+- [ ] Tercih → sunucu kaydı → yeni sohbetten kullanım; tekrar → tek kayıt;
+  düzeltme → yeni değer; unut → eski sohbetten yeniden oluşmama.
+- [ ] Asistan önerisi, soru, alıntı, belirsiz çelişki, eksik STT gerçek bilgi sayılmıyor.
+- [ ] Sayfalama, model yetki iptali, mükerrer yazma, ağ kopması ve hafıza zaman aşımı.
+- [ ] Gerçek tablo/API eşlemesi, alanlar ve ölçümler Docs'a kaydedildi.
+
+Yetki referansı: [OWASP nesne düzeyinde yetkilendirme](https://api-security.owasp.org/editions/2023/en/0xa1-broken-object-level-authorization/).
+Bu alt fazlar plan kapsamıdır; sunucu/DB incelemesi veya entegrasyon yapılmadı.
+
+#### A10.5 — Çıkış yapılana kadar kalıcı Windows oturumu
+
+Kullanıcı kararı: Girişten sonra uygulama kendiliğinden çıkış yapmayacak. Hedef,
+sunucuda sonsuz ömürlü tek bir access token değil, mevcut oturum mekanizmasıyla
+yenilenen ve Windows'ta güvenli saklanan kalıcı giriş deneyimidir.
+
+- [ ] Mevcut veriussu.com oturum/refresh desteğini incele; kısa access token süresinin
+  bitmesini kullanıcı çıkışı sayma. Yenileme gereksinimini sunucu/API alt planına işle.
+- [ ] Refresh token veya mevcut sistemin eşdeğer oturum sırrını Windows Credential
+  Locker/Win32 Credential API ya da kullanıcıya bağlı DPAPI ile koru; parolayı saklama.
+  Token settings.json/loglara yazılmaz; yerel DB gerekmez. Kesin depo A0/A10'da seçilir.
+- [ ] Yeniden açılışta oturumu geri yükle; token süresi dolmadan veya uygun 401 yanıtında
+  tekilleştirilmiş yenileme yap. Varsa token rotation'ı atomik kaydet; eşzamanlı
+  isteklerin birden fazla yenilemeyle oturumu geçersiz kılmasını önle.
+- [ ] Uygulamayı kapatma, boşta kalma, PC yeniden başlatma ve güncelleme çıkış değildir.
+  Ağ kopması, API zaman aşımı, 5xx veya tek başına 403 yerel token silme nedeni değildir.
+- [ ] Sunucunun açık iptal/geçersiz refresh yanıtı, hesap kapatılması veya güvenli depoya
+  erişilememesinde yeniden giriş gerekebilir. Bunu kullanıcı çıkışı gibi gizleme;
+  sebebini göster. Sunucu tarafından iptal edilmiş oturumla erişime devam edilmez.
+- [ ] Kullanıcı “Çıkış yap” dediğinde bekleyen sohbet/hafıza işlerini iptal et, yerel sırrı
+  ve hesaba ait RAM önbelleğini temizle; destekliyorsa sunucu oturumunu iptal et.
+  Çevrimdışı çıkış yerelde hemen gerçekleşir; sunucu iptalinin henüz doğrulanmadığı belirtilir.
+- [ ] Kurulum ürün kimliği/güvenli depo anahtarı sürümler arasında sabit tutulur;
+  model paketleri ve konuşma ayarları hesap çıkışı yüzünden kendiliğinden kaldırılmaz.
+
+**Kabul:** Giriş → kapat/aç → PC yeniden başlat → güncelle sonrası aynı hesap sürer.
+Access token süresi dolması ve ağ hatası gereksiz giriş ekranı açmaz. Açık çıkıştan sonra
+otomatik giriş olmaz; sunucu iptali ve hesap değişimi doğru ele alınır.
+
+Kaynak: [Microsoft Windows Credentials Management](https://learn.microsoft.com/en-us/windows/win32/secauthn/credentials-management).
+
+### A11 — Nihai tasarım, en son
+
+- [ ] Çalışan ekranlar üzerinden görsel yönü kullanıcıyla seç; önceki taslaklar onaylı değil.
+- [ ] Claude/Vercel/Node.js ve vault tasarım referanslarını yeniden incele.
+- [ ] Açık/koyu tema, okunabilirlik, odak, Windows ölçekleme ve tüm durumları tasarla.
+- [ ] Görsel değişiklik sonrası konuşma ve paket yönetimini tekrar doğrula.
+
+**Kabul:** Kullanıcının seçtiği Windows arayüzü iki modda. Bu sürümde mobil veya macOS
+uygulaması teslim edilmeyecek; önceki platform notları yalnızca gelecek referansıdır.
+
+## 5. Performans ve kalite ölçümü
+
 Bu değerler **önerilen başlangıç hedefleri**, ölçülmüş sonuç veya garanti değildir.
 Donanım/motor/ağ seçimi sonrası kullanıcıyla kesinleştirilir.
 
