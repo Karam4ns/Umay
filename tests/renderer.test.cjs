@@ -219,3 +219,81 @@ test('quiet microphone audio is streamed without waiting for silence',async()=>{
  assert.equal(packets.reduce((sum,p)=>sum+Buffer.from(p,'base64').length/2,0),16000);
  assert.ok(packets.length>1);
 });
+
+test('unrecognized microphone energy cannot cancel a pending answer or its speech',async()=>{
+ const poll=deferred(),calls=[],spoken=[];
+ const app=renderer({api:async(route,body)=>{
+  if(route==='/site/auth/me')throw Error('No account in test');
+  calls.push(route);
+  if(route.endsWith('/messages'))return {run:{id:'pending'}};
+  if(route==='/site/chat/runs/pending')return poll.promise;
+  if(route.endsWith('/cancel'))return {ok:true};
+  return {conversation:{id:'chat',version:1},messages:[{role:'assistant',content:'Merhaba, seni dinliyorum.'}]};
+ },speech:async(method,p)=>{if(method==='status')return {stt:{installed:false},tts:{installed:false}};if(method==='speak')spoken.push(p.text);return true;}});
+ await new Promise(r=>setImmediate(r));app.node('speak').checked=true;
+ app.run("conversation={id:'chat',version:1};listening=true");
+ const sending=app.run("send('Selam Umay',true)");await new Promise(r=>setImmediate(r));
+ for(let i=0;i<6;i++)await app.run('onFrame(new Float32Array(320).fill(.004))');
+ assert.equal(calls.some(route=>route.endsWith('/cancel')),false);
+ poll.resolve({run:{status:'COMPLETED'}});await sending;
+ assert.deepEqual(app.node('messages').children.map(n=>n.textContent),['Selam Umay','Merhaba, seni dinliyorum.']);
+ assert.deepEqual(spoken,['Merhaba, seni dinliyorum.']);
+});
+
+test('soft speech after playback tail is displayed and submitted without a new energy gate',async()=>{
+ const app=renderer();await new Promise(r=>setImmediate(r));
+ app.run('received=[];send=async text=>received.push(text);listening=true;liveRecognizer=createLiveRecognizer();playbackSuppressed=true;echoGuardUntil=0');await app.run("liveRecognizer.start('session')");
+ await app.run('onFrame(new Float32Array(320).fill(.001))');
+ app.emit({event:'transcript',streamId:'session',generation:0,utterance:0,text:'sessiz konuşma',final:false});
+ assert.equal(app.node('input').value,'sessiz konuşma');
+ app.emit({event:'transcript',streamId:'session',generation:0,utterance:0,text:'Sessiz konuşma.',final:true});
+ assert.equal(app.run('received[0]'),'Sessiz konuşma.');
+});
+
+test('failed runs do not speak an old assistant message and show the failure',async()=>{
+ const spoken=[];const app=renderer({api:async(route)=>{
+  if(route==='/site/auth/me')throw Error('No account');
+  if(route.endsWith('/messages'))return {run:{id:'failed'}};
+  if(route==='/site/chat/runs/failed')return {run:{status:'FAILED',errorCode:'PROVIDER_TIMEOUT'}};
+  return {conversation:{id:'chat',version:1},messages:[{role:'assistant',content:'Old answer'}]};
+ },speech:async(method,p)=>{if(method==='status')return {stt:{installed:false},tts:{installed:false}};if(method==='speak')spoken.push(p.text);return true;}});
+ await new Promise(r=>setImmediate(r));app.node('speak').checked=true;app.run("conversation={id:'chat',version:1}");await app.run("send('Yeni soru')");
+ assert.equal(spoken.length,0);assert.match(app.node('status').textContent,/PROVIDER_TIMEOUT/);
+});
+
+test('recognized new words still interrupt a pending response without resetting capture',async()=>{
+ const calls=[];const app=renderer({api:async(route)=>{calls.push(route);return {};}});await new Promise(r=>setImmediate(r));calls.length=0;
+ app.run('listening=true;liveRecognizer=createLiveRecognizer();responseActive=true;runId="pending"');await app.run("liveRecognizer.start('session')");
+ app.emit({event:'transcript',streamId:'session',generation:0,utterance:0,text:'',final:false});assert.equal(calls.length,0);
+ app.emit({event:'transcript',streamId:'session',generation:0,utterance:0,text:'bir dakika',final:false});
+ assert.deepEqual(calls,['/site/chat/runs/pending/cancel']);assert.equal(app.run('listening'),true);assert.equal(app.run('liveRecognizer.generation'),0);assert.equal(app.node('input').value,'bir dakika');
+});
+
+test('the next voice turn waits for the interrupted server run to be cancelled',async()=>{
+ const cancellation=deferred(),posts=[];const app=renderer({api:async(route,body)=>{
+  if(route==='/site/auth/me')throw Error('No account');
+  if(route.endsWith('/cancel'))return cancellation.promise;
+  if(route.endsWith('/messages')){posts.push(body.content);return {run:{id:'next'}};}
+  if(route==='/site/chat/runs/next')return {run:{status:'COMPLETED'}};
+  return {conversation:{id:'chat',version:1},messages:[]};
+ }});await new Promise(r=>setImmediate(r));
+ app.run('conversation={id:"chat",version:1};listening=true;liveRecognizer=createLiveRecognizer();responseActive=true;runId="previous"');await app.run("liveRecognizer.start('session')");
+ app.emit({event:'transcript',streamId:'session',generation:0,utterance:0,text:'yeni soru',final:false});
+ app.emit({event:'transcript',streamId:'session',generation:0,utterance:0,text:'Yeni soru.',final:true});await new Promise(r=>setImmediate(r));
+ assert.equal(posts.length,0);cancellation.resolve({ok:true});await new Promise(r=>setImmediate(r));assert.deepEqual(posts,['Yeni soru.']);
+});
+
+test('interrupting an in-flight message waits for its returned run to be cancelled before the next post',async()=>{
+ const firstPost=deferred(),cancellation=deferred(),posts=[];const app=renderer({api:async(route,body)=>{
+  if(route==='/site/auth/me')throw Error('No account');
+  if(route.endsWith('/messages')){posts.push(body.content);return posts.length===1?firstPost.promise:{run:{id:'next'}};}
+  if(route.endsWith('/cancel'))return cancellation.promise;
+  if(route==='/site/chat/runs/next')return {run:{status:'COMPLETED'}};
+  return {conversation:{id:'chat',version:1},messages:[]};
+ }});await new Promise(r=>setImmediate(r));
+ app.run('conversation={id:"chat",version:1};listening=true;liveRecognizer=createLiveRecognizer()');await app.run("liveRecognizer.start('session')");
+ const first=app.run("send('first',true)");await new Promise(r=>setImmediate(r));
+ app.emit({event:'transcript',streamId:'session',generation:0,utterance:0,text:'next',final:false});const next=app.run("send('next',true)");await new Promise(r=>setImmediate(r));
+ assert.deepEqual(posts,['first']);firstPost.resolve({run:{id:'previous'}});await new Promise(r=>setImmediate(r));assert.deepEqual(posts,['first']);
+ cancellation.resolve({ok:true});await Promise.all([first,next]);assert.deepEqual(posts,['first','next']);
+});
