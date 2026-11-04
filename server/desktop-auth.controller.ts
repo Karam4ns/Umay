@@ -12,10 +12,10 @@ import {desktopAuthScript} from './desktop-auth-client';
 const digest=(value:string)=>createHash('sha256').update(value).digest('hex');
 const entities:Record<string,string>={'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
 const escape=(value:string)=>value.replace(/[&<>"']/g,c=>entities[c]!);
-function page(reply:FastifyReply,mode:'authorize'|'logout',fields=''){
+function page(reply:FastifyReply,mode:'authorize'|'logout',fields='',entry:'login'|'register'='login'){
  reply.header('Cache-Control','no-store').header('Referrer-Policy','no-referrer');
  reply.header('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'");
- return reply.type('text/html; charset=utf-8').send(renderDesktopAuthPage(mode,fields));
+ return reply.type('text/html; charset=utf-8').send(renderDesktopAuthPage(mode,fields,entry));
 }
 @Controller('site/desktop-auth')
 export class DesktopAuthController {
@@ -28,7 +28,7 @@ export class DesktopAuthController {
  async authorize(@Query() input:Record<string,string>,@Res() reply:FastifyReply){
   let p;try{p=policy.parameters(input);}catch{throw new BadRequestException('INVALID_AUTH_REQUEST');}
   const fields=Object.entries(p).map(([k,v])=>`<input type="hidden" name="${k}" value="${escape(String(v))}">`).join('');
-  return page(reply,'authorize',fields);
+  return page(reply,'authorize',fields,input.entry==='register'?'register':'login');
  }
  @Post('authorize')
  @RouteConfig({rateLimit:{max:15,timeWindow:60000}})
