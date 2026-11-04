@@ -6,19 +6,19 @@ const memory=icon('<path d="M9 4H6a2 2 0 0 0-2 2v3m11-5h3a2 2 0 0 1 2 2v3M4 15v3
 const refresh=icon('<path d="M20 7v5h-5M4 17v-5h5"/><path d="M6 7a7 7 0 0 1 12-1l2 3M4 15l2 3a7 7 0 0 0 12-1"/>');
 const veriussuLogo='<svg class="brand-logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M2 5h7l8 19L25 5h5L19 29h-5Z" fill="currentColor"/><path d="m12 5 5 12 3-7-2-5Z" fill="currentColor" opacity=".4"/></svg>';
 
-export function renderDesktopAuthPage(mode:'authorize'|'logout',fields=''){
- const linking=mode==='authorize';
+export function renderDesktopAuthPage(mode:'authorize'|'logout',fields='',entry:'login'|'register'='login'){
+ const linking=mode==='authorize',registering=linking&&entry==='register';
  return `<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><title>${linking?'Umay’a bağlan':'Oturumu kapat'} · Veriüssü</title><link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml"><link rel="stylesheet" href="/site/desktop-auth/style.css"></head><body>
  <header class="site-header"><a class="wordmark" href="/" aria-label="Veriüssü ana sayfa">${veriussuLogo}<span>VERİÜSSÜ<span class="brand-dot">.</span></span></a><button class="theme-toggle" id="theme" type="button" aria-label="Renk temasını değiştir">${icon('<path d="M20.5 13a8.5 8.5 0 0 1-9.5-9.5A8.5 8.5 0 1 0 20.5 13Z"/>')}</button></header>
  <main><section class="auth-card" aria-labelledby="title">
  <div class="connection" aria-hidden="true"><span class="app-mark">U<span></span></span><span class="connection-line"></span><span class="provider-mark">${veriussuLogo}</span></div>
- <h1 id="title">${linking?'Umay ile devam et':'Umay’dan çıkış yapıldı'}</h1>
+ <h1 id="title">${registering?'Umay için hesap oluştur':linking?'Umay ile devam et':'Umay’dan çıkış yapıldı'}</h1>
  <p class="intro" id="intro">${linking?'Veriüssü hesabını bağla.<br>Umay seni kaldığın yerden tanısın.':'Bu tarayıcıdaki Veriüssü oturumunu da kapatabilirsin.'}</p>
  <div class="account" id="account" aria-busy="true"><span class="avatar" id="avatar" aria-hidden="true">${user}</span><div class="account-text"><strong id="account-name">Hesabın kontrol ediliyor</strong><span id="account-email">Birazdan hazır olacak</span></div><span class="account-check" id="account-check" hidden>${icon('<path d="m5 12 4 4L19 6"/>')}</span></div>
  ${linking?`<div class="permissions"><p class="permissions-title">Umay, bu hesapla şunları kullanır:</p><ul><li>${user}<span>Profil bilgilerin</span></li><li>${chat}<span>Modellerin ve sohbetlerin</span></li><li>${memory}<span>Kişisel hafızan</span></li></ul></div>`:''}
  <form id="auth-form" data-mode="${mode}" method="post" action="/site/desktop-auth/${linking?'authorize':'logout'}">${fields}<button class="primary" id="approve" type="submit" disabled>${linking?'Hesabımı Umay’a bağla':'Veriüssü oturumundan çık'}</button></form>
- <a class="primary" id="sign-in" href="/login" target="_blank" rel="noopener noreferrer" hidden>Veriüssü’ye giriş yap</a>
- <div class="account-tools"><button class="text-button" id="refresh-account" type="button">${refresh}<span>Hesabı yenile</span></button><a id="register" href="/register" target="_blank" rel="noopener noreferrer" hidden>Hesap oluştur</a></div>
+ <a class="primary" id="sign-in" href="${registering?'/register':'/login'}" target="_blank" rel="noopener noreferrer" hidden>${registering?'Veriüssü hesabı oluştur':'Veriüssü’ye giriş yap'}</a>
+ <div class="account-tools"><button class="text-button" id="refresh-account" type="button">${refresh}<span>Hesabı yenile</span></button><a id="register" href="${registering?'/login':'/register'}" target="_blank" rel="noopener noreferrer" hidden>${registering?'Giriş yap':'Hesap oluştur'}</a></div>
  <p id="status" class="status" role="status" aria-live="polite"></p>
  <p class="reassurance">${lock}<span>${linking?'Bağladıktan sonra Umay uygulamasına döneceksin.':'Umay uygulamasındaki oturumun zaten kapalı.'}</span></p>
  </section><p class="page-note">Hesabın Veriüssü’de. Asistanın Umay’da.</p></main>
