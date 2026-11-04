@@ -7,24 +7,28 @@ import {WebAuthController} from './web-auth.controller';
 import {encryptServerKey,decryptServerKey} from './server-secret';
 import {requestOriginAllowed} from './network-access';
 import * as policy from './desktop-auth-policy';
+import {renderDesktopAuthPage,desktopAuthStyles} from './desktop-auth-view';
+import {desktopAuthScript} from './desktop-auth-client';
 const digest=(value:string)=>createHash('sha256').update(value).digest('hex');
 const entities:Record<string,string>={'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
 const escape=(value:string)=>value.replace(/[&<>"']/g,c=>entities[c]!);
-function page(reply:FastifyReply,body:string){
+function page(reply:FastifyReply,mode:'authorize'|'logout',fields=''){
  reply.header('Cache-Control','no-store').header('Referrer-Policy','no-referrer');
- reply.header('Content-Security-Policy',"default-src 'none'; script-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'");
- return reply.type('text/html; charset=utf-8').send(`<!doctype html><html lang="tr"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Umay · Veriüssü</title><main><h1>Umay · Veriüssü</h1>${body}<p id="status" role="status"></p></main><script src="/site/desktop-auth/client.js"></script></html>`);
+ reply.header('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'");
+ return reply.type('text/html; charset=utf-8').send(renderDesktopAuthPage(mode,fields));
 }
 @Controller('site/desktop-auth')
 export class DesktopAuthController {
  constructor(private readonly db:Database,private readonly auth:WebAuthController){}
  @Get('client.js')
- client(@Res() reply:FastifyReply){return reply.header('Cache-Control','no-store').type('text/javascript; charset=utf-8').send(`document.querySelector('form')?.addEventListener('submit',async event=>{event.preventDefault();const form=event.currentTarget;const button=form.querySelector('button');button.disabled=true;try{const r=await fetch(form.action,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.fromEntries(new FormData(form)))});if(!r.ok)throw Error('İşlem tamamlanamadı. Giriş yaptıktan sonra yeniden deneyin.');const data=await r.json();if(data.redirectUrl){const target=new URL(data.redirectUrl);if(target.protocol!=='http:'||target.hostname!=='127.0.0.1'||target.pathname!=='/umay-auth/callback')throw Error('Geçersiz dönüş.');location.assign(target.href);}else document.getElementById('status').textContent='Çıkış yapıldı. Bu sekmeyi kapatabilirsiniz.';}catch(e){document.getElementById('status').textContent=e.message;button.disabled=false;}});`);}
+ client(@Res() reply:FastifyReply){return reply.header('Cache-Control','no-store').type('text/javascript; charset=utf-8').send(desktopAuthScript);}
+ @Get('style.css')
+ styles(@Res() reply:FastifyReply){return reply.header('Cache-Control','no-store').type('text/css; charset=utf-8').send(desktopAuthStyles);}
  @Get('authorize')
  async authorize(@Query() input:Record<string,string>,@Res() reply:FastifyReply){
   let p;try{p=policy.parameters(input);}catch{throw new BadRequestException('INVALID_AUTH_REQUEST');}
   const fields=Object.entries(p).map(([k,v])=>`<input type="hidden" name="${k}" value="${escape(String(v))}">`).join('');
-  return page(reply,`<p>Veriüssü hesabınızı bu cihazdaki Umay uygulamasına bağlayın.</p><p><a href="/login" target="_blank" rel="noopener noreferrer">Giriş yap</a> · <a href="/register" target="_blank" rel="noopener noreferrer">Kayıt ol</a></p><p>Girişinizi tamamladıktan sonra bu sekmeye dönüp aşağıdaki düğmeye basın.</p><form method="post" action="/site/desktop-auth/authorize">${fields}<button type="submit">Hesabımı Umay’a bağla</button></form>`);
+  return page(reply,'authorize',fields);
  }
  @Post('authorize')
  @RouteConfig({rateLimit:{max:15,timeWindow:60000}})
@@ -61,7 +65,7 @@ export class DesktopAuthController {
   }catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
  }
  @Get('logout')
- logoutPage(@Res() reply:FastifyReply){return page(reply,'<p>Umay uygulamasındaki oturum kapatıldı. Bu tarayıcıdaki Veriüssü oturumunu da kapatabilirsiniz.</p><form method="post" action="/site/desktop-auth/logout"><button type="submit">Veriüssü oturumundan çık</button></form>');}
+ logoutPage(@Res() reply:FastifyReply){return page(reply,'logout');}
  @Post('logout')
  async logout(@Req() req:FastifyRequest,@Res() reply:FastifyReply){await this.auth.logout(req,reply);return reply.send({ok:true});}
 }
