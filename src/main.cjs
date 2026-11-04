@@ -1,11 +1,12 @@
-const {app,BrowserWindow,ipcMain,session,dialog,shell,screen}=require('electron');
+const {app,BrowserWindow,ipcMain,session,dialog,shell,screen,desktopCapturer,safeStorage,Notification,globalShortcut}=require('electron');
+const {DeviceServices}=require('./device-services.cjs');
 const {systemStatus,windowAction}=require('./desktop.cjs');
 const path=require('node:path');const fs=require('node:fs');const {spawn}=require('node:child_process');
 const {randomUUID}=require('node:crypto');const readline=require('node:readline');
 const {autoUpdater}=require('electron-updater');const {validateReference}=require('./core.cjs');
 const {BrowserAuth}=require('./browser-auth.cjs');
 const {readSiteResponse}=require('./site-response.cjs');
-let win,worker,site,browserAuth;let pending=new Map();let running=false;let updateReady=false;let speechEpoch=0;let authEpoch=0;let authMutation=Promise.resolve();let activeRecognition=null;
+let win,worker,site,browserAuth,deviceServices,computerBar;let computerRunning=false;let pending=new Map();let running=false;let updateReady=false;let speechEpoch=0;let authEpoch=0;let authMutation=Promise.resolve();let activeRecognition=null;
 function authTask(task){const result=authMutation.then(task,task);authMutation=result.catch(()=>{});return result;}
 const ORIGIN='https://veriussu.com';
 async function revokeSessionToken(token){
@@ -13,7 +14,7 @@ async function revokeSessionToken(token){
  const response=await fetch(ORIGIN+'/site/auth/logout',{method:'POST',headers:{'Origin':ORIGIN,'Content-Type':'application/json','Cookie':'veriussu_web='+token},body:'{}',signal:AbortSignal.timeout(15000),redirect:'error'});
  if(!response.ok&&response.status!==401)throw Error('Önceki oturum iptali doğrulanamadı.');
 }
-function publish(value){if(win&&!win.isDestroyed())win.webContents.send('event',value);}
+function publish(value){if(win&&!win.isDestroyed())win.webContents.send('event',value);if(value.event==='computer-task'&&computerBar&&!computerBar.isDestroyed())computerBar.webContents.send('task-status',value.task);}
 function startWorker(){
  if(worker)return;
  const python=app.isPackaged?path.join(process.resourcesPath,'runtime','python.exe'):path.join(__dirname,'..','.venv','Scripts','python.exe');
@@ -38,15 +39,41 @@ function speech(method,params={}){
   pending.set(id,{resolve,reject,timer,epoch:speechEpoch});worker.stdin.write(JSON.stringify({id,method,params})+'\n');
  });
 }
-async function api(route,body){
+async function rawApi(route,body){
  const allowed=/^\/site\/(auth\/(me|logout)|chat\/(models|conversations(?:\/[a-f0-9-]+(?:\/(messages|model))?)?|runs\/[a-f0-9-]+(?:\/cancel)?)|user-memory(?:\/(summary|notes))?)$/;
- if(!allowed.test(route))throw Error('İzin verilmeyen API yolu.');
+ if(!allowed.test(route)&&!/^\/site\/chat\/conversations\/[a-f0-9-]+\?before=[a-f0-9-]+$/.test(route))throw Error('İzin verilmeyen API yolu.');
  let response;try{response=await site.fetch(ORIGIN+route,{method:body===undefined?'GET':'POST',headers:{'Origin':ORIGIN,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(30000),redirect:'error'});}catch(error){throw Error(['TimeoutError','AbortError'].includes(error.name)?'REQUEST_TIMEOUT':'NETWORK_ERROR');}
  return readSiteResponse(response);
+}
+async function api(route,body){
+ const epoch=authEpoch;
+ if(route==='/site/auth/me'){
+  try{const result=await rawApi(route,body);if(epoch===authEpoch)deviceServices?.activate(result.id);return result;}
+  catch(error){if(epoch===authEpoch&&error.message==='LOGIN_REQUIRED')deviceServices?.activate(null);throw error;}
+ }
+ return deviceServices?deviceServices.siteApi(route,body):rawApi(route,body);
 }
 function trusted(event){if(event.sender!==win?.webContents)throw Error('Güvenilmeyen pencere.');}
 app.whenReady().then(()=>{
  site=session.fromPartition('persist:veriussu');
+ if(process.platform==='win32')app.setAppUserModelId('com.veriussu.umay');
+ const notify=({title,body,url})=>{if(!Notification.isSupported())return;const note=new Notification({title,body});note.on('click',()=>{if(win&&!win.isDestroyed()){win.show();win.focus();}if(url&&/^https:\/\//.test(url))void shell.openExternal(url);});note.show();};
+ deviceServices=new DeviceServices({directory:app.getPath('userData'),api:rawApi,screen,publish,notify,openSource:url=>shell.openExternal(url),
+  encrypt:async text=>{if(!await safeStorage.isAsyncEncryptionAvailable())throw Error('Windows güvenli saklama kullanılamıyor.');return safeStorage.encryptStringAsync(text);},
+  decrypt:async encrypted=>(await safeStorage.decryptStringAsync(encrypted)).result,
+  defaultRoots:['desktop','documents','downloads'].map(key=>app.getPath(key)),
+  chooseRoots:async()=>{const selected=await dialog.showOpenDialog(win,{title:'Dosya hafızasına klasör ekle',properties:['openDirectory','multiSelections']});return selected.canceled?null:selected.filePaths;},
+  saveFile:async()=>{const selected=await dialog.showSaveDialog(win,{title:'Hafızayı Markdown olarak dışa aktar',defaultPath:'Umay Hafızası.md',filters:[{name:'Markdown',extensions:['md']}]});return selected.canceled?null:selected.filePath;},
+  capture:async displays=>{const sources=await desktopCapturer.getSources({types:['screen'],thumbnailSize:{width:1600,height:1000}});return sources.map(source=>{const display=displays.find(d=>String(d.id)===source.display_id);if(!display)return null;const image=source.thumbnail,size=image.getSize();return {displayId:String(display.id),name:source.name,width:size.width,height:size.height,image:'data:image/jpeg;base64,'+image.toJPEG(65).toString('base64')};}).filter(Boolean);},
+  onComputerStart:()=>{
+   computerRunning=true;
+   if(!computerBar||computerBar.isDestroyed()){const area=screen.getPrimaryDisplay().workArea;computerBar=new BrowserWindow({width:360,height:64,x:area.x+12,y:area.y+area.height-80,frame:false,resizable:false,alwaysOnTop:true,skipTaskbar:true,show:false,webPreferences:{preload:path.join(__dirname,'computer-bar-preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});computerBar.removeMenu();computerBar.loadFile(path.join(__dirname,'ui','computer-bar.html'));computerBar.webContents.on('will-navigate',e=>e.preventDefault());computerBar.webContents.setWindowOpenHandler(()=>({action:'deny'}));computerBar.once('ready-to-show',()=>computerBar.showInactive());}else computerBar.showInactive();
+   globalShortcut.register('F8',()=>void deviceServices.agent.stop());if(win&&!win.isDestroyed())win.minimize();
+  },
+  onComputerFinish:()=>{computerRunning=false;globalShortcut.unregister('F8');if(computerBar&&!computerBar.isDestroyed())computerBar.hide();const task=deviceServices?.agent.state();if(win&&!win.isDestroyed()&&['question','confirmation','failed','stopped'].includes(task?.status)){win.show();win.focus();}else if(task?.status==='completed')notify({title:'Umay — Görev tamamlandı',body:task.message.slice(0,200)});},
+ });
+ ipcMain.handle('computer-emergency-stop',event=>{if(event.sender!==computerBar?.webContents)throw Error('Güvenilmeyen pencere.');return deviceServices.agent.stop();});
+
  browserAuth=new BrowserAuth({openExternal:url=>shell.openExternal(url),discard:result=>revokeSessionToken(result.sessionToken),exchange:async(input,signal)=>{
   const response=await fetch(ORIGIN+'/site/desktop-auth/exchange',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input),signal:AbortSignal.any([signal,AbortSignal.timeout(30000)]),redirect:'error'});
   if(!response.ok)throw Error('Tarayıcı girişi sunucuda doğrulanamadı.');
@@ -58,9 +85,16 @@ app.whenReady().then(()=>{
  const area=screen.getPrimaryDisplay().workAreaSize;
  const iconPath=path.join(__dirname,'ui','assets','umay.png');
  win=new BrowserWindow({icon:fs.existsSync(iconPath)?iconPath:undefined,width:Math.min(1500,area.width-20),height:Math.min(920,area.height-20),minWidth:Math.min(960,area.width-20),minHeight:Math.min(680,area.height-20),frame:false,backgroundColor:'#030d14',show:false,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
- win.removeMenu();win.loadFile(path.join(__dirname,'ui','index.html'));win.once('ready-to-show',()=>win.show());
+ win.removeMenu();win.loadFile(path.join(__dirname,'ui','index.html'));win.once('ready-to-show',()=>win.show());win.on('closed',()=>app.quit());
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-navigate',e=>e.preventDefault());
- const handle=(name,fn)=>ipcMain.handle(name,async(e,...args)=>{trusted(e);return fn(...args);});
+ const handle=(name,fn)=>ipcMain.handle(name,async(e,...args)=>{
+  trusted(e);const epoch=deviceServices?.memory.epoch,logged=['clone','update','restart-update'].includes(name)||name==='speech'&&['load','install','remove','speak','select_voice','delete_voice'].includes(args[0]);
+  try{const result=await fn(...args);if(logged&&deviceServices?.memory.account&&epoch===deviceServices.memory.epoch)deviceServices.memory.log(name==='speech'?'speech-'+args[0]:name,({clone:'Ses klonlama işlemi',update:'Güncelleme denetimi','restart-update':'Güncelleme başlatıldı'})[name]||({load:'Konuşma modeli hazırlandı',install:'Konuşma paketi kuruldu',remove:'Konuşma paketi kaldırıldı',speak:'Yanıt seslendirildi',select_voice:'Ses profili seçildi',delete_voice:'Ses profili kaldırıldı'})[args[0]],{details:{kind:args[1]?.kind||null}});return result;}
+  catch(error){if(logged&&deviceServices?.memory.account&&epoch===deviceServices.memory.epoch)deviceServices.memory.log('operation-error',error.message,{status:'failed',details:{operation:name,method:typeof args[0]==='string'?args[0]:null}});throw error;}
+ });
+ handle('local-memory',(method,input)=>deviceServices.local(method,input));
+ handle('environment',(method,input)=>deviceServices.environmentAction(method,input));
+ handle('computer',(method,input)=>deviceServices.computer(method,input));
  handle('system-status',()=>systemStatus(app.getPath('userData'),require('../package.json').version));
  handle('window-action',action=>windowAction(win,action));
  handle('cancel-login',()=>{++authEpoch;browserAuth.cancel();return true;});
@@ -99,6 +133,7 @@ app.whenReady().then(()=>{
    const old=await site.cookies.get({url:ORIGIN,name:'veriussu_web'});
    for(const cookie of old)if(cookie.value!==result.sessionToken)await revokeSessionToken(cookie.value);
    if(epoch!==authEpoch){await revokeSessionToken(result.sessionToken);return;}
+   deviceServices.activate(null);
    await site.clearStorageData();
    await site.cookies.set({url:ORIGIN,name:'veriussu_web',value:result.sessionToken,path:'/',secure:true,httpOnly:true,sameSite:'strict',expirationDate:result.expiresAt/1000});
    await site.cookies.flushStore();publish({event:'session-changed'});win.show();win.focus();
@@ -107,16 +142,16 @@ app.whenReady().then(()=>{
   return {started:true};
  });
  handle('logout',async()=>{
-  ++authEpoch;browserAuth.cancel();
+  ++authEpoch;browserAuth.cancel();deviceServices.activate(null);
   const result=await authTask(async()=>{let revoked=true;try{await api('/site/auth/logout',{});}catch{revoked=false;}await site.clearStorageData();await site.cookies.flushStore();return {revoked};});
   await shell.openExternal(ORIGIN+'/site/desktop-auth/logout').catch(()=>publish({event:'error',message:'Umay’dan çıkış yapıldı; tarayıcı çıkış sayfası açılamadı.'}));return result;
  });
  handle('update',async()=>{if(!app.isPackaged)return {development:true};return autoUpdater.checkForUpdates();});
- handle('busy',busy=>{running=!!busy;if(!running&&updateReady)publish({event:'update-ready'});});
- handle('restart-update',()=>{if(running)throw Error('Önce etkin konuşmayı bitirin.');if(updateReady)autoUpdater.quitAndInstall(false,true);});
+ handle('busy',busy=>{running=!!busy;if(!running&&!computerRunning&&updateReady)publish({event:'update-ready'});});
+ handle('restart-update',()=>{if(running||computerRunning)throw Error('Önce etkin konuşmayı veya bilgisayar görevini bitirin.');if(updateReady)autoUpdater.quitAndInstall(false,true);});
  autoUpdater.autoDownload=true;autoUpdater.autoInstallOnAppQuit=true;
  autoUpdater.on('error',()=>publish({event:'update-error',message:'Güncelleme sunucusu henüz hazır değil veya paket doğrulanamadı.'}));
- autoUpdater.on('update-downloaded',()=>{updateReady=true;if(!running)publish({event:'update-ready'});});
+ autoUpdater.on('update-downloaded',()=>{updateReady=true;if(!running&&!computerRunning)publish({event:'update-ready'});});
  if(app.isPackaged){autoUpdater.checkForUpdatesAndNotify();setInterval(()=>autoUpdater.checkForUpdatesAndNotify(),21600000).unref();}
 });
-app.on('before-quit',()=>{browserAuth?.cancel();if(worker)worker.kill();});app.on('window-all-closed',()=>app.quit());
+app.on('before-quit',()=>{browserAuth?.cancel();globalShortcut.unregisterAll();computerBar?.destroy();deviceServices?.close();if(worker)worker.kill();});app.on('window-all-closed',()=>app.quit());

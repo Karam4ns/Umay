@@ -1,0 +1,41 @@
+// Run inside a candidate server image with its API package path as argv[2].
+// Creates and drops a uniquely named disposable DB; never edits production users.
+const assert=require('node:assert/strict'),path=require('node:path'),{createRequire}=require('node:module'),{randomUUID,randomBytes,createHash}=require('node:crypto'),{spawnSync}=require('node:child_process'),{createServer}=require('node:http');
+const req=createRequire(path.join(path.resolve(process.argv[2]||'.'),'package.json'));
+const {createPool}=req('./dist/database'),{createApp}=req('./dist/app'),{encryptServerKey}=req('./dist/server-secret');
+(async()=>{
+ const original={...process.env},control=createPool(),name='umay_desktop_'+randomBytes(8).toString('hex');let db,app,server,seen=[];
+ try{
+  await control.query(`CREATE DATABASE "${name}"`);process.env.DB_NAME=name;process.env.FRONTEND_UI='true';process.env.CHAT_WORKER_ENABLED='false';
+  db=createPool();const migrate=spawnSync(process.execPath,[req.resolve('./dist/migrate')],{env:process.env,encoding:'utf8'});assert.equal(migrate.status,0,migrate.stderr);
+  server=createServer((request,response)=>{let body='';request.on('data',part=>body+=part);request.on('end',()=>{const payload=JSON.parse(body);seen.push(payload);const computer=payload.messages.some(m=>typeof m.content==='string'&&m.content.includes("Windows computer-control planner"));const content=computer?JSON.stringify({action:'done',message:'Metin ekranda doğrulandı.'}):'Kahveyi sevdiğini hatırlıyorum. Seni dinliyorum.';response.writeHead(200,{'Content-Type':'text/event-stream'});response.end('data: '+JSON.stringify({choices:[{index:0,delta:{content},finish_reason:'stop'}]})+'\n\ndata: '+JSON.stringify({choices:[{index:0,delta:{},finish_reason:'stop'}],usage:{prompt_tokens:12,completion_tokens:8}})+'\n\ndata: [DONE]\n\n');});});await new Promise(r=>server.listen(0,'127.0.0.1',r));
+  const url='http://127.0.0.1:'+server.address().port+'/v1';process.env.SERVER_TRUSTED_BASE_URLS=url;
+  const user=(await db.query("INSERT INTO users(email,password_hash,role_id) VALUES($1,'unused',1) RETURNING id",['fixture@example.test'])).rows[0];const token=randomBytes(32).toString('hex');await db.query("INSERT INTO web_sessions(token_hash,user_id,expires_at) VALUES($1,$2,now()+interval '1 hour')",[createHash('sha256').update(token).digest('hex'),user.id]);
+  const serverId=randomUUID();await db.query("INSERT INTO user_servers(id,name,url,encrypted_api_key,created_by,request_id,payload_hash,enabled) VALUES($1,'Fixture',$2,$3,$4,$5,$6,true)",[serverId,url,encryptServerKey(serverId,'fixture-secret'),user.id,randomUUID(),'a'.repeat(64)]);
+  const model=(await db.query("INSERT INTO user_server_models(id,server_id,model_key,selected_at) VALUES(gen_random_uuid(),$1,'fixture',now()) RETURNING id",[serverId])).rows[0];
+  let ip=1;const call=(route,body)=>app.inject({method:body?'POST':'GET',url:'/site/chat/'+route,headers:{cookie:'veriussu_web='+token,origin:'http://localhost:10203'},remoteAddress:'127.0.77.'+ip++,...(body?{payload:body}:{})});
+  app=await createApp();await app.init();let r=await call('conversations',{source:'PERSONAL',modelId:model.id,title:'Isolated desktop test',requestId:randomUUID()});assert.equal(r.statusCode,201,r.body);let chat=r.json().conversation;
+  // A queued run with transient image MUST clean it on cancellation, even if
+  // no worker ever claims it. Seed only the disposable DB to isolate this path.
+  r=await call('conversations/'+chat.id+'/messages',{content:'Queued test',requestId:randomUUID(),expectedVersion:chat.version,desktopContext:'{"clock":"test"}',desktopMode:'context'});assert.equal(r.statusCode,201,r.body);const queued=r.json().run.id;
+  await db.query("UPDATE chat_runs SET media_options=media_options||$2::jsonb WHERE id=$1",[queued,JSON.stringify({desktopImage:'data:image/webp;base64,fixture'})]);
+  r=await call('runs/'+queued+'/cancel',{});assert.equal(r.statusCode,201,r.body);assert.equal((await db.query('SELECT media_options FROM chat_runs WHERE id=$1',[queued])).rows[0].media_options.desktopImage,undefined);
+  // Interrupted-run recovery also has to erase any formerly in-flight screen.
+  await db.query("UPDATE chat_runs SET status='RUNNING',started_at=now()-interval '10 minutes',media_options=media_options||$2::jsonb WHERE id=$1",[queued,JSON.stringify({desktopImage:'data:image/webp;base64,recovery'})]);
+  const execution=app.get(req('./dist/chat-execution').ChatExecution);execution.interruptedCleanupAt=0;await execution.cleanupInterruptedRuns();const recovered=(await db.query('SELECT status,media_options FROM chat_runs WHERE id=$1',[queued])).rows[0];assert.equal(recovered.status,'FAILED');assert.equal(recovered.media_options.desktopImage,undefined);
+  await app.close();process.env.CHAT_WORKER_ENABLED='true';app=await createApp();await app.init();
+  const awaitRun=async id=>{let run;for(let i=0;i<160;i++){run=(await call('runs/'+id)).json().run;if(!['QUEUED','RUNNING'].includes(run.status))break;await new Promise(r=>setTimeout(r,60));}assert.equal(run.status,'COMPLETED',JSON.stringify(run));return run;};
+  chat=(await call('conversations/'+chat.id)).json().conversation;
+  r=await call('conversations/'+chat.id+'/messages',{content:'Selam nasılsın?',requestId:randomUUID(),expectedVersion:chat.version,desktopMode:'context',desktopContext:'{"profile":[{"content":"Kahveyi seviyorum"}],"clock":"2026-11-05"}'});assert.equal(r.statusCode,201,r.body);await awaitRun(r.json().run.id);
+  let detail=(await call('conversations/'+chat.id)).json();assert.equal(detail.messages.filter(m=>m.role==='user').at(-1).content,'Selam nasılsın?');assert.ok(seen.some(p=>JSON.stringify(p.messages).includes('Kahveyi seviyorum')));assert.equal(detail.messages.at(-1).content,'Kahveyi sevdiğini hatırlıyorum. Seni dinliyorum.');
+  await db.query("UPDATE user_server_models SET categories=ARRAY['vision'] WHERE id=$1",[model.id]);const image=await req('sharp')({create:{width:800,height:600,channels:3,background:'#112233'}}).png().toBuffer();
+  chat=detail.conversation;r=await call('conversations/'+chat.id+'/messages',{content:'{"task":"Metni doğrula","observation":{"title":"Fixture"}}',requestId:randomUUID(),expectedVersion:chat.version,desktopMode:'computer',desktopContext:'{"clock":"2026-11-05"}',desktopImage:'data:image/png;base64,'+image.toString('base64')});assert.equal(r.statusCode,201,r.body);const run=await awaitRun(r.json().run.id);assert.equal(run.mediaOptions.desktopContext,undefined);assert.equal(run.mediaOptions.desktopImage,undefined);
+  assert.ok(seen.some(p=>p.messages.some(m=>Array.isArray(m.content)&&m.content.some(part=>part.type==='image_url'))));assert.equal((await db.query('SELECT media_options FROM chat_runs WHERE id=$1',[run.id])).rows[0].media_options.desktopImage,undefined);
+  detail=(await call('conversations/'+chat.id)).json();assert.equal(JSON.parse(detail.messages.at(-1).content).action,'done');
+  // Paging must return the older side of a stable timestamp+id cursor.
+  const anchor=detail.messages.at(-1);r=await call('conversations/'+chat.id+'?before='+anchor.id);assert.equal(r.statusCode,200,r.body);assert.ok(!r.json().messages.some(m=>m.id===anchor.id));
+  console.log('PASS real HTTP/isolated PostgreSQL: queued image cleanup, context-separated chat, planner JSON preserved, run-field privacy and archive pagination');
+ }finally{
+  if(app)await app.close();if(server)await new Promise(r=>server.close(r));if(db)await db.end();if(!/^umay_desktop_[a-f0-9]{16}$/.test(name))throw Error('Invalid disposable DB name');await control.query(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);await control.end();process.env=original;
+ }
+})().catch(error=>{console.error(error);process.exitCode=1;});

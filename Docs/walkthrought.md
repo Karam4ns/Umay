@@ -354,3 +354,18 @@ sıcak TTS ilk parça 110ms, 26 ses parçası PASS.
   girişi ve iptalden sonraki tam yanıt PASS. Mikrofon girdisi yankı benzetimi, fiziksel cihaz değil.
 - [x] 0.3.6 kurulum bütünlüğü: sürüm,3 uygulama varlığı,4 değişmeyen ses dosyası.
 - [x] GitHub main:13 dosya yerel Git blob SHA değerleriyle birebir doğrulandı.
+
+## [2026-11-05] Üç cihaz yeteneği — 0.4.0
+- [x] Kaldığımız yerdeki81 Node testi yeniden çalıştırıldı; mevcut değişiklikler korundu.
+- [x] Hesaba özel SQLite; not/ilişki/mesaj/işlem/dosya/şifreli hesap tabloları.
+- [x] Yerel arşiv, geçmiş sayfalama, model bağlamı ve merkezi hafıza eşlemesi.
+- [x] Hafıza araması, bağlantı grafiği, not düzenleme, dosya yolu ve özel hesap sayfaları.
+- [x] Konum/saat, şehir seçimi, hava önbelleği, RSS/Atom/AFAD ve Windows uyarıları.
+- [x] Windows ekran/UIAutomation/klavye/fare ve seçili modelle bilgisayar görevi.
+- [x] Gerçek izole pencerede fare/Türkçe metin/Ctrl+A; gerçek Windows şifreleme.
+- [x] Bağımsız kod incelemesi;6 önemli bulgu, yeniden üretim ve tek düzeltme geçişi.
+- [x] 103 Node /60 Python test; gerçek mikrofon-STT-sohbet-TTS regresyonu.
+- [x] Sunucu adayında gerçek HTTP/PostgreSQL ve normal sohbet regresyonu.
+- [x] 10203 chat ve2 worker healthy; ortam/port ve3 modül hash eşitliği.
+- [x] Windows0.4.0 kurulum/runtime/native yardımcı bütünlüğü; paketli gerçek giriş testi.
+- [ ] GitHub kaynak eşleştirmesi.

@@ -744,3 +744,14 @@ eşiğini aşınca stop(true,true) çağrılıyor. Model kesmiyor, mikrofon çı
 Dar düzeltme: gerçek oynatım PCM'ine göre kısa akustik eşleşme; açık yankı yeni
 kullanıcı konuşması sayılmaz. Farklı/üstüne konuşan ses eski barge-in yolunu kullanır.
 STT/TTS modelleri, klonlama, Türkçe okuma/duraklama ve sunucu değiştirilmez.
+
+## [2026-11-05] Yerel hafıza, konum/bildirim ve bilgisayar kontrolü — 0.4.0
+Kullanıcı üç aşamayı başlattı ve yarıda kalan işin atlanmadan sürdürülmesini istedi.
+Önceki yerel DB yok kararı bu açık istekle değiştirildi. Her hesabın ayrı SQLite
+hafızası: sohbet arşivi, açık kişisel bilgiler/tercihler, bağlantılı notlar, dosya
+yolları, işlem günlüğü, şifreli özel hesaplar. Veriussu merkezi hafızası korunur.
+Windows konumu, cihaz saati ve şehir seçimi; MET Norway hava tahmini; AFAD JSON,
+USGS Atom, AA ve OGM RSS. Yerel zamanlı kontrol/tekilleştirme ve Windows bildirimi.
+Bilgisayar kontrolü: ekran/UIAutomation gözlemi, SendInput klavye/fare, seçili
+modelle tek eylemli gözlem döngüsü, durdurma çubuğu/F8, özel hesap parolaları hariç.
+Ayrıntılı kararlar ve test sınırları device-features.md içindedir.

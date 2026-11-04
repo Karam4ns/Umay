@@ -8,7 +8,7 @@ const playbackEcho=new window.PlaybackEcho();
 const safe=fn=>async(...args)=>{try{return await fn(...args);}catch(e){const text=e.message.replace(/^Error invoking remote method '[^']+': (?:Error: )?/,'');status(window.UmayErrors.isKnown(text)?errorText(text):text);}};
 function errorText(code){const info=window.UmayErrors.describe(code);return info.title+'\n'+info.message;}
 function showChatError(code){const text=errorText(code);const node=message('error',text,false);node.setAttribute?.('role','alert');status(text);}
-function clearAccount(){++sessionEpoch;accountId=null;conversation=null;models=[];releaseMicrophone();$('messages').replaceChildren();$('history').replaceChildren();$('models').replaceChildren();$('memory-data').textContent='';window.umayShell?.history(0);window.umayShell?.account(null);return stop();}
+function clearAccount(){window.umayDevice?.reset();++sessionEpoch;accountId=null;conversation=null;models=[];releaseMicrophone();$('messages').replaceChildren();$('history').replaceChildren();$('models').replaceChildren();$('memory-data').textContent='';window.umayShell?.history(0);window.umayShell?.account(null);return stop();}
 function message(role,text,record=true){const node=document.createElement('div');node.className='message '+String(role).toLowerCase();node.textContent=text;$('messages').append(node);window.umayShell?.message(role,record);node.scrollIntoView();return node;}
 async function refresh(){
  const epoch=++sessionEpoch;let user;try{user=await api.api('/site/auth/me');}catch(e){if(epoch!==sessionEpoch)return;if(epoch===sessionEpoch){if(accountId!==null){const cleanup=clearAccount(),cleared=sessionEpoch;await cleanup;if(cleared!==sessionEpoch)return;}if(/Oturum doğrulaması gerekli|LOGIN_REQUIRED/.test(e.message)){window.umayShell?.account(null);status('Devam etmek için Veriüssü hesabınla giriş yap.');return;}}throw e;}if(epoch!==sessionEpoch)return;
@@ -16,6 +16,7 @@ async function refresh(){
  window.umayShell?.account(user);status(`Bağlı hesap: ${user.email||user.firstName||user.id}`);
  const result=await api.api('/site/chat/models');if(epoch!==sessionEpoch)return;models=result.models||[];$('models').replaceChildren();
  for(const m of models){const o=document.createElement('option');o.value=m.id;o.textContent=m.name;o.dataset.source=m.source;$('models').append(o);}
+ window.umayDevice?.modelsChanged();
  const history=await api.api('/site/chat/conversations');if(epoch!==sessionEpoch)return;$('history').replaceChildren();
  window.umayShell?.history((history.conversations||[]).length);
  for(const c of history.conversations||[]){const b=document.createElement('button');b.textContent=c.title;b.onclick=safe(async()=>{const historyEpoch=sessionEpoch;const historyTicket=++ticket;await stop(false);if(historyEpoch!==sessionEpoch||historyTicket!==ticket)return;const detail=await api.api('/site/chat/conversations/'+c.id);if(historyEpoch!==sessionEpoch||historyTicket!==ticket)return;conversation=detail.conversation;$('messages').replaceChildren();for(const m of detail.messages)message(m.role,m.content,false);});$('history').append(b);}
@@ -30,8 +31,9 @@ async function stop(advance=true,preserveCapture=false){
  // Local output is stopped synchronously. A cold Python worker must not hold
  // a text message behind speech-library startup before its cancel ack arrives.
  void api.speech('cancel').catch(()=>{});
+ const computerCancel=window.umayDevice?.running()&&api.computer?api.computer('stop').catch(()=>{}):Promise.resolve();
  const cancelRun=previous?api.api('/site/chat/runs/'+previous+'/cancel',{}).catch(()=>{}):Promise.resolve();
- pendingRunCancel=Promise.all([pendingRunCancel,cancelRun]).then(()=>{});
+ pendingRunCancel=Promise.all([pendingRunCancel,cancelRun,computerCancel]).then(()=>{});
  const idle=api.busy(false);
  let reset=Promise.resolve();
  if(!preserveCapture){recording=false;frames=[];pre=[];voiced=0;silence=0;gateFrames=[];clearVoiceDraft();if(liveRecognizer)reset=liveRecognizer.reset().catch(error=>{releaseMicrophone();status(error.message);});}
@@ -54,6 +56,15 @@ function submitMessage(text,current){
 }
 async function send(text,fromVoice=false){
  if(!text.trim())return;
+ if(window.umayDevice?.computerMode()){
+  const current=++ticket;await stop(false,fromVoice);if(current!==ticket)return;const model=models.find(m=>m.id===$('models').value);if(!model)throw Error('Önce bir model seçin.');
+  message('user',text);await api.busy(true);responseActive=true;
+  try{const result=await window.umayDevice.runComputer(text,model);if(current!==ticket||!result)return;
+   if(result.status==='completed'){message('assistant',result.message);if($('speak').checked)await api.speech('speak',{text:result.message,voice});}
+   else if(result.status==='failed'){const info=window.UmayErrors.isKnown(result.message)?errorText(result.message):result.message;message('error',info,false);status(info);}
+  }finally{if(current===ticket){responseActive=false;if(!sources.length)await api.busy(false);}}
+  return;
+ }
  const current=++ticket;await stop(false,fromVoice);if(current!==ticket)return;await api.busy(true);if(current!==ticket)return;responseActive=true;message('user',text);status('Yanıt hazırlanıyor…');
  try{
   const posted=await submitMessage(text,current);if(!posted||current!==ticket)return;

@@ -156,3 +156,18 @@ Eski profiller seçilince hazırlanır. Mevcut TTS modeli, Türkçe okuma ve dur
 korunur; yeni model indirilmez. Ses benzerliği için %100 garanti verilmez.
 Kontrol: Python komutuna tests/test_voice_cloning.py eklenir; gerçek UI akışı
 `node_modules/.bin/electron.cmd tests/electron-clone.cjs` ile sınanır.
+
+### Yerel hafıza, konum ve bilgisayar — 0.4.0
+Hafıza sayfasında hesabına özel kalıcı konuşma arşivi, bağlantılı notlar, tercihler,
+dosya yolları ve işlem günlüğü bulunur. Sunucudan silinen sohbetler yerel
+arşivden silinmez. Masaüstü/Belgeler/İndirilenler yolları arka planda indekslenir;
+içerikler okunmaz. Özel hesaplar Windows ile şifrelenir, modele gönderilmez.
+Konum ve uyarılar sayfasından cihaz konumu veya şehir seçilebilir. Hava tahmini
+MET Norway'den; deprem AFAD/USGS, haberler AA/OGM RSS kaynaklarından gelir.
+Uygulama açık ve hesap bağlıyken kontrol edilir; kaynak/son kontrol ve hata
+durumu görünür. Bildirim tercihleri ve özel RSS/Atom kaynakları düzenlenebilir.
+Bilgisayar kontrolünü açıp görev yazabilir veya sohbette “Bilgisayarda çalış”
+seçebilirsin. Ekran, seçtiğin görsel modele iletilir; metin modelleri Windows
+erişilebilirlik öğeleriyle çalışır. F8 veya görev çubuğuyla durdurabilirsin.
+UAC/yönetici pencerelerine Windows izin vermeyebilir. Yeni ses modeli gerekmez.
+Ayrıntı ve kaynak lisansları: Docs/device-features.md.
