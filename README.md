@@ -1,6 +1,7 @@
 # Umay — Windows
 
-Türkçe sesli asistan geliştirme sürümü. Nihai görsel tasarım henüz uygulanmadı.
+Türkçe sesli asistan geliştirme sürümü. Fütüristik kontrol merkezi ve canlı Türkçe
+konuşma akışı içerir.
 
 ## Geliştirme
 
@@ -13,7 +14,7 @@ node node_modules/electron/install.js
 uv venv --python 3.12 .venv
 uv pip sync --python .venv/Scripts/python.exe speech/requirements-lock.txt
 npm test
-.venv/Scripts/python.exe -m pytest tests/test_worker.py -q
+uv run --no-project --python .venv/Scripts/python.exe --with pytest python -m pytest tests/test_worker.py tests/test_live_stt.py -q
 npm start
 ```
 
@@ -75,16 +76,32 @@ süresi ve hatayı kaydedin. Sonra Umay yalnız konuşurken yanlış kesilme, ku
 aynı anda konuşurken algılama ve ilk hecenin korunmasını ölçün. 4 GB destek iddiası
 bu ölçüm yapılmadan kullanılmamalıdır.
 
-### Mikrofon testi (0.1.2)
+### Canlı konuşma (0.3.0)
 
-Konuşmayı başlatın; mikrofon adı ve seviye göstergesini kontrol edin. Konuşma bitince
-kısa sessizlikten sonra “Konuşmanız metne çevriliyor” ve “Duyduğum” durumları görünür.
+Eski sürümden geçişte Ayarlar/Konuşma → STT → İndir / hazırla ile yeni canlı modeli
+bir kez kurun. TTS ve klon profilleri korunur. Konuşmayı başlatın; metin konuşurken
+görünür, kısa duraklamada gönderilir. Mikrofon yanıt sırasında açık kalır;
+yeniden konuşunca yanıt kesilir. Dinlemeyi kapat düğmesi mikrofonu kapatır.
 Seviye hiç oynamıyorsa Windows Ayarlar → Sistem → Ses → Giriş bölümünden varsayılan
 mikrofonu ve mikrofon gizlilik iznini kontrol edin. STT paketi Ayarlar / Konuşma'dan kurulur.
+
+Canlı STT: sabit revision ile Seda v0.2 / sherpa-onnx, balanced int8, CPU üzerinde
+2 thread; kurulduğunda açılışta RAM'e yüklenir. TTS motoru değişmedi. Atıf/lisanslar
+speech/NOTICE.txt, karar ve ölçümler Docs/live-speech.md içindedir.
 
 Geliştirici yakalama testi: `node_modules/.bin/electron.cmd tests/electron-microphone.cjs`.
 Yapay mikrofon kullanır; gerçek worklet/PCM ve kapat/aç akışını sınar. Model/API bu testte
 taklittir. Fiziksel mikrofon, hoparlör yankısı ve CPU/GPU STT süresi ayrıca ölçülmelidir.
+
+Gerçek model testi için önce canlı STT'yi uygulamadan kurun, sonra:
+
+```powershell
+.venv/Scripts/python.exe scripts/download-stt-fixture.py
+node_modules/.bin/electron.cmd tests/electron-live-stt.cjs
+```
+
+CC BY 4.0 lisanslı Türkçe FLEURS örneği kullanılır; gerçek yakalama/tanıma hattı ve
+mikrofon yeniden açılmadan iki konuşma sınanır. Sohbet API'si testte taklittir.
 
 ### Yeni masaüstü arayüzü — 0.2.0
 
