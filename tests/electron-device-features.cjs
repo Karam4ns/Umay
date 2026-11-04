@@ -1,0 +1,31 @@
+const {app,ipcMain,safeStorage,screen}=require('electron'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+const {DeviceServices}=require('../src/device-services.cjs');
+app.setPath('userData',fs.mkdtempSync(path.join(os.tmpdir(),'umay-devices-ui-')));
+require('../src/main.cjs');let service;
+const timeout=setTimeout(()=>{console.error('FAIL device UI timeout');app.exit(1);},60000);
+app.on('browser-window-created',(_e,window)=>{window.webContents.once('did-finish-load',async()=>{
+ try{
+  const api=async(route,body)=>route==='/site/auth/me'?{id:'test-account',email:'test@example.test'}:route==='/site/chat/models'?{models:[{id:'model',name:'Deneme modeli',source:'PERSONAL',categories:['vision']}]}:{conversations:[]};
+  service=new DeviceServices({directory:app.getPath('userData'),api,screen,capture:async()=>[{displayId:'1',name:'Deneme ekranı',width:1,height:1,image:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jP1cAAAAASUVORK5CYII='}],native:{request:async()=>({elements:[],cursor:{x:0,y:0},handle:1}),close(){}},background:false,encrypt:async value=>safeStorage.encryptStringAsync(value),decrypt:async value=>(await safeStorage.decryptStringAsync(value)).result});service.activate('test-account');
+  service.memory.archiveConversation({id:'archived',title:'Tercihlerim'},[{id:'msg1',role:'user',content:'Adım Kazım. Kahveyi seviyorum.'},{id:'msg2',role:'assistant',content:'Hatırladım.'}]);
+  service.environment.setLocation({latitude:41,longitude:29,label:'İstanbul'});service.environment.weather=async()=>({location:'İstanbul',temperature:19,windSpeed:3,humidity:60,symbol:'cloudy',forecastTime:new Date().toISOString(),validUntil:new Date(Date.now()+3600000).toISOString()});
+  for(const name of ['api','local-memory','environment','computer'])ipcMain.removeHandler(name);
+  ipcMain.handle('api',(_e,route,body)=>api(route,body));ipcMain.handle('local-memory',(_e,method,input)=>service.local(method,input));ipcMain.handle('environment',(_e,method,input)=>service.environmentAction(method,input));ipcMain.handle('computer',(_e,method,input)=>service.computer(method,input));
+  const js=code=>window.webContents.executeJavaScript(code),paint=()=>js('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
+  await js('refresh()');await js("window.umayShell.navigate('memory')");
+  await js(`new Promise((resolve,reject)=>{const end=Date.now()+5000;const check=()=>{if(document.querySelectorAll('#memory-nodes .device-row').length>=3)return resolve();if(Date.now()>end)return reject(Error('Memory missing'));setTimeout(check,20)};check()})`);
+  assert.ok(await js("document.querySelectorAll('#memory-graph g').length>=3"));
+  await js("document.getElementById('memory-new').click();document.getElementById('memory-title').value='Umay projesi';document.getElementById('memory-content').value='[[Adı]] ile geliştirme';document.getElementById('memory-save').onclick()");assert.ok(service.memory.snapshot().links.length>0);
+  await paint();fs.writeFileSync('.superpowers/memory-device-dark.png',(await window.capturePage()).toPNG());
+  await js("document.querySelector('[data-memory-tab=private]').click();document.getElementById('private-service').value='E-posta';document.getElementById('private-username').value='fixture@example.test';document.getElementById('private-password').value='fixture-secret';document.getElementById('private-form').dispatchEvent(new Event('submit',{cancelable:true}))");
+  await js(`new Promise((r,j)=>{const end=Date.now()+5000;const check=()=>{if(document.getElementById('private-status').textContent.includes('kaydedildi'))return r();if(Date.now()>end)return j(Error('Secure save failed'));setTimeout(check,20)};check()})`);
+  assert.doesNotMatch(service.memory.db.prepare('SELECT encrypted FROM private_accounts').get().encrypted.toString(),/fixture-secret/);assert.doesNotMatch(JSON.stringify(service.memory.context('e-posta')),/fixture-secret|fixture@example/);
+  await js("window.umayShell.navigate('environment')");await js("document.getElementById('weather-refresh').onclick()");assert.match(await js("document.getElementById('weather-data').textContent"),/19°/);await paint();fs.writeFileSync('.superpowers/environment-device-dark.png',(await window.capturePage()).toPNG());
+  await js("window.umayShell.navigate('computer')");await paint();assert.equal(await js("document.getElementById('computer').hidden"),false);
+  await js("document.getElementById('computer-enabled').checked=true;document.getElementById('computer-enabled').onchange()");await js("document.getElementById('computer-preview').onclick()");await js("Promise.all([...document.querySelectorAll('#computer-screens img')].map(image=>image.decode()))");assert.ok(await js("document.querySelector('#computer-screens img').naturalWidth>0"));
+  fs.writeFileSync('.superpowers/computer-device-dark.png',(await window.capturePage()).toPNG());
+  await js("window.umayShell.navigate('memory');document.querySelector('[data-memory-tab=notes]').click();document.getElementById('theme').click()");await paint();fs.writeFileSync('.superpowers/memory-device-light.png',(await window.capturePage()).toPNG());assert.equal(await js('document.documentElement.scrollWidth<=innerWidth'),true);
+  await js('clearAccount()');assert.equal(await js("document.getElementById('memory-nodes').children.length"),0);assert.equal(await js("document.getElementById('private-password').value"),'');
+  console.log('PASS real Electron memory/archive/graph, Windows encryption, environment view, computer view, themes, account cleanup');service.close();clearTimeout(timeout);app.quit();
+ }catch(error){console.error(error);service?.close();clearTimeout(timeout);app.exit(1);}
+});});
