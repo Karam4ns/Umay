@@ -14,7 +14,7 @@ const entities:Record<string,string>={'&':'&amp;','<':'&lt;','>':'&gt;','"':'&qu
 const escape=(value:string)=>value.replace(/[&<>"']/g,c=>entities[c]!);
 function page(reply:FastifyReply,mode:'authorize'|'logout',fields=''){
  reply.header('Cache-Control','no-store').header('Referrer-Policy','no-referrer');
- reply.header('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'");
+ reply.header('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'");
  return reply.type('text/html; charset=utf-8').send(renderDesktopAuthPage(mode,fields));
 }
 @Controller('site/desktop-auth')
