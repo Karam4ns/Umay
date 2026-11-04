@@ -331,3 +331,15 @@ sıcak TTS ilk parça 110ms, 26 ses parçası PASS.
 - [x] 44 Python +65 Node test; gerçek worker ses üretimi/iptal/yeniden konuşma.
 - [x] Windows0.3.4 paket bütünlüğü; paket içindeki Python ile gerçek speak/iptal/yeniden konuşma.
 - [x] GitHub main:14 dosya yerel Git blob SHA değerleriyle birebir doğrulandı.
+
+## [2026-11-04] Klonlama doğallığı — 0.3.5
+- [x] Üretici referans kesim şartı incelendi:3–5s, cümle bitimi değil sözcük arası.
+- [x] Üç mevcut kayıtta ilk bölüm ölçüldü; birinde eski kesim uyarısı yeniden üretildi.
+- [x] voice_cloning.py: sınırlı MP3 çözümü, aday aralık seçimi, sabit seviye düzenleme.
+- [x] Özgün MP3 +hazırlanmış PCM WAV, benzersiz profil anahtarı, atomik kayıt/iptal.
+- [x] Eski profil yükseltme, önbellekten seçim, kaldırmada yalnız ilgili profil dosyaları.
+- [x] Oluşturunca doğrudan seçme, önizlemede aynı ses, kalıcı seçim ve kayıt önerileri.
+- [x] 60 Python /67 Node testi; gerçek Electron klon ayarları/önizleme/hata kontrolleri.
+- [x] Üç gerçek profilde eski/yeni ses örneği üretimi; özgün dosyalar hash olarak korundu.
+- [x] Paket içindeki gerçek ses motoruyla profil/iptal kontrolleri; kurulum bütünlüğü.
+- [ ] GitHub kaynak eşleştirmesi.

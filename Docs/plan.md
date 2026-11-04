@@ -721,3 +721,16 @@ Nokta180ms, soru220ms, ünlem200ms, üç nokta320ms, satır260ms, boş paragraf3
 ara PCM sessizlik hedefidir; başta/sonda yapay bekleme yoktur. Bunlar TDK'nin
 belirlediği süreler değildir. Ton ve vurgu akustik modelin yeteneğiyle sınırlıdır.
 Mevcut pocket-tts-turkish0.1.0 ve klon sesler korunur; yeni model indirilmez.
+
+## [2026-11-04] Klon ses doğallığı — 0.3.5
+Kullanıcı: metalik ses, düşük benzerlik ve yapay vurgu birlikte iyileşsin; onaylanan
+konuşma hızı, Türkçe okuma ve noktalama ayarları bozulmasın. %100 benzerlik garanti
+edilemeyeceği açıklandı; dinleme karşılaştırması kabulün parçasıdır.
+Mevcut motorun ilk3–5s kesimi yerine kaynak boyunca uygun kısa sözcük arası seçimi.
+Tek sabit kazanç, DC düzeltmesi, faz iptalini önleyen stereo çözümü; perde/hız
+değişimi, ağır gürültü filtresi ve dinamik kompresör yok. Referans PCM WAV olarak
+saklanır, yeniden kesilmez; özgün MP3 korunur. Kalitesiz örnek anlaşılır uyarı verir.
+Profil kimliği ses adı olarak benzersizdir; aynı görünen ad birbirini ezmez.
+Eski profil seçilince yerel referans hazırlanır; model yeniden konuşma/seçimde
+tekrar kodlanmaz. Yeni profil doğrudan seçilir, önizleme aynı sesi kullanır.
+Pocket TTS0.1.0/model/speech text katmanı aynen kalır. Yeni bağımlılık yoktur.

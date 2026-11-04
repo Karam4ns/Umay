@@ -321,3 +321,42 @@ Installer 478047979 byte, SHA256:0ac3fbfbd13a3a3a96d18dcb770d2bb41eb3b1153701fcd
 İlk paket kontrolünün package.json tam metin eşitliği varsayımı yanlıştı: builder
 development/build alanlarını çıkarır. Sürüm/main/name/dependencies alanları ayrı
 karşılaştırıldı; uygulama ve Python kaynakları byte olarak eşleştirildi.
+
+## [2026-11-04] Klonlama — 0.3.5
+60 Python PASS: uzun sessiz giriş, uygun kısa ara, sessiz/kısa/bozuk/ara vermeyen
+kayıt, patlayan girişten kaçınma, fazı ters stereo, gerçek MP3 →24kHz PCM WAV,
+50MB ve10dk sınırı (süre başlığı bilinmese de gerçek örnek sayısı), iptal ve atomik
+profil, eski profili aslına dokunmadan yükseltme, benzersiz isim/önbellek/kaldırma.
+Yeni işleme,5ms sessiz uçlar dışında ses örneğiyle korelasyon>.99999: yalnız
+DC ve tek sabit kazanç; perde/zaman/kompresyon uygulanmıyor. Bu benzerlik MOS değildir.
+67 Node PASS: yeni klonun otomatik seçimi, önizleme, seçim kalıcılığı ve hatada önceki
+sesi koruma; mevcut konuşma/STT/yanıt/hata regresyonları da geçti.
+Gerçek Electron: ses ayarlarında durum/uyarı görünür, klon doğrudan seçili, önizleme
+aynı kimlikle; başarısızlıkta düğme açılır ve önceki ses korunur. Settings screenshot
+.superpowers/clone-settings.png gözle kontrol edildi, taşma yok. Hesap ve IPC
+klon çıktısı bu UI testinde taklittir; aşağıdaki Python testi gerçek motor kullanır.
+Üç mevcut MP3'ün yalnız kopyalarıyla gerçek motor: yeni ilk ses125.1/155.9/145.7ms;
+eski153.6/119.4/125.1ms. Tek örnek farkları cihaz/zamanlama değişkenliğidir; hızın
+iyileştiği veya her cihazda aynı kaldığı istatistiksel olarak iddia edilmez.
+Yeni üretimler3.35/3.36/3.75s, ses7.56/7.48/7.40s. Türkçe okuma ve duraklama
+kodu önceki commit ile aynı; aynı metin eski/yeni klonda kullanıldı. Yeni referanslar
+3.32/3.96/3.86s; seçilen başlangıçlar0.28/4.64/14.14s. Eski ilk profilde
+sözcük arası bulunamadı uyarısı vardı. Kaynak JSON/MP3 hash ve dosya kümesi değişmedi.
+Karşılaştırmalar .superpowers/clone-comparison; insan dinleme/benzerlik kabulü bekleniyor.
+
+0.3.5 paket kontrolü: asar sürümü +3 uygulama dosyası ve4 konuşma dosyası byte eşit.
+Installer 478052284 byte, SHA256:8979ac203d039638a95cc3acfcf2869af4fe7754ddac5bbcb970940f6eeaa5e3.
+Paketli runtime/python.exe →gerçek JSON-lines worker; yalıtılmış veri dizini/model
+hardlinkleri, özgün profillere yazmadan clone/select/speak/cancel/resume/delete PASS.
+İlk klon sesi266.1ms; iptal109.7ms. Bu tek ölçümün önceki farklı çalışmadan hızlı
+olduğu iddia edilmez; aynı ortamda eski/yeni karşılaştırma ayrıca kaydedilir.
+Seda geri yazımında profil1/2 sözcükleri eşleşti; profil3 tek çıktıda fazladan
+Hazır döndürdü. Bunun gerçek tekrar mı ASR hatası mı olduğu insan dinlemesiyle
+değerlendirilmeli; metin doğruluğu veya ses benzerliği için %100 PASS denmedi.
+
+Aynı paket/cihaz/metinde üçer deneme: varsayılan255.8/274.1/244.5ms
+(ortanca255.8), eski klon272.3/235.3/281.0ms(ortanca272.3),
+yeni klon248.1/279.9/274.0ms(ortanca274.0). Bu küçük örneklemde klon
+hazırlama değişikliğine bağlı belirgin bir ilk ses gecikmesi görülmedi.
+Önceki çalışmalardaki125–156ms farklı zaman/ortam ölçümüdür; aynı koşul karşılaştırması
+olarak kullanılmaz. Onaylanan turkish_speech.py HEAD ile aynı; ağır ses efekti yok.

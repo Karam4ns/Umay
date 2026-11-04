@@ -15,6 +15,7 @@ import time
 import wave
 from live_stt import LiveSTT
 from turkish_speech import stream_speech
+from voice_cloning import create_profile, select_profile, delete_profile
 
 ROOT = Path(os.environ.get('UMAY_DATA', Path.home() / '.umay'))
 ROOT.mkdir(parents=True, exist_ok=True)
@@ -199,39 +200,20 @@ def run(request):
                     emit({'event': 'audio', 'id': request_id, 'audio': base64.b64encode(output.getvalue()).decode()})
             result = {'cancelled': CANCEL.is_set()}
         elif method == 'clone':
-            path = Path(p['path'])
-            if path.suffix.lower() != '.mp3' or not 0 < path.stat().st_size <= 50_000_000:
-                raise ValueError('En fazla 50 MB MP3 seçin.')
-            import av
-            with av.open(str(path)) as media:
-                if not media.streams.audio or (media.duration or 0) > 600 * av.time_base:
-                    raise ValueError('Referans en fazla 10 dakika ve geçerli ses olmalı.')
             load('tts')
-            # The library performs reference cutting; profiles persist independently of packages.
+            emit({'event': 'progress', 'id': request_id, 'kind': 'Ses profili', 'stage': 'Ses örneği hazırlanıyor…'})
             with contextlib.redirect_stdout(sys.stderr):
-                name = MODELS['tts'][0].voice_from_file(path, name=p.get('name') or path.stem, cut=True)
-            profiles = ROOT / 'voices'; profiles.mkdir(exist_ok=True)
-            # Store the source to reconstruct the library's voice state after relaunch.
-            from uuid import uuid4
-            profile_id = str(uuid4()); destination = profiles / (profile_id + '.mp3')
-            shutil.copyfile(path, destination)
-            (profiles / (profile_id + '.json')).write_text(json.dumps({'name': name, 'path': str(destination)}, ensure_ascii=False), encoding='utf-8')
-            result = {'id': profile_id, 'name': name}
+                result = create_profile(ROOT / 'voices', MODELS['tts'][0], p['path'], p.get('name'),
+                                        lambda: CANCEL.is_set() or request.get('_epoch', EPOCH) != EPOCH)
         elif method == 'voices':
             result = [dict(json.loads(f.read_text(encoding='utf-8')), id=f.stem) for f in (ROOT / 'voices').glob('*.json')]
         elif method == 'select_voice':
-            from uuid import UUID
-            profile_id = str(UUID(p['id']))
-            info = json.loads((ROOT / 'voices' / (profile_id + '.json')).read_text(encoding='utf-8'))
             load('tts')
             with contextlib.redirect_stdout(sys.stderr):
-                name = MODELS['tts'][0].voice_from_file(info['path'], name=info['name'], cut=True)
-            result = name
+                result = select_profile(ROOT / 'voices', MODELS['tts'][0], p['id'],
+                                        lambda: CANCEL.is_set() or request.get('_epoch', EPOCH) != EPOCH)
         elif method == 'delete_voice':
-            from uuid import UUID
-            profile_id = str(UUID(p['id']))
-            for suffix in ('.json', '.mp3'):
-                (ROOT / 'voices' / (profile_id + suffix)).unlink(missing_ok=True)
+            delete_profile(ROOT / 'voices', p['id'])
             result = True
         else:
             raise ValueError('Bilinmeyen işlem.')

@@ -236,3 +236,29 @@ Installer 478047979 byte, SHA256:0ac3fbfbd13a3a3a96d18dcb770d2bb41eb3b1153701fcd
 İlk paket kontrolünün package.json tam metin eşitliği varsayımı yanlıştı: builder
 development/build alanlarını çıkarır. Sürüm/main/name/dependencies alanları ayrı
 karşılaştırıldı; uygulama ve Python kaynakları byte olarak eşleştirildi.
+
+## [2026-11-04] Klonlama — 0.3.5
+uv run --no-project --python .venv/Scripts/python.exe --with pytest python -m pytest tests/test_voice_cloning.py tests/test_turkish_speech.py tests/test_worker.py tests/test_live_stt.py -q →60 PASS.
+npm test →67 PASS. electron tests/electron-clone.cjs → gerçek UI seçme/önizleme/uyarı/hata PASS.
+.superpowers/check_clone_comparison.py → üç gerçek profil için eski/yeni WAV;
+yeni ilk125.1/155.9/145.7ms; kaynak dosya kümesi ve hash değişmedi.
+İlk testte InterruptedError'ın OSError altında yakalandığı bulundu, düzeltildi.
+UI testinde refresh beklenmeden gezinme ilk ekranı ana sayfaya döndürüyordu;
+refresh beklenip ayar sayfasının açık olduğu doğrulandı ve tekrar görüntülendi.
+
+0.3.5 paket kontrolü: asar sürümü +3 uygulama dosyası ve4 konuşma dosyası byte eşit.
+Installer 478052284 byte, SHA256:8979ac203d039638a95cc3acfcf2869af4fe7754ddac5bbcb970940f6eeaa5e3.
+Paketli runtime/python.exe →gerçek JSON-lines worker; yalıtılmış veri dizini/model
+hardlinkleri, özgün profillere yazmadan clone/select/speak/cancel/resume/delete PASS.
+İlk klon sesi266.1ms; iptal109.7ms. Bu tek ölçümün önceki farklı çalışmadan hızlı
+olduğu iddia edilmez; aynı ortamda eski/yeni karşılaştırma ayrıca kaydedilir.
+Seda geri yazımında profil1/2 sözcükleri eşleşti; profil3 tek çıktıda fazladan
+Hazır döndürdü. Bunun gerçek tekrar mı ASR hatası mı olduğu insan dinlemesiyle
+değerlendirilmeli; metin doğruluğu veya ses benzerliği için %100 PASS denmedi.
+
+Aynı paket/cihaz/metinde üçer deneme: varsayılan255.8/274.1/244.5ms
+(ortanca255.8), eski klon272.3/235.3/281.0ms(ortanca272.3),
+yeni klon248.1/279.9/274.0ms(ortanca274.0). Bu küçük örneklemde klon
+hazırlama değişikliğine bağlı belirgin bir ilk ses gecikmesi görülmedi.
+Önceki çalışmalardaki125–156ms farklı zaman/ortam ölçümüdür; aynı koşul karşılaştırması
+olarak kullanılmaz. Onaylanan turkish_speech.py HEAD ile aynı; ağır ses efekti yok.

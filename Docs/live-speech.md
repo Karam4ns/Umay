@@ -75,3 +75,24 @@ Kaynaklar:
 - https://tdk.gov.tr/icerik/yazim-kurallari/sayilarin-yazilisi/
 - https://tdk.gov.tr/icerik/yazim-kurallari/kisaltmalar/
 - https://tdk.gov.tr/icerik/yazim-kurallari/noktalama-isaretleri-aciklamalar/
+
+## Klon ses referansı — 0.3.5
+Klon motoru aynı kalır. voice_cloning.py kaydı24kHz çözer; kaynak boyunca
+3–5s adayları ölçer, içteki kısa sözcük arasında biten uygun bölümü seçer.
+Stereo faz iptalinde güçlü kanal kullanılır. Seçilen bölüme DC düzeltmesi ve
++9dB ile sınırlı tek kazanç uygulanır; tepe baş boşluğu korunur. Ağır denoise,
+perde/hız kaydırma ve dinamik kompresör kullanılmaz. Enerji ölçümleri gerçek
+konuşma tanıma/konuşmacı ayırma değildir; müzik veya çoklu kişiyi garantiyle ayırmaz.
+Bu yüzden tek kişinin doğal konuştuğu, müziksiz10–30s kayıt önerilir; üst sınır
+50MB MP3/10dk korunur. Uygun örnek bulunmazsa kesip robotik sonuç vermek yerine
+kullanıcıya yeniden kayıt önerilir. Kalite raporu insan benzerlik yüzdesi içermez.
+Özgün UUID.mp3 korunur; UUID.wav hazırlanmış referans, UUID.json kayıt/uyarıdır.
+Model bu WAV'ı cut=False ile bir kez kodlar. umay_UUID anahtarı aynı adlı profilleri
+ayırır. Seçim önbellekten, uygulama yeniden açılınca hazırlanmış WAV'dan yüklenir.
+Eski profil seçilince referans türetilir, özgün MP3 değişmez; başarısızlıkta eski
+kayıt korunur. Silme UUID.mp3/.wav/.json ile sınırlıdır. Modelin ses durumu uygulama
+kapanana kadar bellekte kalabilir; API'nin ses silme işlevi yoktur.
+Türkçe sayı/kısaltma/noktalama katmanı ve stream/iptal davranışı korunur.
+Kaynaklar: https://github.com/witetech/pocket-tts-turkish (voice cloning bölümü ve
+kurulu0.1.0 audio.py/model.py), https://huggingface.co/kyutai/pocket-tts
+(örnek ses kalitesinin çıktıya yansıdığına ilişkin üretici açıklaması).
