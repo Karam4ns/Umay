@@ -277,3 +277,29 @@ dosyası byte eşit. Installer 478053877 byte; SHA256:ceed6fa2ab27e48fe8a69c74ad
 Yankı eşleştirmesi sıcak30 çağrı (bu cihaz, arka planda build): ortanca1.94ms,
 p955.70ms. Kontrol100ms mikrofon bağlamında ve yalnız kesme eşiğinde yapılır;
 TTS'nin ilk parçasını bekleten bir ön üretim eklenmedi.
+
+## [2026-11-05] Cihaz yetenekleri — 0.4.0
+npm test →103 PASS. Python ses regresyonu →60 PASS.
+electron tests/electron-device-features.cjs → hafıza/grafik/Windows şifreleme/konum/
+bilgisayar ekranı/data:image CSP/hesap temizliği PASS.
+electron tests/electron-native-input.cjs → gerçek UIAutomation/ekran/SendInput/
+Türkçe/Ctrl+A/tıklama yalnız izole test penceresinde PASS.
+electron tests/electron-conversation.cjs → ilk ses156ms, oynatma214ms; mikrofon açık PASS.
+PublicHttp canlı: AFAD/USGS/AA/OGM200; MET Norway200; yeni DNS sabitlemeli istemci
+AFAD/USGS/AA/OGM200. npm audit --omit=dev: üretim bağımlılığı0 bulgu.
+Sunucu aday buildleri temel sürüm farkını gösterdi: chat modülü hosttan eski,
+worker eşleşiyordu. Chat'te yalnız controller/helper ve run-field temizliği;
+worker'da dar execution/controller/helper güncellendi. Kaynakmap/decorator
+metadata dışındaki temel JS eşliği kontrol edildi; syntax diagnostics0, modül yükleme PASS.
+Aday gerçek HTTP/izole PostgreSQL: bağlam, JSON planlayıcı, görsel giriş, ekran
+temizleme(queued cancel/recovery/başarı), geçmiş cursor PASS. Normal sohbet recovery PASS.
+Canlı: chat+2worker healthy; sortedEnv/portlar eşit;3 modül hash'i adayla eşit.
+BACKUP=/root/umay-desktop-1793829033. Yerel10203 auth401/chat.js200.
+Windows tarafından https://veriussu.com/site/auth/me401; sunucunun kendi dış isteği403
+aldı (yerel endpoint ve Windows401 geçti); tüm ağların aynı yanıt verdiği iddia edilmez.
+
+Paket0.4.0 doğrulaması: asar sürümü ve17 uygulama kaynağı byte eşit;
+asar.unpacked içindeki native-desktop.ps1 eşit;4 konuşma modülü değişmeden
+birebir. Paket içindeki computer-control.cjs +native yardımcıyla gerçek Windows
+UIAutomation/ekran/SendInput/Türkçe/Ctrl+A test penceresi PASS.
+Installer 478594521 byte, SHA256:1ff33be1a23a5ccf440818c6a54a8708cf0b3b2e4aa9b6dfb8cc9582863e367c.
