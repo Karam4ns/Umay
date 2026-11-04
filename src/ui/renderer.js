@@ -4,6 +4,7 @@ let conversation=null,runId=null,ticket=0,models=[],voice='',audioContext,playHe
 let pre=[],frames=[],voiced=0,silence=0,recording=false,transcribing=false,noise=.0005;
 let captureModule, microphoneSource, microphoneGain, inputFrames=0, microphoneEpoch=0,inputContext,liveRecognizer=null,liveDraft='',voiceEdited=false,echoGuardUntil=0,playbackSuppressed=false,gateFrames=[];
 const status=text=>{$('status').textContent=text;window.umayShell?.status(text);};
+const playbackEcho=new window.PlaybackEcho();
 const safe=fn=>async(...args)=>{try{return await fn(...args);}catch(e){const text=e.message.replace(/^Error invoking remote method '[^']+': (?:Error: )?/,'');status(window.UmayErrors.isKnown(text)?errorText(text):text);}};
 function errorText(code){const info=window.UmayErrors.describe(code);return info.title+'\n'+info.message;}
 function showChatError(code){const text=errorText(code);const node=message('error',text,false);node.setAttribute?.('role','alert');status(text);}
@@ -24,7 +25,7 @@ function clearVoiceDraft(){
  liveDraft='';voiceEdited=false;$('live-caption').hidden=true;
 }
 async function stop(advance=true,preserveCapture=false){
- if(advance)++ticket;const hadPlayback=sources.length>0;sources.forEach(source=>{try{source.stop();}catch{}});sources=[];playHead=0;if(hadPlayback)echoGuardUntil=Date.now()+200;window.umayShell?.speaking(false);
+ if(advance)++ticket;const hadPlayback=sources.length>0;sources.forEach(source=>{try{source.stop();}catch{}});sources=[];if(audioContext)playbackEcho.stop(audioContext.currentTime);playHead=0;if(hadPlayback)echoGuardUntil=Date.now()+200;window.umayShell?.speaking(false);
  const previous=runId;runId=null;responseActive=false;
  // Local output is stopped synchronously. A cold Python worker must not hold
  // a text message behind speech-library startup before its cancel ack arrives.
@@ -82,7 +83,7 @@ async function play(data){
  const generation=ticket;audioContext ||= new AudioContext();await audioContext.resume();if(generation!==ticket)return;const raw=Uint8Array.from(atob(data),c=>c.charCodeAt(0));
  const buffer=await audioContext.decodeAudioData(raw.buffer);if(generation!==ticket)return;
  await api.busy(true);if(generation!==ticket)return;const source=audioContext.createBufferSource();source.buffer=buffer;source.connect(audioContext.destination);
- playHead=Math.max(audioContext.currentTime+.03,playHead);source.start(playHead);playHead+=buffer.duration;sources.push(source);window.umayShell?.speaking(true);
+ playHead=Math.max(audioContext.currentTime+.03,playHead);playbackEcho.add(buffer,playHead,audioContext.currentTime);source.start(playHead);playHead+=buffer.duration;sources.push(source);window.umayShell?.speaking(true);
  source.onended=()=>{sources=sources.filter(s=>s!==source);if(!sources.length){echoGuardUntil=Date.now()+200;window.umayShell?.speaking(false);if(!runId)void api.busy(false);}};
 }
 function pcmBase64(parts){const floats=parts.flatMap(x=>Array.from(x));const output=new Int16Array(floats.length);for(let i=0;i<output.length;i++)output[i]=Math.max(-1,Math.min(1,floats[i]))*32767;
@@ -119,6 +120,7 @@ async function onFrame(frame){
  if(gated&&!recording){gateFrames.push(frame);if(gateFrames.length>5)gateFrames.shift();playbackSuppressed=true;}
  if(speech){voiced++;silence=0;}else{silence++;if(!recording)voiced=0;}
  let replayed=false;
+ if(!recording&&voiced>=5&&gated&&audioContext&&playbackEcho.matches(gateFrames,audioContext.currentTime))voiced=0;
  if(!recording&&voiced>=5){
   recording=true;playbackSuppressed=false;$('voice-status').textContent='Seni dinliyorum…';
   if(gated){for(const part of gateFrames)liveRecognizer?.accept(part);gateFrames=[];replayed=true;}
