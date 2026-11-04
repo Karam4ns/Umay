@@ -1,0 +1,304 @@
+--- a/apps/api/src/chat.controller.ts
++++ b/apps/api/src/chat.controller.ts
+@@ -1,7 +1,8 @@
++import { desktopOptions, desktopSignature } from "./desktop-context";
+ import { ChatStreamHub } from "./chat-stream-hub";
+ import { webSessionQuery, webSessionUser } from "./web-session";
+ import { mediaCapable, mediaKinds } from "./chat-media";
+-import { visionCapable } from "./chat-files";
++import { visionCapable, prepareFile } from "./chat-files";
+ import { ChatMemory } from "./chat-memory";
+ import { ChatExecution, executionModel, runFields } from "./chat-execution";
+ import {
+@@ -49,6 +50,9 @@
+   @IsString() @MinLength(1) @MaxLength(150) title!: string;
+ }
+ class SendChatMessage {
++  @IsOptional() @IsString() @MaxLength(12000) desktopContext?: string;
++  @IsOptional() @IsIn(["context", "computer"]) desktopMode?: string;
++  @IsOptional() @IsString() @MaxLength(1500000) desktopImage?: string;
+   @IsOptional() @IsIn(mediaKinds) kind?: string;
+   @IsOptional()
+   @IsIn(["alloy", "echo", "fable", "onyx", "nova", "shimmer"])
+@@ -318,12 +322,14 @@
+   }
+   @Get("conversations/:id") async detail(
+     @Param("id") id: string,
++    @Query("before") before: string | undefined,
+     @Req() req: FastifyRequest,
+     @Res({ passthrough: true }) reply: FastifyReply,
+   ) {
+     reply.header("Cache-Control", "no-store");
+     const u = await this.auth.authorize(req);
+     this.uuid(id);
++    if (before) this.uuid(before);
+     const conversation = (
+       await this.db.connection.query(
+         `SELECT ${fields} FROM chat_conversations WHERE id=$1 AND user_id=$2`,
+@@ -333,14 +339,15 @@
+     if (!conversation) throw new NotFoundException();
+     const rows = (
+       await this.db.connection.query(
+-        `SELECT id,role,content,tool_kind AS kind,created_at AS "createdAt",coalesce((SELECT jsonb_agg(jsonb_build_object('id',f.id,'name',f.name,'mime',f.mime,'truncated',f.truncated)) FROM chat_files f WHERE f.message_id=chat_messages.id AND f.user_id=$2),'[]'::jsonb) AS files FROM chat_messages WHERE conversation_id=$1 AND user_id=$2 ORDER BY created_at DESC,id DESC LIMIT 101`,
+-        [id, u.id],
++        `SELECT id,role,content,tool_kind AS kind,created_at AS "createdAt",coalesce((SELECT jsonb_agg(jsonb_build_object('id',f.id,'name',f.name,'mime',f.mime,'truncated',f.truncated)) FROM chat_files f WHERE f.message_id=chat_messages.id AND f.user_id=$2),'[]'::jsonb) AS files FROM chat_messages WHERE conversation_id=$1 AND user_id=$2 AND ($3::uuid IS NULL OR (created_at,id)<(SELECT created_at,id FROM chat_messages WHERE id=$3 AND user_id=$2 AND conversation_id=$1)) ORDER BY created_at DESC,id DESC LIMIT 101`,
++        [id, u.id, before ?? null],
+       )
+     ).rows;
+     return {
+       conversation,
+       messages: rows.slice(0, 100).reverse(),
+       hasMoreMessages: rows.length > 100,
++      nextBeforeId: rows.length > 100 ? rows[99].id : null,
+       run:
+         (
+           await this.db.connection.query(
+@@ -352,7 +359,7 @@
+     };
+   }
+   @Post("conversations/:id/messages")
+-  @RouteConfig({ rateLimit: { ...writeRate, max: 12 } })
++  @RouteConfig({ bodyLimit: 2 * 1024 * 1024, rateLimit: { ...writeRate, max: 12 } })
+   async send(
+     @Param("id") id: string,
+     @Body() input: SendChatMessage,
+@@ -362,6 +369,15 @@
+     this.uuid(id);
+     if (!input.content.trim()) throw new BadRequestException("INVALID_MESSAGE");
+     reply.header("Cache-Control", "no-store");
++    let desktopImage: string | undefined;
++    if (input.desktopImage) {
++      if (input.kind && input.kind !== "CHAT" || input.desktopMode !== "computer") throw new BadRequestException("INVALID_REQUEST");
++      const encoded = input.desktopImage.replace(/^data:image\/(?:png|jpeg|webp);base64,/, "");
++      const image = await prepareFile("umay-screen.png", encoded);
++      if (image.mime !== "image/webp") throw new BadRequestException("INVALID_REQUEST");
++      desktopImage = "data:image/webp;base64," + image.content.toString("base64");
++    }
++    const mediaOptions = desktopOptions(input, desktopImage);
+     const result = await this.write(
+       req,
+       async (db, userId) => {
+@@ -387,8 +403,7 @@
+           if (
+             existing.conversationId !== id ||
+             existing.kind !== (input.kind ?? "CHAT") ||
+-            JSON.stringify(existing.mediaOptions ?? {}) !==
+-              JSON.stringify(input.voice ? { voice: input.voice } : {}) ||
++            desktopSignature(existing.mediaOptions) !== desktopSignature(mediaOptions) ||
+             existing.requestContent !== input.content.trim() ||
+             JSON.stringify(existing.requestFiles) !==
+               JSON.stringify([...(input.fileIds ?? [])].sort())
+@@ -423,6 +438,7 @@
+           conversation.personal_model_id ?? conversation.platform_model_id,
+           conversation.subscription_id,
+         );
++        if (desktopImage && !visionCapable(chosen.categories)) throw new BadRequestException("MODEL_VISION_UNAVAILABLE");
+         const kind = input.kind ?? "CHAT";
+         if (!mediaCapable(chosen.categories, kind))
+           throw new BadRequestException("MODEL_MEDIA_UNAVAILABLE");
+@@ -467,7 +483,7 @@
+             "UPDATE chat_files SET message_id=$1 WHERE id=ANY($2::uuid[]) AND user_id=$3",
+             [message.id, fileIds, userId],
+           );
+-        if (kind === "CHAT")
++        if (kind === "CHAT" && input.desktopMode !== "computer")
+           await this.memory.captureExplicit(
+             db,
+             userId,
+@@ -488,7 +504,7 @@
+               conversation.model_name,
+               conversation.subscription_id,
+               kind,
+-              JSON.stringify(input.voice ? { voice: input.voice } : {}),
++              JSON.stringify(mediaOptions),
+             ],
+           )
+         ).rows[0];
+@@ -604,7 +620,7 @@
+       if (!run) throw new NotFoundException();
+       if (["QUEUED", "RUNNING"].includes(run.status))
+         await db.query(
+-          "UPDATE chat_runs SET draft_content='',status='CANCELED',phase='canceled',error_code='CANCELED',billing_status=CASE WHEN billing_status='PENDING' THEN 'FAILED' ELSE billing_status END,finished_at=now() WHERE id=$1",
++          "UPDATE chat_runs SET media_options=media_options-'desktopImage',draft_content='',status='CANCELED',phase='canceled',error_code='CANCELED',billing_status=CASE WHEN billing_status='PENDING' THEN 'FAILED' ELSE billing_status END,finished_at=now() WHERE id=$1",
+           [id],
+         );
+       return {
+--- a/apps/api/src/chat-execution.ts
++++ b/apps/api/src/chat-execution.ts
+@@ -1,3 +1,4 @@
++import { computerInstructions, deviceContext } from "./desktop-context";
+ import type { PoolClient } from "pg";
+ import {
+   syncChatReservation,
+@@ -88,7 +89,7 @@
+   return addUsage({ ...current, proposed: null }, { ...next, proposed: null });
+ }
+ 
+-export const runFields = `kind,media_options AS "mediaOptions",''::text AS "draftContent",id,conversation_id AS "conversationId",status,phase,sources,input_tokens::text AS "inputTokens",output_tokens::text AS "outputTokens",proposed_tokens::text AS "proposedTokens",provider_cost::text AS "providerCost",currency,cache_hit AS "cacheHit",search_warning AS "searchWarning",billing_mode AS "billingMode",billing_status AS "billingStatus",charged_tokens::text AS "chargedTokens",charged_promotion_tokens::text AS "chargedPromotionTokens",charged_subscription_tokens::text AS "chargedSubscriptionTokens",research_trace AS "researchTrace",error_code AS "errorCode",duration_ms AS "durationMs",created_at AS "createdAt"`;
++export const runFields = `kind,(media_options - 'desktopContext' - 'desktopImage') AS "mediaOptions",''::text AS "draftContent",id,conversation_id AS "conversationId",status,phase,sources,input_tokens::text AS "inputTokens",output_tokens::text AS "outputTokens",proposed_tokens::text AS "proposedTokens",provider_cost::text AS "providerCost",currency,cache_hit AS "cacheHit",search_warning AS "searchWarning",billing_mode AS "billingMode",billing_status AS "billingStatus",charged_tokens::text AS "chargedTokens",charged_promotion_tokens::text AS "chargedPromotionTokens",charged_subscription_tokens::text AS "chargedSubscriptionTokens",research_trace AS "researchTrace",error_code AS "errorCode",duration_ms AS "durationMs",created_at AS "createdAt"`;
+ export { executionModel } from "./chat-model";
+ @Injectable()
+ export class ChatExecution implements OnModuleInit, OnModuleDestroy {
+@@ -205,7 +206,7 @@
+     )
+       this.interruptedCleanup = this.db.connection
+         .query(
+-          "UPDATE chat_runs SET draft_content='',status='FAILED',phase='failed',error_code='RUN_INTERRUPTED',billing_status=CASE WHEN billing_status='PENDING' THEN 'FAILED' ELSE billing_status END,finished_at=now() WHERE status='RUNNING' AND started_at<now()-interval '3 minutes'",
++          "UPDATE chat_runs SET media_options=media_options-'desktopImage',draft_content='',status='FAILED',phase='failed',error_code='RUN_INTERRUPTED',billing_status=CASE WHEN billing_status='PENDING' THEN 'FAILED' ELSE billing_status END,finished_at=now() WHERE status='RUNNING' AND started_at<now()-interval '3 minutes'",
+         )
+         .then(() => {
+           this.interruptedCleanupAt = performance.now();
+@@ -249,6 +250,7 @@
+       if (!contextClient) db.release();
+     }
+     if (!run) return false;
++    const isDesktop = run.kind === "CHAT" && run.media_options?.desktopMode === "computer";
+     const controller = new AbortController();
+     this.controllers.set(run.id, controller);
+     if (this.closing) controller.abort();
+@@ -374,6 +376,7 @@
+             ),
+           );
+           const documentContext =
++            deviceContext(run.media_options) +
+             codeResults
+               .map(
+                 (result) =>
+@@ -422,6 +425,10 @@
+                 detail: "auto",
+               },
+             }));
++          if (run.media_options?.desktopImage) {
++            if (!visionCapable(model.categories)) throw new ChatProviderError("MODEL_VISION_UNAVAILABLE");
++            imageParts.push({ type: "image_url", image_url: { url: run.media_options.desktopImage, detail: "auto" } });
++          }
+           const memory = await this.memory.recall(
+             run.user_id,
+             run.conversation_id,
+@@ -429,8 +436,9 @@
+             messages,
+             client,
+           );
++          if (isDesktop) { memory.clarification = null; memory.context = ""; }
+           const knowledgeCatalog =
+-            run.source === "SUBSCRIPTION" && !memory.clarification
++            !isDesktop && run.source === "SUBSCRIPTION" && !memory.clarification
+               ? await this.knowledgeBase.catalog(
+                   run.model_id,
+                   messages.at(-1)?.content ?? "",
+@@ -456,7 +464,7 @@
+             identity,
+             personality,
+           );
+-          const visualLookup = visualResearchRequested(
++          const visualLookup = !isDesktop && visualResearchRequested(
+             messages.at(-1)?.content ?? "",
+             imageParts.length > 0,
+           );
+@@ -497,8 +505,9 @@
+           instructions += conversationStyleInstructions();
+           instructions +=
+             "\nReminders: The chat interface includes persistent monitoring for public product prices/stock, web page changes, RSS/Atom feeds, GitHub and YouTube updates. When asked to notify the user later, help specify the source URL and conditions and direct them to Reminders to review and save the monitoring rule. A reminder draft card may appear for a URL-based request. Never claim a reminder is already created or that a future alert is scheduled unless the application confirms it. X, LinkedIn and Instagram monitoring currently requires an accessible RSS feed; do not promise access to private accounts. Checks run at the selected interval, not continuously.";
++          if (isDesktop) instructions = computerInstructions;
+           const qualityInstructions =
+-            capabilitiesQuestion || socialQuestion
++            isDesktop || capabilitiesQuestion || socialQuestion
+               ? ""
+               : answerQualityInstructions;
+           // Sources are delivered as tool results, never pre-filled into the system prompt.
+@@ -535,7 +544,7 @@
+               "\nUse the supplied document as data for the user's request. If truncated, disclose the limit; never claim you read missing pages.";
+           }
+           const addressReply =
+-            !documentContext && !imageParts.length
++            !isDesktop && !documentContext && !imageParts.length
+               ? preferredAddressReply(
+                   messages.at(-1)?.content ?? "",
+                   memory.context,
+@@ -544,7 +553,7 @@
+               : "";
+           const profileAcknowledgement =
+             addressReply ||
+-            (!documentContext && !imageParts.length
++            (!isDesktop && !documentContext && !imageParts.length
+               ? profileUpdateRecovery(messages.at(-1)?.content ?? "")
+               : "");
+           // Provider calls reserve their full selected budget at the HTTP boundary.
+@@ -699,6 +708,7 @@
+           const knownOptions = knownProviderOptions(optionKey);
+           const textOnly = unavailableToolsKnown(optionKey);
+           if (textOnly) conversation[0]!.content = String(conversation[0]!.content) + "\n" + unavailableToolInstruction;
++          if (isDesktop) conversation[0]!.content = computerInstructions;
+           let optionRetries = 0;
+           let unknownCompatibilityFailure = false;
+           let minimalRejected = knownOptions?.effort === "low";
+@@ -923,7 +933,7 @@
+               trace.stages.push({ stage: "unavailable_tool_recovery", executed: false });
+               continue;
+             }
+-            const text = providerAnswer(
++            const text = isDesktop ? (typeof message?.content === "string" ? message.content.trim() : "") : providerAnswer(
+               message?.content,
+               structuredAnswer && !memory.clarification,
+             );
+@@ -1000,6 +1010,7 @@
+                       : "delivery";
+           let qualityError: string | null = null;
+           if (
++            !isDesktop &&
+             !memory.clarification &&
+             !addressReply &&
+             (personalRecallQuestion(question) ||
+@@ -1083,7 +1094,7 @@
+               });
+             }
+           }
+-          const personalized = applyGreetingPreference(
++          const personalized = isDesktop ? answer : applyGreetingPreference(
+             question,
+             answer,
+             memory.context,
+@@ -1097,7 +1108,7 @@
+             });
+           }
+           if (
+-            [...answer.matchAll(/\[(K\d+)\]/g)].some(
++            !isDesktop && [...answer.matchAll(/\[(K\d+)\]/g)].some(
+               (match) =>
+                 !knowledgePassages.some(
+                   (entry) => entry.reference === match[1],
+@@ -1229,7 +1240,7 @@
+                   )
+                 ).rows[0];
+             await finish.query(
+-              `UPDATE chat_runs SET draft_content='',status=CASE WHEN $12::text IS NULL THEN 'COMPLETED' ELSE 'FAILED' END,phase=CASE WHEN $12::text IS NULL THEN 'completed' ELSE 'failed' END,error_code=$12,cache_hit=$17,billing_status=$13,charged_tokens=$14,charged_promotion_tokens=$15,charged_subscription_tokens=$16,assistant_message_id=$2,input_tokens=$3,output_tokens=$4,proposed_tokens=$5,duration_ms=$6,pricing_snapshot=$7::jsonb,currency=$8,provider_cost=CASE WHEN $9 AND $3::bigint IS NOT NULL AND $4::bigint IS NOT NULL THEN ($3::numeric*$10::numeric+$4::numeric*$11::numeric)/1000000 ELSE NULL END,finished_at=now(),research_trace=$18::jsonb,sources=$19::jsonb WHERE id=$1`,
++              `UPDATE chat_runs SET media_options=media_options-'desktopImage',draft_content='',status=CASE WHEN $12::text IS NULL THEN 'COMPLETED' ELSE 'FAILED' END,phase=CASE WHEN $12::text IS NULL THEN 'completed' ELSE 'failed' END,error_code=$12,cache_hit=$17,billing_status=$13,charged_tokens=$14,charged_promotion_tokens=$15,charged_subscription_tokens=$16,assistant_message_id=$2,input_tokens=$3,output_tokens=$4,proposed_tokens=$5,duration_ms=$6,pricing_snapshot=$7::jsonb,currency=$8,provider_cost=CASE WHEN $9 AND $3::bigint IS NOT NULL AND $4::bigint IS NOT NULL THEN ($3::numeric*$10::numeric+$4::numeric*$11::numeric)/1000000 ELSE NULL END,finished_at=now(),research_trace=$18::jsonb,sources=$19::jsonb WHERE id=$1`,
+               [
+                 run.id,
+                 message?.id ?? null,
+@@ -1270,7 +1281,7 @@
+               "UPDATE chat_conversations SET updated_at=now() WHERE id=$1 AND user_id=$2",
+               [run.conversation_id, run.user_id],
+             );
+-            if (!billingError && !memory.clarification)
++            if (!isDesktop && !billingError && !memory.clarification)
+               await this.memory.enqueue(finish, run, messages.at(-1)?.content);
+             await finish.query("COMMIT");
+             if (reportingReady) {
+@@ -1310,7 +1321,7 @@
+                 )
+               : null;
+           await this.db.connection.query(
+-            "UPDATE chat_runs SET charged_tokens=$4,charged_promotion_tokens=$5,charged_subscription_tokens=$6,billing_status=CASE WHEN $7::boolean THEN 'NEEDS_RECONCILIATION' WHEN $4::bigint>0 THEN 'CHARGED' WHEN billing_status='PENDING' THEN 'FAILED' ELSE billing_status END,draft_content='',status=CASE WHEN $2='CANCELED' THEN 'CANCELED' ELSE 'FAILED' END,phase=CASE WHEN $2='CANCELED' THEN 'canceled' ELSE 'failed' END,error_code=$2,duration_ms=$3,finished_at=now() WHERE id=$1 AND status='RUNNING'",
++            "UPDATE chat_runs SET media_options=media_options-'desktopImage',charged_tokens=$4,charged_promotion_tokens=$5,charged_subscription_tokens=$6,billing_status=CASE WHEN $7::boolean THEN 'NEEDS_RECONCILIATION' WHEN $4::bigint>0 THEN 'CHARGED' WHEN billing_status='PENDING' THEN 'FAILED' ELSE billing_status END,draft_content='',status=CASE WHEN $2='CANCELED' THEN 'CANCELED' ELSE 'FAILED' END,phase=CASE WHEN $2='CANCELED' THEN 'canceled' ELSE 'failed' END,error_code=$2,duration_ms=$3,finished_at=now() WHERE id=$1 AND status='RUNNING'",
+             [
+               run.id,
+               code,
+@@ -1323,6 +1334,7 @@
+           );
+         } finally {
+           releaseContext();
++          if (run.media_options?.desktopImage) await this.db.connection.query("UPDATE chat_runs SET media_options=media_options-'desktopImage' WHERE id=$1 AND status NOT IN('QUEUED','RUNNING')", [run.id]).catch(() => {});
+           clearTimeout(timeout);
+           this.controllers.delete(run.id);
+           if (
