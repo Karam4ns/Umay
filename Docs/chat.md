@@ -231,3 +231,10 @@ Uygulama: yanlış enerji iptali, yapışan playback bastırması, endpoint'te s
 kelime kaybı ve Windows native-kütüphane açılış takılması düzeltildi. TTS motoru
 korundu. Gerçek tam zincirde yanıt metninden ilk ses parçasına 243ms ölçüldü.
 50 Node / 7 Python ve tam Electron konuşma hattı PASS; 0.3.1 installer hazırlanıyor.
+
+## [2026-11-04] Kullanıcı — model hızı ve cevapsız mesaj
+Talep: model cevaplamasını hızlandır, mesajlara cevap gelmiyor; atlamadan devam et.
+Tespit: beam sağlayıcısı desteklenmeyen search_web çağrısı döndürüyor, sunucu boş
+cevabı tekrar edip INVALID_PROVIDER_RESPONSE veriyor. Sınırlı ve dürüst araç devamı,
+öğrenilen kısa yetenek önbelleği ve masaüstünde soğuk ses başlangıcından bağımsız
+yazılı gönderim eklendi. Kontroller 600ms'den 250ms'ye düşürüldü; hata sohbette görünür.

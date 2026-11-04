@@ -291,3 +291,18 @@ Son incelemede yavaş HTTP iptali tamamlanmadan yeni sesli turun gönderilmesi d
 kırmızı testle üretildi; yeni tur önceki sunucu iptalini bekliyor. 50 Node / 7 Python
 PASS. Paketli Python soğuk eşzamanlı yükleme istekleri 11.711s içinde tamamlandı;
 sıcak TTS ilk parça 110ms, 26 ses parçası PASS.
+
+## [2026-11-04] Yanıtsız kalan model istekleri — 0.3.2
+- [x] Canlı run durumu/süreleri ve gerçek sağlayıcı yanıt şekli okundu; sırlar çıktı verilmedi.
+- [x] Geçmişle beam aracı isteği yeniden üretildi; boş cevap tekrarının kök nedeni bulundu.
+- [x] Sınırlı araç devamı ve aynı sağlayıcı/model için kısa yetenek önbelleği eklendi.
+- [x] Ayrı PostgreSQL + gerçek Nest/Fastify/worker testinde eski sürüm FAIL, aday PASS.
+- [x] İlk tur 2 çağrıda yanıt, sonraki tur 1 çağrıda yanıt; gerçek sohbete kayıt PASS.
+- [x] Soğuk speech cancel altında yazılı gönderim kırmızı/yeşil; hatalar sohbet içinde.
+- [x] 55 Node, sunucuda 29 regresyon ve gerçek Electron sesli zincir PASS.
+- [x] Windows 0.3.2 installer ve kaynak/sürüm eşleştirmesi; 478041146 byte.
+- [x] Değişen sunucu modüllerinde TypeScript tanısı 0; üretim imajında başka
+  modüllerin eksik development tiplerinden 88 tanı var, tüm proje typecheck PASS denmedi.
+- [x] İki canlı worker healthy; yeni yardımcı modül yüklemesi PASS.
+- [x] Canlı imajda ayrı DB HTTP regresyonu PASS; iki işçi healthy.
+- [ ] GitHub son kontrol.

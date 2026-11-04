@@ -686,3 +686,14 @@ motorları değiştirilmeden hatalar kırmızı testlerle üretildi.
 6. Gerçek mikrofon/STT → renderer gönderimi → run → gerçek TTS → oynatım testini ekle.
 Selamlamalarda bilinen Ummay/Hümay hatası yalnız doğrudan hitapta Umay olarak düzeltilir;
 başka insan adları ve normal metin değiştirilmez. Yeni model indirmesi gerekmez.
+
+## [2026-11-04] Model yanıtı / gönderim — 0.3.2
+Kullanıcı: cevaplar yavaş, gönderilen bazı mesajlara cevap gelmiyor; kaldığın yerden devam.
+Canlı sunucuda son beam hataları INVALID_PROVIDER_RESPONSE; gerçek sağlayıcı ve
+başarısız sorunun sohbet geçmişiyle yeniden üretim: content boş, search_web tool_call.
+Metin endpoint'i bu aracı sunmuyor. Aynı boş isteği yinelemek yerine açık executed=false
+araç sonucu ve tek sınırlı final devamı; ikinci araç döngüsünde açık hata. Sorgu çalıştırılmaz.
+Sağlayıcı/model/credential anahtarına özel 5dk/200 kayıt önbelleği sonraki turu tek
+metin çağrısıyla gönderir. Güncel bilgi doğrulanamadığında model bunu belirtmeli.
+Masaüstü: yazılı soru soğuk ses motoru iptalini beklemez; 250ms durum kontrolü ve
+sohbette anlaşılır hata. TTS/STT motorları değişmez; sunucu kalite/faturalama korunur.

@@ -251,3 +251,31 @@ kaynakları son commit ile birebir eşleşti. Installer SHA256:
 Son tam zincir tekrarı: ilk ses parçası 196ms, oynatım kaynağı 220ms, 2 mesaj,
 listening=true, temiz kapanış PASS. GitHub main üzerinde 16 kaynak dosyası yerel
 Git blob SHA değerleriyle birebir doğrulandı.
+
+## [2026-11-04] 0.3.2 model cevabı kanıtları
+Canlı sunucuda üç beam run'ı INVALID_PROVIDER_RESPONSE (4.682/5.870/9.456s).
+Aynı başarısız sorunun geçmişiyle gerçek provider: boş content + search_web function
+call; finish_reason sonraki kullanım karesiyle stop görünse de tool_calls korunuyor.
+Yeni devam ile gerçek sağlayıcı: 311 karakter metin, 0 tool call, stop; devam 6.363s.
+Bu tek ölçüm modelin tüm cevaplarının hız garantisi değildir. Başka başarılı gerçek
+isteklerde ilk metin 4.887/5.074s, tamamlanma 5.185/7.822s; bekleme çoğunlukla sağlayıcıda.
+Sunucu tests/server-chat-tools-http.cjs: ayrı DB, sahte provider, gerçek API/worker;
+eski imaj FAILED INVALID_PROVIDER_RESPONSE; adayda iki tur COMPLETED, toplam 3 çağrı.
+İlk araç asla çalıştırılmaz; executed=false sonucu; sonraki tur tool_choice=none.
+55 yerel Node testi PASS. Aday sunucu stream/evidence/quality regresyonları 29 PASS.
+Gerçek Electron STT → gönderici → test API → TTS: ilk ses parçası 240ms, kaynak271ms,
+2 mesaj, listening=true PASS. Gerçek fiziksel akustik veya kullanıcı LLM çağrısı değildir.
+Soğuk iptal onayında yazılı mesajın POST'u beklediği FAIL üretildi, bağımsızlaştırıldı.
+
+0.3.2 installer üretildi (478041146 byte), asar sürümü ve son renderer/index eşleşti.
+Değişen iki sunucu modülünde tam TS programından filtrelenen tanı 0; prod imajında
+@types/ssh2/ws gibi dev tiplerinin yokluğu başka modüllerde 88 tanı oluşturuyor.
+Bu nedenle tüm proje typecheck başarılı sayılmadı. Aday HTTP ve29 regresyon PASS.
+
+Canlıya yalnız chat-worker servisi 2 replica ile aktarıldı; iki worker healthy ve
+yardımcı modül yükleme PASS. Frontend/DB değiştirilmedi. Geri dönüş dosyaları:
+/root/umay-chat-fix-1793813162; önce aktif run sayısı 0 kontrol edildi.
+
+Canlı imajda aynı ayrı DB HTTP testi tekrar PASS. İki worker veriussu-umay-chat:0.3.2
+ve healthy; son npm test 55 PASS. Installer SHA256:
+9ec8e566754a28785bd145815aa273095e1dff6fc4168b1f079d9acdea177abc.
