@@ -297,3 +297,23 @@ test('interrupting an in-flight message waits for its returned run to be cancell
  assert.deepEqual(posts,['first']);firstPost.resolve({run:{id:'previous'}});await new Promise(r=>setImmediate(r));assert.deepEqual(posts,['first']);
  cancellation.resolve({ok:true});await Promise.all([first,next]);assert.deepEqual(posts,['first','next']);
 });
+
+test('text messages do not wait for a cold speech cancellation to reach the server',async()=>{
+ const cold=deferred(),posts=[];const app=renderer({speech:async method=>{if(method==='status')return {stt:{installed:false},tts:{installed:false}};if(method==='cancel')return cold.promise;return true;},api:async(route,body)=>{
+  if(route==='/site/auth/me')throw Error('No account');
+  if(route.endsWith('/messages')){posts.push(body.content);return {run:{id:'run'}};}
+  if(route==='/site/chat/runs/run')return {run:{status:'COMPLETED'}};
+  return {conversation:{id:'chat',version:1},messages:[]};
+ }});await new Promise(r=>setImmediate(r));app.run('conversation={id:"chat",version:1}');
+ const sending=app.run("send('text only')");await new Promise(r=>setImmediate(r));
+ assert.deepEqual(posts,['text only']);cold.resolve();await sending;
+});
+
+test('a provider failure appears in the chat instead of leaving only an unanswered question',async()=>{
+ const app=renderer({api:async(route)=>{
+  if(route==='/site/auth/me')throw Error('No account');
+  if(route.endsWith('/messages'))return {run:{id:'run'}};
+  if(route==='/site/chat/runs/run')return {run:{status:'FAILED',errorCode:'PROVIDER_TOOL_UNAVAILABLE'}};
+ }});await new Promise(r=>setImmediate(r));app.run('conversation={id:"chat",version:1}');await app.run("send('Soru')");
+ assert.equal(app.node('messages').children.length,2);assert.match(app.node('messages').children[1].textContent,/araç|TOOL_UNAVAILABLE/);
+});
