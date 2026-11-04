@@ -221,3 +221,18 @@ anahtar/değerler sıralanarak karşılaştırıldı. BACKUP=/root/umay-error-ui
 Canlı chat10203 / HTML uyarı alanı, /chat.js ve/chat.css200; 10203/10202 oturumsuz
 /site/auth/me401 PASS. Backend model işçileri0.3.2 healthy. Bu adım DB mutasyonu yapmaz.
 Installer SHA256:561bec448512e5252de8afd8c8a8545e523f4cacc645870697038c7ebc9dad23.
+
+## [2026-11-04] Türkçe okuma — 0.3.4
+uv run --no-project --python .venv/Scripts/python.exe --with pytest python -m pytest tests/test_turkish_speech.py tests/test_worker.py tests/test_live_stt.py -q →44 PASS.
+npm test →65 PASS.
+.superpowers/check_tts_pronunciation.py → gerçek worker: ilk ses127,1ms,
+92 WAV parçası,7,72s ses, üretim3,48s; iptal64,5ms, iptal sonrası0 ses, yeni speak PASS.
+Seda transcribe: TRT'de dördüncü bölüm başladı ... sözcükleri geri yazıldı.
+
+Paket doğrulaması: asar0.3.4 +3 uygulama dosyası ve3 Python dosyası birebir.
+Paket içindeki runtime/python.exe ile gerçek worker: ilk ses130,2ms,
+91 parça,7,64s ses, üretim3,35s; iptal85,9ms, iptal sonrası0 parça; yeniden speak PASS.
+Installer 478047979 byte, SHA256:0ac3fbfbd13a3a3a96d18dcb770d2bb41eb3b1153701fcdf955d53cd77de27f3.
+İlk paket kontrolünün package.json tam metin eşitliği varsayımı yanlıştı: builder
+development/build alanlarını çıkarır. Sürüm/main/name/dependencies alanları ayrı
+karşılaştırıldı; uygulama ve Python kaynakları byte olarak eşleştirildi.
