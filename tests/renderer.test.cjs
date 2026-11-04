@@ -4,31 +4,32 @@ const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
 const {randomUUID}=require('node:crypto');
+const {LiveTranscriber}=require('../src/ui/live-transcription.js');
 
 const source=fs.readFileSync(path.join(__dirname,'../src/ui/renderer.js'),'utf8');
 function deferred(){let resolve;const promise=new Promise(r=>{resolve=r;});return {promise,resolve};}
 function element(){return {value:'',checked:false,textContent:'',dataset:{},children:[],
-  append(...children){this.children.push(...children);},
+  append(...children){this.children.push(...children);},addEventListener(name,fn){this['on'+name]=fn;},
   replaceChildren(...children){this.children=children;},scrollIntoView(){},
   classList:{contains:()=>false,toggle(){},remove(){}}};}
 function renderer(overrides={}){
-  const nodes=new Map();
+  const nodes=new Map();let eventListener;
   const node=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};
   const bridge={
-    onEvent(){},busy:async()=>{},
+    onEvent(callback){eventListener=callback;},busy:async()=>{},
     speech:async method=>method==='status'?{stt:{installed:false},tts:{installed:false}}:true,
     api:async()=>{throw Error('No account in test');},
     ...overrides
   };
   const context=vm.createContext({
-    window:{umay:bridge},
+    window:{umay:bridge,LiveTranscriber},
     document:{getElementById:node,querySelectorAll:()=>[],createElement:element,body:element()},
     localStorage:{getItem:()=>null,setItem(){}},crypto:{randomUUID},
     atob,btoa,Uint8Array,Int16Array,Float32Array,setTimeout,
     AudioContext:overrides.AudioContext,navigator:overrides.navigator,AudioWorkletNode:overrides.AudioWorkletNode
   });
   vm.runInContext(source,context,{filename:'renderer.js'});
-  return {node,run:code=>vm.runInContext(code,context)};
+  return {node,run:code=>vm.runInContext(code,context),emit:event=>eventListener(event)};
 }
 test('historical uppercase USER messages retain the user appearance',()=>{
  const app=renderer();app.run("message('USER','earlier question')");assert.equal(app.node('messages').children[0].className,'message user');
@@ -150,25 +151,45 @@ for(const pauseAt of ['resume','decode']){
 }
 
 for(const cancelled of [false,true]){
-test(cancelled?'Stop discards transcription that completes after cancellation':'current transcription submits the recognized question',async()=>{
-  const transcription=deferred();let transcriptions=0;
-  const app=renderer({speech:async method=>{
-    if(method==='status')return {stt:{installed:false},tts:{installed:false}};
-    if(method==='transcribe'){transcriptions++;return transcription.promise;}
-    return true;
-  }});
-  app.run('received=[]; send=async text=>received.push(text); listening=true; recording=true; silence=29; frames=[new Float32Array(320)]');
-  const processing=app.run('onFrame(new Float32Array(320))');
-  assert.equal(transcriptions,1);
+ test(cancelled?'Stop rejects late streaming text':'streaming text appears before the final sentence is submitted',async()=>{
+  const app=renderer();await new Promise(r=>setImmediate(r));
+  app.run('received=[];send=async text=>received.push(text);listening=true;liveRecognizer=createLiveRecognizer()');
+  await app.run("liveRecognizer.start('session')");
+  app.emit({event:'transcript',streamId:'session',generation:0,utterance:0,text:'merhaba',final:false});
+  assert.equal(app.node('input').value,'merhaba');assert.equal(app.run('received.length'),0);
   if(cancelled)await app.run('stop()');
-  transcription.resolve('cancelled utterance');
-  await processing;
+  app.emit({event:'transcript',streamId:'session',generation:0,utterance:0,text:'Merhaba Umay.',final:true});
   assert.equal(app.run('received.length'),cancelled?0:1);
-  if(!cancelled)assert.equal(app.run('received[0]'),'cancelled utterance');
-  assert.equal(app.run('recording'),false);
-  assert.equal(app.run('transcribing'),false);
-});
+ });
 }
+
+test('streaming text does not overwrite or auto-send a manually edited message',async()=>{
+ const app=renderer();await new Promise(r=>setImmediate(r));app.run('received=[];send=async text=>received.push(text);listening=true;liveRecognizer=createLiveRecognizer()');await app.run("liveRecognizer.start('session')");
+ app.emit({event:'transcript',streamId:'session',generation:0,utterance:0,text:'merhaba',final:false});app.node('input').value='Benim düzenlemem';
+ app.emit({event:'transcript',streamId:'session',generation:0,utterance:0,text:'merhaba umay',final:false});app.emit({event:'transcript',streamId:'session',generation:0,utterance:0,text:'Merhaba Umay.',final:true});
+ assert.equal(app.node('input').value,'Benim düzenlemem');assert.equal(app.run('received.length'),0);
+});
+test('deleting a voice draft to empty prevents its final text from being sent',async()=>{
+ const app=renderer();await new Promise(r=>setImmediate(r));app.run('received=[];send=async text=>received.push(text);listening=true;liveRecognizer=createLiveRecognizer()');await app.run("liveRecognizer.start('session')");
+ app.emit({event:'transcript',streamId:'session',generation:0,utterance:0,text:'merhaba',final:false});app.node('input').value='';app.node('input').oninput?.();
+ app.emit({event:'transcript',streamId:'session',generation:0,utterance:0,text:'Merhaba.',final:true});assert.equal(app.run('received.length'),0);
+});
+test('Stop clears its owned draft so the next utterance can submit',async()=>{
+ const app=renderer();await new Promise(r=>setImmediate(r));app.run('received=[];send=async text=>received.push(text);listening=true;liveRecognizer=createLiveRecognizer()');await app.run("liveRecognizer.start('session')");
+ app.emit({event:'transcript',streamId:'session',generation:0,utterance:0,text:'eski',final:false});await app.run('stop()');
+ app.emit({event:'transcript',streamId:'session',generation:1,utterance:0,text:'yeni',final:false});app.emit({event:'transcript',streamId:'session',generation:1,utterance:0,text:'Yeni.',final:true});assert.equal(app.run('received[0]'),'Yeni.');
+});
+test('Stop cancels response audio before a slow STT reset completes',async()=>{
+ const reset=deferred();let cancelled=0;const app=renderer({speech:async method=>{if(method==='status')return {stt:{installed:false},tts:{installed:false}};if(method==='stt_reset')return reset.promise;if(method==='cancel')cancelled++;return true;}});
+ await new Promise(r=>setImmediate(r));app.run('listening=true;liveRecognizer=createLiveRecognizer()');await app.run("liveRecognizer.start('session')");
+ const stopping=app.run('stop()');assert.equal(cancelled,1);reset.resolve();await stopping;
+});
+test('residual output below the barge gate is not passed into recognition',async()=>{
+ const packets=[];const app=renderer({speech:async(method,p)=>{if(method==='status')return {stt:{installed:false},tts:{installed:false}};if(method==='stt_feed')packets.push(p.audio);return true;}});
+ await new Promise(r=>setImmediate(r));app.run('listening=true;liveRecognizer=createLiveRecognizer();sources=[{stop(){}}]');await app.run("liveRecognizer.start('session')");
+ for(let i=0;i<20;i++)await app.run('onFrame(new Float32Array(320).fill(.004))');await new Promise(r=>setImmediate(r));
+ assert.ok(packets.length>0);assert.equal(packets.some(p=>Buffer.from(p,'base64').some(byte=>byte!==0)),false);
+});
 
 test('logout discards an earlier history detail response',async()=>{
   const detail=deferred();
@@ -190,15 +211,11 @@ test('logout discards an earlier history detail response',async()=>{
   assert.equal(app.node('messages').children.length,0);
   assert.equal(app.run('conversation'),null);
 });
-test('quiet microphone speech followed by silence reaches STT',async()=>{
- const recordings=[];const app=renderer({speech:async(method,params)=>{
-  if(method==='status')return {stt:{installed:false},tts:{installed:false}};
-  if(method==='transcribe'){recordings.push(params.audio);return 'Sessiz konuşma';}return true;
- }});
- await new Promise(r=>setImmediate(r));
- app.run('listening=true; received=[]; send=async text=>received.push(text)');
+test('quiet microphone audio is streamed without waiting for silence',async()=>{
+ const packets=[];const app=renderer({speech:async(method,params)=>{if(method==='status')return {stt:{installed:false},tts:{installed:false}};if(method==='stt_feed')packets.push(params.audio);return true;}});
+ await new Promise(r=>setImmediate(r));app.run('listening=true;liveRecognizer=createLiveRecognizer()');await app.run("liveRecognizer.start('session')");
  for(let i=0;i<50;i++)await app.run('onFrame(new Float32Array(320).fill(0.004))');
- for(let i=0;i<40;i++)await app.run('onFrame(new Float32Array(320))');
- assert.equal(recordings.length,1);assert.ok(Buffer.from(recordings[0],'base64').length>16000);
- assert.equal(app.run('received[0]'),'Sessiz konuşma');
+ await new Promise(r=>setImmediate(r));
+ assert.equal(packets.reduce((sum,p)=>sum+Buffer.from(p,'base64').length/2,0),16000);
+ assert.ok(packets.length>1);
 });
