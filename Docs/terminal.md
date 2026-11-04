@@ -262,3 +262,18 @@ yeni klon248.1/279.9/274.0ms(ortanca274.0). Bu küçük örneklemde klon
 hazırlama değişikliğine bağlı belirgin bir ilk ses gecikmesi görülmedi.
 Önceki çalışmalardaki125–156ms farklı zaman/ortam ölçümüdür; aynı koşul karşılaştırması
 olarak kullanılmaz. Onaylanan turkish_speech.py HEAD ile aynı; ağır ses efekti yok.
+
+## [2026-11-04] Ses devamı düzeltmesi — 0.3.6
+.superpowers/reproduce_tts_cutoff.py → varsayılan/üç klon tam ses üretimi.
+Seda geri yazımı: her WAV'da son ifade mevcut. Kurulu sürüm0.3.5 kaynaklar eşit.
+node --test --test-name-pattern='loud delayed playback echo' tests/renderer.test.cjs
+→ önce FAIL(1 beklenmeyen stop), düzeltme sonrası PASS.
+npm test →75 PASS.
+electron tests/electron-playback-completion.cjs → eski hata1 iptal; yeni ardışık
+tam yanıtlar0 iptal; gerçek insan benzetimi1 iptal; sonraki yanıt0 iptal PASS.
+
+Paket0.3.6: asar sürümü +3 değişen uygulama varlığı ve4 değişmeyen konuşma
+dosyası byte eşit. Installer 478053877 byte; SHA256:ceed6fa2ab27e48fe8a69c74adf6628bd882050175be97a6ece360d3f811b542.
+Yankı eşleştirmesi sıcak30 çağrı (bu cihaz, arka planda build): ortanca1.94ms,
+p955.70ms. Kontrol100ms mikrofon bağlamında ve yalnız kesme eşiğinde yapılır;
+TTS'nin ilk parçasını bekleten bir ön üretim eklenmedi.
