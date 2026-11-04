@@ -16,6 +16,9 @@ function browser(fetch,mode='authorize'){
  vm.runInContext(desktopAuthScript,context);return {node,events,calls};
 }
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
+test('registration entry offers registration as the primary browser action',()=>{
+ const html=renderDesktopAuthPage('authorize','','register');assert.match(html,/<a class="primary" id="sign-in" href="\/register"/);assert.match(html,/Umay için hesap oluştur/);
+});
 test('account page uses external assets and responsive light/dark styling',()=>{
  const html=renderDesktopAuthPage('authorize','<input name="state" value="safe">');
  assert.match(html,/Umay ile devam et/);assert.match(html,/name="state" value="safe"/);
