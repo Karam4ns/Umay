@@ -250,3 +250,15 @@ Aynı masaüstü sürümü yeni sayfayı kullanır; yeniden kurulum gerekmez.
 - [x] Sitedeki özgün V logosu ve VERİÜSSÜ. marka yazısı kullanıldı.
 - [x] Bağlama/çıkış sayfalarında SVG favicon ve img-src self izni.
 - [x] Açık/koyu/mobil görünüm, 30 Node ve 10 canlı kontrol başarılı; yayında.
+
+## [2026-11-04] Masaüstü görsel dönüşüm — 0.2.0
+- [x] Referansa uygun Umay kanat işareti, vektör küre, koyu/turkuaz kontrol merkezi.
+- [x] Ayrı giriş/kayıt modları, tarayıcı bekleme/iptal ve hesap sonrası otomatik geçiş.
+- [x] Kayıt niyeti browser authorize sayfasına taşınıyor; kayıt ana eylemi /register.
+- [x] Sohbet, konuşma/klon/güncelleme ayarları ve hafıza mevcut işlevlere bağlı.
+- [x] Gerçek CPU/RAM/disk ve model hazır durumu; uydurma görev/yüzde yok.
+- [x] Dar pencerede geçmiş çekmecesi, açık/koyu tema, pencere kontrolleri.
+- [x] 35 Node / 3 Python; gerçek Electron tasarım, smoke ve mikrofon testleri PASS.
+- [x] Kayıt yönlendirmesi sunucuda yayında; aday/canlı HTTP ve 10 sınır kontrolü PASS.
+Geliştirilmemiş ajan/otomasyon/dosya alanları “Yakında” olarak pasiftir.
+Gerçek kullanıcı hesabıyla yeni giriş/kayıt kabulü ana cihazda denenmelidir.
