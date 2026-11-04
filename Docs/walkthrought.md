@@ -274,3 +274,20 @@ Gerçek kullanıcı hesabıyla yeni giriş/kayıt kabulü ana cihazda denenmelid
 - [x] 44 Node, 5 Python; Electron UI/smoke/mikrofon/gerçek STT, paket eşleştirme PASS.
 - [x] Windows 0.3.0 installer üretildi; paketlenmiş Python/worker gerçek STT PASS.
 Fiziksel mikrofon/hoparlör aynı anda konuşma kabulü kullanıcı cihazında yapılmalıdır.
+
+## [2026-11-04] 0.3.1 ses / mesaj regresyonu
+- [x] Tanınmamış ses enerjisinin bekleyen yanıtı iptali kırmızı testle üretildi, düzeltildi.
+- [x] Playback sonrası düşük seviyeli konuşmanın bastırılması üretildi, düzeltildi.
+- [x] Tek kuyruk paketindeki endpoint'in sonraki sözü yutması üretildi, 20ms adım eklendi.
+- [x] Başarısız run'ın eski yanıtı seslendirmesi engellendi; hata kodu korunuyor.
+- [x] Gerçek native-import takılması traceback ile doğrulandı; ana thread'de sıralı
+  SciPy / PyTorch / ONNX import'u ve model ilk yükleme kilidi eklendi.
+- [x] Mevcut TTS/model dosyaları korunarak 50 Node / 7 Python PASS.
+- [x] Gerçek Electron tam zincir testi PASS: iki mesaj, dinleme açık, ilk ses parçası
+  yanıt metninden 243ms sonra; oynatım kaynağı 266ms sonra.
+Sunucu sohbet API'si bu testte taklittir; mikrofon hattı, STT, gönderici ve TTS gerçektir.
+
+Son incelemede yavaş HTTP iptali tamamlanmadan yeni sesli turun gönderilmesi de
+kırmızı testle üretildi; yeni tur önceki sunucu iptalini bekliyor. 50 Node / 7 Python
+PASS. Paketli Python soğuk eşzamanlı yükleme istekleri 11.711s içinde tamamlandı;
+sıcak TTS ilk parça 110ms, 26 ses parçası PASS.
