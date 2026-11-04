@@ -16,7 +16,7 @@ for(let i=48000;i<120000;i++)wav.writeInt16LE(Math.round(Math.sin(i*2*Math.PI*44
 const input=path.join(directory,'input.wav');fs.writeFileSync(input,wav);
 app.commandLine.appendSwitch('use-fake-device-for-media-stream');
 app.commandLine.appendSwitch('use-file-for-fake-audio-capture',input);
-let transcriptions=0;
+let transcriptions=0,voiceSamples=0,partialSent=false;
 const finish=(code,error)=>{if(error)console.error(error);fs.rmSync(directory,{recursive:true,force:true});app.exit(code);};
 const timeout=setTimeout(()=>finish(1,Error('Microphone test timed out')),30000);
 require('../src/main.cjs');
@@ -25,9 +25,12 @@ app.on('browser-window-created',(_event,window)=>{
   try{
    ipcMain.removeHandler('speech');ipcMain.handle('speech',(_event,method,params)=>{
     if(method==='status')return {stt:{installed:true,resident:true},tts:{installed:false}};
-    if(method==='transcribe'){
-     const pcm=Buffer.from(params.audio,'base64');assert.ok(pcm.length>16000);
-     assert.ok(pcm.some(byte=>byte!==0));transcriptions++;return 'Mikrofon denemesi';
+    if(method==='stt_feed'){
+     const pcm=Buffer.from(params.audio,'base64');assert.ok(pcm.length>0&&pcm.length<=16000);
+     if(pcm.some(byte=>byte!==0))voiceSamples+=pcm.length/2;
+     const metadata={event:'transcript',streamId:params.streamId,generation:params.generation,utterance:0};
+     if(voiceSamples>=1600&&!partialSent){partialSent=true;window.webContents.send('event',{...metadata,text:'mikrofon',final:false});}
+     if(voiceSamples>=6400&&!transcriptions){transcriptions++;window.webContents.send('event',{...metadata,text:'Mikrofon denemesi',final:true});}
     }
     return true;
    });
@@ -52,7 +55,7 @@ app.on('browser-window-created',(_event,window)=>{
     return {listening,text:received[0],status:document.getElementById('status').textContent};
    })()`);
    assert.equal(result.listening,true,result.status);assert.equal(result.text,'Mikrofon denemesi');
-   console.log('PASS real Electron microphone -> worklet -> PCM -> STT request -> message; stop/restart');
+   assert.equal(partialSent,true);assert.equal(await window.webContents.executeJavaScript('inputContext.sampleRate'),16000);console.log('PASS real Electron 16kHz microphone -> streaming PCM -> partial/final -> message; stop/restart');
    clearTimeout(timeout);finish(0);
   }catch(error){clearTimeout(timeout);finish(1,error);}
  });
