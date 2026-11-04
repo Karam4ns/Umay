@@ -165,7 +165,7 @@ async function packages(){
   const node=document.createElement('div');const title=document.createElement('strong');title.textContent=`${kind.toUpperCase()} · ${info.resident?'Hazır / '+info.device:info.installed?'Kurulu':info.upgradeAvailable?'Canlı STT güncellemesi gerekli':'Kurulu değil'}`;node.append(title);
   for(const [label,method]of [['İndir / hazırla','install'],['Kaldır','remove']]){const b=document.createElement('button');b.textContent=label;b.onclick=safe(async()=>{b.disabled=true;await api.busy(true);try{status(kind+' '+label);if(kind==='stt'&&method==='remove'){releaseMicrophone();await stop();}await api.speech(method,{kind});await packages();status('İşlem tamamlandı.');}finally{b.disabled=false;await api.busy(false);}});node.append(b);}$('packages').append(node);
  }
- const profiles=await api.speech('voices');$('voices').replaceChildren(new Option('Varsayılan ses',''));for(const p of profiles)$('voices').append(new Option(p.name,p.id));
+ const profiles=await api.speech('voices');$('voices').replaceChildren(new Option('Varsayılan ses',''));for(const p of profiles)$('voices').append(new Option(p.name,p.id));const selected=localStorage.getItem('voice-profile');if(profiles.some(p=>p.id===selected))$('voices').value=selected;
 }
 for(const b of document.querySelectorAll('[data-page]'))b.onclick=()=>{if(window.umayShell)window.umayShell.navigate(b.dataset.page);else{for(const id of ['chat','settings','memory'])$(id).hidden=id!==b.dataset.page;if(b.dataset.page==='settings')safe(packages)();}};
 $('settings').addEventListener?.('settings-open',safe(packages));
@@ -177,7 +177,7 @@ $('new').onclick=safe(async()=>{await stop();conversation=null;$('messages').rep
 $('models').onchange=safe(async()=>{await stop();conversation=null;$('messages').replaceChildren();window.umayShell?.reset();status('Seçilen modelle yeni sohbet açılacak.');});
 $('hardware').onclick=safe(async()=>{$('devices').textContent=JSON.stringify(await api.speech('hardware'),null,2);});
 $('cancel-install').onclick=safe(()=>api.speech('cancel'));
-$('clone').onclick=safe(async()=>{await api.busy(true);try{const result=await api.clone();if(result)status('Klon profil oluşturuldu: '+result.name);await packages();}finally{await api.busy(false);}});
+$('clone').onclick=safe(async()=>{await stop();await api.busy(true);$('clone').disabled=true;try{const result=await api.clone();if(result){voice=result.voice;localStorage.setItem('voice-profile',result.id);await packages();$('voices').value=result.id;const warning=(result.quality?.warnings||[]).join(' ');const text='Ses profilin hazır ve seçildi: '+result.name+'. Önizle ile dinleyebilirsin.'+(warning?' '+warning:'');$('clone-quality').textContent=text;status(text);}}finally{$('clone').disabled=false;await api.busy(false);}});
 $('select-voice').onclick=safe(async()=>{voice=$('voices').value?await api.speech('select_voice',{id:$('voices').value}):'';localStorage.setItem('voice-profile',$('voices').value);status('Ses seçildi.');});
 $('preview').onclick=safe(()=>api.speech('speak',{text:'Merhaba, ben Umay. Bugün sana nasıl yardımcı olabilirim?',voice}));
 $('delete-voice').onclick=safe(async()=>{if(!$('voices').value)return;await api.speech('delete_voice',{id:$('voices').value});voice='';localStorage.removeItem('voice-profile');await packages();});
