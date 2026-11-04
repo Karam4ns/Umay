@@ -55,3 +55,23 @@ edebilir. Playback kuyruğu bitince bastırma temizlenir. Worker 20ms sınırlar
 endpoint keser. Native ML import'ları Windows ana thread'inde yapılır; iki modelin
 ilk yüklenmesi sıralanır, sıcak çıkarım kuyrukları ayrı kalır. Model/paket revision'ı
 ve TTS motoru değişmedi. Mevcut paketler 0.3.1 ile doğrudan kullanılabilir.
+
+## Doğal Türkçe okuma — 0.3.4
+Ses metni speech/turkish_speech.py içinde hazırlanır; görünen mesaj korunur.
+Örnekler: 4. → dördüncü, 4. adım → dördüncü adım, TRT’den → tereteden,
+TDK → tedeke. Bilinen harf kısaltmalarının son harfine ek bağlanır; sözcük
+olarak okunan TÜBİTAK/ASELSAN gibi adlara harf okuması uygulanmaz.
+Her nokta sıra sayısı değildir: Sonuç4. cümlesinde dört; tarih/saat/ondalık
+ve binlik sayılar ayrı kurallardan geçer. Belirsiz bağlamda her rakam+nokta
+körü körüne sıra sayısına çevrilmez. Sözlük sonlu ve genişletilebilirdir.
+Noktalama işaretleri modele korunarak verilir. Virgül/noktalı virgül/iki nokta
+nedeniyle cümle bölünüp bağlam kaybedilmez. Cümleler ve paragraflar arasına
+kısa PCM araları eklenir; ilk parça için tam ses üretimi beklenmez.
+Süreler ürün tercihidir; TDK belirli milisaniye veya perde değerleri tanımlamaz.
+Soru/ünlem tonu mevcut TTS modelinden gelir, kusursuz insan vurgusu iddia edilmez.
+İptal model stream'ini kapatır; sonraki cümleye geçmez. Klon ses yolu ve model
+indirme/yerleşiklik değişmez. Mevcut konuşma paketleri kullanılmaya devam eder.
+Kaynaklar:
+- https://tdk.gov.tr/icerik/yazim-kurallari/sayilarin-yazilisi/
+- https://tdk.gov.tr/icerik/yazim-kurallari/kisaltmalar/
+- https://tdk.gov.tr/icerik/yazim-kurallari/noktalama-isaretleri-aciklamalar/
