@@ -202,3 +202,8 @@ Aktif hesap kartı, kısa erişim özeti, tek bağlama düğmesi, açık/koyu te
 uyum eklendi. Oturumsuz durum giriş/kayıt sunuyor; sekmeye dönünce hesap yenileniyor.
 30 Node ve 10 canlı kontrol başarılı; masaüstü/mobil önizleme örnek hesapla üretildi.
 Yeniden kurulum gerekmez; Umay'dan yeni giriş açıldığında yeni sayfa görünür.
+
+## [2026-11-04] Kullanıcı — logo/favicon
+İstek: Logo ve faviconumuzu bu sayfalara koy.
+Yanıt: Veriüssü'nün mevcut V logosu başlığa ve sağlayıcı kartına; mevcut SVG faviconu
+bağlama/çıkış sayfalarına eklendi ve yayınlandı. Açık/koyu/mobil ve canlı kontroller geçti.
