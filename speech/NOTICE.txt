@@ -1,0 +1,15 @@
+Umay live Turkish speech recognition
+
+Seda v0.2 by Ahmet Atasoglu / atasoglu
+https://huggingface.co/atasoglu/seda-v0.2
+Revision: 62e2cc1615a63c433b6956214a548267ada5a774
+Unmodified model weights: Creative Commons Attribution-ShareAlike 4.0
+https://creativecommons.org/licenses/by-sa/4.0/
+The downloaded model directory includes the original model card and attribution.
+
+sedalib 1.1.0: Apache-2.0 — https://github.com/atasoglu/seda
+sherpa-onnx 2.0.1: Apache-2.0 — https://github.com/k2-fsa/sherpa-onnx
+Silero VAD: MIT — original license included at vad/LICENSE in the model directory.
+
+Test recording (not bundled in Umay): FLEURS Turkish dev, Google, CC BY 4.0,
+distributed as speech.wav with sedalib's test sources.
