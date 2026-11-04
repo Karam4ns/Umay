@@ -385,3 +385,41 @@ dosyası byte eşit. Installer 478053877 byte; SHA256:ceed6fa2ab27e48fe8a69c74ad
 Yankı eşleştirmesi sıcak30 çağrı (bu cihaz, arka planda build): ortanca1.94ms,
 p955.70ms. Kontrol100ms mikrofon bağlamında ve yalnız kesme eşiğinde yapılır;
 TTS'nin ilk parçasını bekleten bir ön üretim eklenmedi.
+
+## [2026-11-05] Cihaz yetenekleri — 0.4.0
+103 Node PASS ve60 Python PASS. Yeni gerçek SQLite testleri: hesap ayırma,
+restart/sunucudan silme, geçmiş arşivi, Türkçe arama, ilişkiler/sürüm, dosya
+yolu/missing, şifreli hesap/epoch, sorguya ilgili notların bağlanması.
+İnceleme bulguları RED→GREEN: dosya kökü await sırasında hesap değişimi;
+notun model bağlamında eksikliği; alıntı çevirinin adı değiştirmesi; görmeyen
+modelin koordinat eylemi; uzun metin girişinde Stop. Gönderim32 Unicode karakterlik
+native parçalara bölündü, iptal sonraki parçayı göndermez; devam eden tek
+tıklama/tuş veya180ms drag geri alınmaz. Bu davranış kontrol API sınırıdır.
+Kaynaklar: gerçek HTTP200 ve sahte ağla parse/304/cache/stale/tekilleştirme/hesap
+sonucu testleri. DNS sonuçları özel ağları dışlar ve HTTPS bağlantısına sabitlenir.
+Gerçek Electron: hafıza not/grafik/arşiv, Windows safeStorage şifreli özel hesap,
+konum/hava, bilgisayar görünümü, data:image önizleme naturalWidth>0, açık/koyu,
+çıkışta temizleme. Test hesap/API/meteoroloji girdisi taklit; OS şifreleme gerçektir.
+Gerçek native test yalnız geçici kendi penceresinde çalışır: UIAutomation bulma,
+tüm ekran capture, fiziksel mouse tıkı, Unicode Türkçe metin, Ctrl+A ve değiştirme.
+Giriş teslimi DOM koşuluyla beklenir; SendInput'un dönmesi metnin işlendiğini
+kanıtlamaz. İlk PS [ushort] tür adı Windows PowerShell5'te yoktu, uint16 düzeltildi.
+Modelin dış sağlayıcıyla bütün görevlerde kusursuz çalıştığı veya UAC/açık
+yetki gerektiren pencereleri kontrol edebildiği iddia edilmez. Modellerin
+görsel desteği API kategorisine bağlı; metin modelleri erişilebilir öğeleri kullanır.
+Gerçek mikrofon/STT → renderer gönderim → API taklidi → TTS/oynatma regresyonu:
+ilk ses156ms, ilk oynatma214ms, mikrofon açık PASS; fiziksel yankı kabulü değildir.
+Sunucu gerçek HTTP/ayrı PostgreSQL: context mesaj gövdesine karışmaz, model
+payload'una girer; bilgisayar JSON'u bozulmaz; görsel WebP'ye çevrilip taşınır;
+run yanıtında ekran/özel bağlam yoktur. Queued iptal/crash recovery/başarı ekran
+verisini siler. Geçmişin önceki sayfası cursor ile gelir. Normal sohbet
+aracı recovery testi de PASS. Üretim kullanıcı/sohbet/bakiye verisine test yazılmadı.
+Test için yaratılan umay_desktop_* DB test sonunda düşürüldü.
+Üretimde chat+2worker yeni imajda healthy. Ortam değerleri/portlar değişmedi,
+10203 aynı;3 modül SHA256 adaya eşit. Geri alma kaynakları yedekte.
+
+Paket0.4.0 doğrulaması: asar sürümü ve17 uygulama kaynağı byte eşit;
+asar.unpacked içindeki native-desktop.ps1 eşit;4 konuşma modülü değişmeden
+birebir. Paket içindeki computer-control.cjs +native yardımcıyla gerçek Windows
+UIAutomation/ekran/SendInput/Türkçe/Ctrl+A test penceresi PASS.
+Installer 478594521 byte, SHA256:1ff33be1a23a5ccf440818c6a54a8708cf0b3b2e4aa9b6dfb8cc9582863e367c.
