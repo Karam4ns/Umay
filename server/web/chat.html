@@ -1,0 +1,2481 @@
+<!doctype html>
+<html lang="tr" data-theme-scope="web">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Sohbet · Veriüssü</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script src="/theme.js"></script>
+    <script src="/browser-utils.js"></script>
+    <link rel="stylesheet" href="/chat.css" />
+    <link rel="stylesheet" href="/chat-experience.css" />
+    <link rel="stylesheet" href="/chat-mascot-idle.css" />
+    <link rel="stylesheet" href="/chat-reminders.css" />
+    <link rel="stylesheet" href="/presentation-studio.css" />
+    <link rel="stylesheet" href="/server-metrics.css" />
+    <link rel="stylesheet" href="/theme.css" />
+    <link rel="stylesheet" href="/studio-layout.css" />
+    <script src="/chat-i18n.js" defer></script>
+    <script src="/chat-experience.js" defer></script>
+    <script src="/chat-mascot-idle.js" defer></script>
+    <link rel="stylesheet" href="/article-studio.css" />
+    <script src="/article-studio.js" defer></script>
+    <script src="/presentation-studio.js" defer></script>
+    <script src="/chat-presentation.js" defer></script>
+    <script src="/chat-reminders-i18n.js" defer></script>
+    <script src="/browser-push.js" defer></script>
+    <script src="/chat-reminders.js" defer></script>
+    <script src="/chat.js" defer></script>
+    <script src="/chat-workspaces.js" defer></script>
+    <script src="/studio-syntax.js" defer></script>
+    <script src="/workspace-editor.js" defer></script>
+    <script src="/studio-layout.js" defer></script>
+    <script src="/studio-extensions.js" defer></script>
+    <script src="/studio-skills.js" defer></script>
+    <script src="/studio-hooks.js" defer></script>
+    <script src="/studio-mcp.js" defer></script>
+    <script src="/studio-projects.js" defer></script>
+    <script src="/studio-explorer.js" defer></script>
+    <script src="/studio-agent.js" defer></script>
+    <script src="/studio-readiness.js" defer></script>
+    <script src="/studio-terminal.js" defer></script>
+    <script src="/studio-preview.js" defer></script>
+    <script src="/studio-browser.js" defer></script>
+    <script src="/studio-quality.js" defer></script>
+    <script src="/studio-api-client.js" defer></script>
+    <script src="/studio-database.js" defer></script>
+    <script src="/studio-references.js" defer></script>
+    <script src="/studio-workflow.js" defer></script>
+    <script src="/studio-github.js" defer></script>
+    <script src="/studio-ssh-git.js" defer></script>
+    <script src="/studio-code.js" defer></script>
+    <script src="/studio-history.js" defer></script>
+    <script src="/server-metrics.js" defer></script>
+    <script src="/chat-workspace-servers.js" defer></script>
+    <script src="/chat-github.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main" data-chat-text="skip"></a>
+    <aside id="sidebar" class="chat-sidebar">
+      <a class="brand" id="home-link" href="/"
+        ><svg viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M2 5h7l8 19L25 5h5L19 29h-5Z" fill="currentColor" />
+          <path d="m12 5 5 12 3-7-2-5Z" fill="currentColor" opacity=".4" /></svg
+        ><span>VERİÜSSÜ<span class="muted">.</span></span></a
+      >
+      <button id="new-chat" class="primary" disabled>
+        <span aria-hidden="true">＋</span><span data-chat-text="newChat"></span>
+      </button>
+      <p class="nav-caption" data-chat-text="history"></p>
+      <nav id="history" aria-label="Sohbetler"></nav>
+      <div class="chat-folders">
+        <button id="chats-folder" type="button" aria-haspopup="dialog">
+          <span aria-hidden="true">▱</span
+          ><span data-chat-text="myChats"></span>
+        </button>
+        <button id="archive-folder" type="button" aria-haspopup="dialog">
+          <span aria-hidden="true">▤</span
+          ><span data-chat-text="archive"></span>
+        </button>
+        <button
+          id="reminders-open"
+          type="button"
+          disabled
+          aria-haspopup="dialog"
+          aria-controls="reminders-dialog"
+        >
+          <span aria-hidden="true">◷</span
+          ><span data-chat-text="reminders"></span>
+        </button>
+      </div>
+      <div class="workspace-links">
+        <p class="nav-caption" data-chat-text="workspaces"></p>
+        <button
+          id="coding-open"
+          type="button"
+          disabled
+          aria-controls="workspace-dialog"
+        >
+          <span aria-hidden="true">&lt;/&gt;</span>
+          <span data-chat-text="coding"></span>
+        </button>
+        <button
+          id="presentations-open"
+          type="button"
+          aria-haspopup="dialog"
+          disabled
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M4 4h16v12H4zM2 4h20M12 16v5M8 21l4-3 4 3" />
+            <path d="m8 12 3-3 2 2 3-4" />
+          </svg>
+          <span data-chat-text="presentations"></span>
+        </button>
+        <button
+          id="articles-open"
+          type="button"
+          aria-haspopup="dialog"
+          disabled
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path
+              d="M14 2H5a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9zM14 2v7h7M7 13h10M7 17h7"
+            /></svg
+          ><span id="articles-label">Makale</span>
+        </button>
+      </div>
+      <footer>
+        <a id="account-name" class="chat-account-name" href="#" hidden></a>
+        <div class="chat-account-actions">
+          <button
+            id="settings"
+            class="chat-settings-button"
+            type="button"
+            aria-haspopup="dialog"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              aria-hidden="true"
+            >
+              <path
+                d="m10 3-1 3-3 1-2 3 2 2-1 3 3 2 3-1 2 2 3-2v-3l3-2-1-4-3-1-1-3Z"
+              />
+              <circle cx="12" cy="11" r="3" />
+            </svg>
+            <span data-chat-text="settings"></span>
+          </button>
+          <button id="logout" class="chat-logout-button" type="button" hidden>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path
+                d="M9 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4M14 8l4 4-4 4M8 12h13"
+              />
+            </svg>
+          </button>
+        </div>
+      </footer>
+    </aside>
+    <div class="chat-shell">
+      <header class="chat-header">
+        <button
+          id="menu"
+          class="icon-button"
+          aria-expanded="false"
+          aria-controls="sidebar"
+        >
+          ☰
+        </button>
+        <div class="model-picker">
+          <button
+            id="model-open"
+            class="model-trigger"
+            type="button"
+            aria-haspopup="dialog"
+            aria-controls="model-dialog"
+            disabled
+          >
+            <img
+              id="model-current-logo"
+              class="model-current-logo"
+              alt=""
+              hidden
+            />
+            <span class="model-trigger-copy"
+              ><small data-chat-text="selectModel"></small
+              ><strong id="model-label" data-chat-text="loading"></strong
+            ></span>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              aria-hidden="true"
+            >
+              <path d="m7 10 5 5 5-5" />
+            </svg>
+          </button>
+          <select
+            id="model"
+            hidden
+            aria-hidden="true"
+            tabindex="-1"
+            disabled
+          ></select>
+        </div>
+        <button
+          id="archive-current"
+          class="text-button"
+          type="button"
+          hidden
+        ></button>
+        <button id="theme" class="theme-toggle" aria-label="Tema">
+          <svg
+            class="sun-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="3.6" />
+            <path
+              d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+            /></svg
+          ><svg
+            class="moon-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path
+              d="M20.8 13.1A8.8 8.8 0 0 1 10.9 3.2a8.8 8.8 0 1 0 9.9 9.9Z"
+            />
+          </svg>
+        </button>
+      </header>
+      <main id="main">
+        <section id="welcome" class="welcome">
+          <div class="welcome-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32">
+              <path d="M2 5h7l8 19L25 5h5L19 29h-5Z" fill="currentColor" />
+              <path d="m12 5 5 12 3-7-2-5Z" fill="currentColor" opacity=".4" />
+            </svg>
+          </div>
+          <p class="eyebrow">VERİÜSSÜ / CHAT</p>
+          <h1 id="chat-title" data-chat-text="welcome"></h1>
+          <p id="welcome-text" data-chat-text="intro"></p>
+          <a id="login" class="primary" hidden data-chat-text="login"></a
+          ><a
+            id="models-link"
+            class="text-button"
+            hidden
+            data-chat-text="addModels"
+          ></a>
+        </section>
+        <div id="messages" class="messages" aria-live="polite"></div>
+        <aside id="chat-error" class="chat-error" role="alert" aria-atomic="true" hidden>
+          <strong id="chat-error-title"></strong>
+          <p id="chat-error-detail"></p>
+        </aside>
+        <div
+          id="chat-workspace-suggestion"
+          class="chat-workspace-suggestion"
+          hidden
+        ></div>
+        <div class="run-details">
+          <div id="run-sources" class="run-sources"></div>
+        </div>
+      </main>
+      <div class="composer-wrap">
+        <div
+          id="assistant-presence"
+          class="assistant-presence"
+          data-mood="idle"
+          hidden
+        >
+          <p id="status" role="status" aria-live="polite"></p>
+        </div>
+        <div id="pending-files" class="pending-files"></div>
+        <input
+          id="file-input"
+          type="file"
+          multiple
+          hidden
+          accept=".docx,.xlsx,.txt,.md,.csv,.json,.js,.ts,.tsx,.jsx,.py,.html,.css,.yaml,.yml,.sql,.log,.xml,.sh,.c,.cpp,.h,.java,.rs,.go,.pdf,.png,.jpg,.jpeg,.webp,.mp3,.wav,.ogg,.webm"
+        />
+        <div class="composer">
+          <button
+            id="attach-file"
+            class="attach-button"
+            type="button"
+            disabled
+            aria-label="Dosya ekle"
+          >
+            +
+          </button>
+          <textarea id="message" rows="2" disabled></textarea
+          ><button disabled id="send" aria-label="Gönder">↑</button>
+        </div>
+        <nav
+          id="chat-workspace-shortcuts"
+          class="chat-workspace-shortcuts"
+          hidden
+          aria-label="Çalışma alanları"
+        ></nav>
+        <div class="chat-run-options">
+          <button
+            id="chat-versions"
+            class="text-button"
+            type="button"
+            data-chat-text="chatVersions"
+            hidden
+          ></button>
+          <select id="tool-kind" hidden aria-label="Araç"></select>
+          <label id="voice-picker" class="tool-picker" hidden
+            ><span data-chat-text="voiceLabel"></span
+            ><select id="voice">
+              <option value="alloy">Alloy</option>
+              <option value="echo">Echo</option>
+              <option value="fable">Fable</option>
+              <option value="onyx">Onyx</option>
+              <option value="nova">Nova</option>
+              <option value="shimmer">Shimmer</option>
+            </select></label
+          >
+          <button
+            id="record-audio"
+            class="text-button"
+            type="button"
+            hidden
+            data-chat-text="recordAudio"
+          ></button>
+          <button
+            id="stop-run"
+            class="text-button"
+            type="button"
+            hidden
+            data-chat-text="stopMessage"
+          ></button>
+        </div>
+      </div>
+    </div>
+    <dialog
+      id="code-dialog"
+      class="chat-dialog code-dialog"
+      aria-labelledby="code-title"
+    >
+      <header class="chat-dialog-header">
+        <h2 id="code-title" data-chat-text="codeExecution"></h2>
+        <button
+          id="code-close"
+          class="dialog-close"
+          type="button"
+          aria-label="Close"
+        >
+          ×
+        </button>
+      </header>
+      <div class="code-output-content">
+        <p data-chat-text="codeHelp"></p>
+        <p id="code-status" role="status"></p>
+        <h3 data-chat-text="codeStdout"></h3>
+        <pre id="code-stdout"></pre>
+        <h3 data-chat-text="codeStderr"></h3>
+        <pre id="code-stderr"></pre>
+        <div id="code-files" class="message-files"></div>
+      </div>
+    </dialog>
+    <dialog
+      id="message-edit-dialog"
+      class="chat-dialog"
+      aria-labelledby="message-edit-title"
+    >
+      <form id="message-edit-form">
+        <header class="chat-dialog-header">
+          <h2 id="message-edit-title" data-chat-text="editMessage"></h2>
+          <button
+            id="message-edit-close"
+            class="dialog-close"
+            type="button"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </header>
+        <div class="message-edit-content">
+          <p data-chat-text="branchHelp"></p>
+          <textarea
+            id="message-edit-content"
+            rows="8"
+            maxlength="12000"
+            required
+          ></textarea>
+        </div>
+        <footer>
+          <button
+            id="message-edit-cancel"
+            type="button"
+            class="text-button"
+            data-chat-text="cancel"
+          ></button
+          ><button
+            id="message-edit-save"
+            type="submit"
+            class="primary-button"
+            data-chat-text="saveAndBranch"
+          ></button>
+        </footer>
+      </form>
+    </dialog>
+    <dialog
+      id="versions-dialog"
+      class="chat-dialog"
+      aria-labelledby="versions-title"
+    >
+      <header class="chat-dialog-header">
+        <h2 id="versions-title" data-chat-text="chatVersions"></h2>
+        <button
+          id="versions-close"
+          class="dialog-close"
+          type="button"
+          aria-label="Close"
+        >
+          ×
+        </button>
+      </header>
+      <div id="versions-list" class="versions-list"></div>
+    </dialog>
+    <dialog
+      id="conversation-dialog"
+      class="chat-dialog settings-dialog"
+      aria-labelledby="conversation-dialog-title"
+    >
+      <form id="conversation-form">
+        <header class="chat-dialog-header">
+          <h2 id="conversation-dialog-title"></h2>
+          <button id="conversation-close" class="dialog-close" type="button">
+            ×
+          </button>
+        </header>
+        <label id="conversation-title-label" class="rename-label"
+          ><span data-chat-text="conversationName"></span
+          ><input id="conversation-title-input" type="text" maxlength="150"
+        /></label>
+        <p id="conversation-delete-note" data-chat-text="deleteNote" hidden></p>
+        <p id="conversation-error" class="conversation-error" role="alert"></p>
+        <div class="conversation-actions">
+          <button
+            id="conversation-cancel"
+            type="button"
+            class="folder-action"
+            data-chat-text="cancel"
+          ></button
+          ><button
+            id="conversation-submit"
+            type="submit"
+            class="primary"
+          ></button>
+        </div>
+      </form>
+    </dialog>
+    <dialog
+      id="chats-dialog"
+      class="chat-dialog"
+      aria-labelledby="chats-dialog-title"
+    >
+      <header class="chat-dialog-header">
+        <h2 id="chats-dialog-title"></h2>
+        <button id="chats-close" class="dialog-close" type="button">×</button>
+      </header>
+      <div id="folder-results" class="folder-results"></div>
+      <button
+        id="more"
+        class="text-button"
+        hidden
+        data-chat-text="more"
+      ></button>
+    </dialog>
+    <dialog
+      id="model-dialog"
+      class="chat-dialog model-dialog"
+      aria-labelledby="model-dialog-title"
+    >
+      <header class="chat-dialog-header">
+        <div>
+          <p class="eyebrow">VERİÜSSÜ / MODELS</p>
+          <h2 id="model-dialog-title" data-chat-text="selectModel"></h2>
+        </div>
+        <button id="model-close" class="dialog-close" type="button">×</button>
+      </header>
+      <div class="model-search">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.7"
+          aria-hidden="true"
+        >
+          <circle cx="10.5" cy="10.5" r="6.5" />
+          <path d="m16 16 5 5" /></svg
+        ><input id="model-search" type="search" autocomplete="off" />
+      </div>
+      <div id="model-filters" class="model-filters" role="group">
+        <button
+          type="button"
+          data-model-filter="ALL"
+          aria-pressed="true"
+        ></button
+        ><button
+          type="button"
+          data-model-filter="SUBSCRIPTION"
+          aria-pressed="false"
+        ></button
+        ><button
+          type="button"
+          data-model-filter="PERSONAL"
+          aria-pressed="false"
+        ></button>
+      </div>
+      <div id="model-results" class="model-results" aria-live="polite"></div>
+    </dialog>
+    <dialog
+      id="settings-dialog"
+      class="chat-dialog settings-workspace"
+      aria-labelledby="settings-title"
+    >
+      <header class="chat-dialog-header">
+        <h2 id="settings-title" data-chat-text="settings"></h2>
+        <button id="settings-close" class="dialog-close" type="button">
+          ×
+        </button>
+      </header>
+      <div class="settings-layout">
+        <nav class="settings-nav" aria-labelledby="settings-title">
+          <button
+            type="button"
+            data-settings-page="general"
+            aria-pressed="true"
+          >
+            <span aria-hidden="true">⚙</span
+            ><span data-chat-text="settingsGeneral"></span>
+          </button>
+          <button
+            type="button"
+            data-settings-page="memory"
+            aria-pressed="false"
+          >
+            <span aria-hidden="true">▤</span
+            ><span data-chat-text="memory"></span
+            ><span id="memory-count" class="settings-count">0</span>
+          </button>
+        </nav>
+        <div class="settings-content">
+          <section data-settings-panel="general">
+            <h3 data-chat-text="settingsGeneral"></h3>
+            <p
+              class="settings-description"
+              data-chat-text="settingsGeneralHelp"
+            ></p>
+            <label class="settings-row" for="chat-language"
+              ><span data-chat-text="language"></span
+              ><select id="chat-language">
+                <option value="tr">Türkçe</option>
+                <option value="en">English</option>
+                <option value="de">Deutsch</option>
+                <option value="fr">Français</option>
+                <option value="es">Español</option>
+                <option value="ru">Русский</option>
+                <option value="ar">العربية</option>
+              </select></label
+            >
+            <div class="settings-row">
+              <span data-chat-text="appearance"></span
+              ><button
+                id="settings-theme"
+                class="folder-action"
+                type="button"
+                data-chat-text="changeTheme"
+              ></button>
+            </div>
+            <div data-push-controls></div>
+          </section>
+          <section data-settings-panel="memory" hidden>
+            <div class="settings-section-heading">
+              <h3 data-chat-text="memory"></h3>
+              <label class="memory-switch"
+                ><input id="memory-enabled" type="checkbox" /><span
+                  data-chat-text="memoryEnabled"
+                ></span
+              ></label>
+            </div>
+            <p class="settings-description" data-chat-text="memoryHelp"></p>
+            <div class="memory-toolbar">
+              <input id="memory-search" type="search" maxlength="150" /><button
+                id="memory-refresh"
+                class="folder-action"
+                type="button"
+                data-chat-text="memoryRefresh"
+              ></button>
+            </div>
+            <p id="memory-status" role="status"></p>
+            <div id="memory-list" class="memory-list"></div>
+          </section>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog
+      id="studio-mcp-dialog"
+      class="chat-dialog studio-connections-dialog"
+      aria-labelledby="studio-mcp-title"
+    >
+      <header class="chat-dialog-header">
+        <h2 id="studio-mcp-title"></h2>
+        <button id="studio-mcp-close" class="dialog-close" type="button">
+          ×
+        </button>
+      </header>
+      <section class="studio-connections-content">
+        <div class="settings-section-heading">
+          <h3 id="studio-mcp-project"></h3>
+          <button
+            id="studio-mcp-refresh"
+            class="folder-action"
+            type="button"
+          ></button
+          ><button
+            id="studio-mcp-add"
+            class="folder-action"
+            type="button"
+          ></button>
+        </div>
+        <p id="studio-mcp-help" class="settings-description"></p>
+        <p id="studio-mcp-status" role="status" aria-live="polite"></p>
+        <div class="studio-skills-layout">
+          <nav id="studio-mcp-list"></nav>
+          <form
+            id="studio-mcp-form"
+            class="studio-skills-form"
+            autocomplete="off"
+          >
+            <label
+              ><span id="studio-mcp-name-label"></span
+              ><input id="studio-mcp-name" maxlength="80" required
+            /></label>
+            <label
+              ><span id="studio-mcp-endpoint-label"></span
+              ><input
+                id="studio-mcp-endpoint"
+                type="url"
+                maxlength="1000"
+                placeholder="https://example.com/mcp"
+                dir="ltr"
+                required
+            /></label>
+            <div class="studio-mcp-auth-fields">
+              <label
+                ><span id="studio-mcp-auth-label"></span
+                ><select id="studio-mcp-auth">
+                  <option value="NONE"></option>
+                  <option value="BEARER">Bearer</option>
+                  <option value="API_KEY">API Key (X-API-Key)</option>
+                </select></label
+              >
+              <label
+                ><span id="studio-mcp-credential-label"></span
+                ><input
+                  id="studio-mcp-credential"
+                  type="password"
+                  maxlength="2048"
+                  autocomplete="new-password"
+                  dir="ltr"
+              /></label>
+            </div>
+            <p id="studio-mcp-credential-help" class="settings-description"></p>
+            <div class="studio-skills-actions">
+              <button
+                id="studio-mcp-discover"
+                class="folder-action"
+                type="button"
+              ></button>
+            </div>
+            <h4 id="studio-mcp-tools-title"></h4>
+            <p id="studio-mcp-tools-help" class="settings-description"></p>
+            <div id="studio-mcp-tools"></div>
+            <p id="studio-mcp-context-help" class="settings-description"></p>
+            <h4 id="studio-mcp-resources-title"></h4>
+            <div id="studio-mcp-resources"></div>
+            <h4 id="studio-mcp-prompts-title"></h4>
+            <div id="studio-mcp-prompts"></div>
+            <label class="studio-skills-enabled"
+              ><input id="studio-mcp-enabled" type="checkbox" /><span
+                id="studio-mcp-enabled-label"
+              ></span
+            ></label>
+            <div class="studio-skills-actions">
+              <button
+                id="studio-mcp-save"
+                class="folder-action"
+                type="submit"
+              ></button
+              ><button
+                id="studio-mcp-delete"
+                class="folder-action studio-danger-action"
+                type="button"
+                hidden
+              ></button>
+            </div>
+          </form>
+        </div>
+        <h3 id="studio-mcp-history-title"></h3>
+        <div id="studio-mcp-history" class="studio-hooks-history"></div>
+      </section>
+    </dialog>
+    <dialog
+      id="studio-mcp-confirm"
+      class="chat-dialog"
+      aria-labelledby="studio-mcp-confirm-title"
+    >
+      <header class="chat-dialog-header">
+        <h2 id="studio-mcp-confirm-title"></h2>
+      </header>
+      <p id="studio-mcp-confirm-message" class="settings-description"></p>
+      <div class="studio-skills-actions">
+        <button
+          id="studio-mcp-cancel"
+          class="folder-action"
+          type="button"
+        ></button
+        ><button
+          id="studio-mcp-confirm-delete"
+          class="folder-action studio-danger-action"
+          type="button"
+        ></button>
+      </div>
+    </dialog>
+    <dialog
+      id="studio-hooks-dialog"
+      class="chat-dialog studio-connections-dialog"
+      aria-labelledby="studio-hooks-title"
+    >
+      <header class="chat-dialog-header">
+        <h2 id="studio-hooks-title"></h2>
+        <button id="studio-hooks-close" class="dialog-close" type="button">
+          ×
+        </button>
+      </header>
+      <section class="studio-connections-content">
+        <div class="settings-section-heading">
+          <h3 id="studio-hooks-project"></h3>
+          <button
+            id="studio-hooks-refresh"
+            class="folder-action"
+            type="button"
+          ></button
+          ><button
+            id="studio-hooks-add"
+            class="folder-action"
+            type="button"
+          ></button>
+        </div>
+        <p id="studio-hooks-help" class="settings-description"></p>
+        <p id="studio-hooks-status" role="status" aria-live="polite"></p>
+        <div class="studio-skills-layout">
+          <nav id="studio-hooks-list"></nav>
+          <form id="studio-hooks-form" class="studio-skills-form">
+            <label
+              ><span id="studio-hooks-name-label"></span
+              ><input id="studio-hooks-name" maxlength="80" required
+            /></label>
+            <label
+              ><span id="studio-hooks-event-label"></span
+              ><select id="studio-hooks-event">
+                <option value="TASK_START"></option>
+                <option value="AFTER_WRITE"></option>
+                <option value="BEFORE_COMPLETE"></option></select
+            ></label>
+            <label
+              ><span id="studio-hooks-command-label"></span
+              ><textarea
+                id="studio-hooks-command"
+                maxlength="4000"
+                rows="4"
+                required
+                spellcheck="false"
+              ></textarea>
+            </label>
+            <div class="studio-hooks-fields">
+              <label
+                ><span id="studio-hooks-cwd-label"></span
+                ><input id="studio-hooks-cwd" maxlength="1024" placeholder="."
+              /></label>
+              <label
+                ><span id="studio-hooks-purpose-label"></span
+                ><select id="studio-hooks-purpose">
+                  <option value="check"></option>
+                  <option value="test"></option>
+                  <option value="lint"></option>
+                  <option value="build"></option>
+                  <option value="command"></option></select
+              ></label>
+              <label
+                ><span id="studio-hooks-timeout-label"></span
+                ><input
+                  id="studio-hooks-timeout"
+                  type="number"
+                  min="1"
+                  max="300"
+                  value="120"
+                  required
+              /></label>
+            </div>
+            <label class="studio-skills-enabled"
+              ><input id="studio-hooks-enabled" type="checkbox" /><span
+                id="studio-hooks-enabled-label"
+              ></span
+            ></label>
+            <label class="studio-skills-enabled"
+              ><input id="studio-hooks-required" type="checkbox" checked /><span
+                id="studio-hooks-required-label"
+              ></span
+            ></label>
+            <div class="studio-skills-actions">
+              <button
+                id="studio-hooks-save"
+                class="folder-action"
+                type="submit"
+              ></button
+              ><button
+                id="studio-hooks-delete"
+                class="folder-action"
+                type="button"
+                hidden
+              ></button>
+            </div>
+          </form>
+        </div>
+        <h3 id="studio-hooks-history-title"></h3>
+        <div id="studio-hooks-history" class="studio-hooks-history"></div>
+      </section>
+    </dialog>
+    <dialog
+      id="studio-hooks-confirm"
+      class="chat-dialog"
+      aria-labelledby="studio-hooks-confirm-title"
+    >
+      <header class="chat-dialog-header">
+        <h2 id="studio-hooks-confirm-title"></h2>
+      </header>
+      <p id="studio-hooks-confirm-message" class="settings-description"></p>
+      <div class="studio-skills-actions">
+        <button
+          id="studio-hooks-cancel"
+          class="folder-action"
+          type="button"
+        ></button
+        ><button
+          id="studio-hooks-confirm-delete"
+          class="folder-action"
+          type="button"
+        ></button>
+      </div>
+    </dialog>
+    <dialog
+      id="studio-skills-dialog"
+      class="chat-dialog studio-connections-dialog"
+      aria-labelledby="studio-skills-title"
+    >
+      <header class="chat-dialog-header">
+        <h2 id="studio-skills-title"></h2>
+        <button id="studio-skills-close" class="dialog-close" type="button">
+          ×
+        </button>
+      </header>
+      <section class="studio-connections-content">
+        <div class="settings-section-heading">
+          <h3 id="studio-skills-project"></h3>
+          <button
+            id="studio-skills-refresh"
+            class="folder-action"
+            type="button"
+          ></button
+          ><button
+            id="studio-skills-add"
+            class="folder-action"
+            type="button"
+          ></button>
+        </div>
+        <p id="studio-skills-help" class="settings-description"></p>
+        <p id="studio-skills-status" role="status" aria-live="polite"></p>
+        <div class="studio-skills-layout">
+          <nav id="studio-skills-list"></nav>
+          <form id="studio-skills-form" class="studio-skills-form">
+            <label
+              ><span id="studio-skills-name-label"></span
+              ><input id="studio-skills-name" maxlength="80" required
+            /></label>
+            <label
+              ><span id="studio-skills-description-label"></span
+              ><input id="studio-skills-description" maxlength="240"
+            /></label>
+            <label
+              ><span id="studio-skills-instructions-label"></span
+              ><textarea
+                id="studio-skills-instructions"
+                maxlength="4000"
+                rows="10"
+                required
+              ></textarea>
+            </label>
+            <label class="studio-skills-enabled"
+              ><input id="studio-skills-enabled" type="checkbox" /><span
+                id="studio-skills-enabled-label"
+              ></span
+            ></label>
+            <div class="studio-skills-actions">
+              <button
+                id="studio-skills-save"
+                class="folder-action"
+                type="submit"
+              ></button
+              ><button
+                id="studio-skills-delete"
+                class="folder-action"
+                type="button"
+                hidden
+              ></button>
+            </div>
+          </form>
+        </div>
+      </section>
+    </dialog>
+    <dialog
+      id="studio-skills-confirm"
+      class="chat-dialog"
+      aria-labelledby="studio-skills-confirm-title"
+    >
+      <header class="chat-dialog-header">
+        <h2 id="studio-skills-confirm-title"></h2>
+      </header>
+      <p id="studio-skills-confirm-message" class="settings-description"></p>
+      <div class="studio-skills-actions">
+        <button
+          id="studio-skills-cancel"
+          class="folder-action"
+          type="button"
+        ></button
+        ><button
+          id="studio-skills-confirm-delete"
+          class="folder-action"
+          type="button"
+        ></button>
+      </div>
+    </dialog>
+    <dialog
+      id="studio-extensions-dialog"
+      class="chat-dialog studio-connections-dialog"
+      aria-labelledby="studio-extensions-title"
+    >
+      <header class="chat-dialog-header">
+        <h2 id="studio-extensions-title"></h2>
+        <button id="studio-extensions-close" class="dialog-close" type="button">
+          ×
+        </button>
+      </header>
+      <section class="studio-connections-content">
+        <div class="settings-section-heading">
+          <h3 id="studio-extensions-project"></h3>
+          <button
+            id="studio-mcp-open"
+            class="folder-action"
+            type="button"
+            aria-haspopup="dialog"
+            aria-controls="studio-mcp-dialog"
+            disabled
+          >
+            MCP
+          </button>
+          <button
+            id="studio-hooks-open"
+            class="folder-action"
+            type="button"
+            aria-haspopup="dialog"
+            aria-controls="studio-hooks-dialog"
+            disabled
+          ></button>
+          <button
+            id="studio-skills-open"
+            class="folder-action"
+            type="button"
+            aria-haspopup="dialog"
+            aria-controls="studio-skills-dialog"
+            disabled
+          ></button>
+          <button
+            id="studio-extensions-refresh"
+            class="folder-action"
+            type="button"
+          ></button>
+        </div>
+        <p id="studio-extensions-help" class="settings-description"></p>
+        <p id="studio-extensions-status" role="status" aria-live="polite"></p>
+        <aside
+          id="studio-extensions-memory"
+          class="studio-extension-memory"
+          hidden
+        >
+          <strong id="studio-extensions-memory-title"></strong
+          ><span id="studio-extensions-memory-count"></span>
+        </aside>
+        <div id="studio-extensions-list" class="studio-extension-grid"></div>
+      </section>
+    </dialog>
+
+    <dialog
+      id="studio-servers-dialog"
+      class="chat-dialog studio-connections-dialog"
+      aria-labelledby="studio-servers-title"
+    >
+      <header class="chat-dialog-header">
+        <h2 id="studio-servers-title" data-workspace-server-text="title"></h2>
+        <button id="studio-servers-close" class="dialog-close" type="button">
+          ×
+        </button>
+      </header>
+      <section id="studio-servers-content" class="studio-connections-content">
+        <div class="settings-section-heading">
+          <button
+            id="workspace-server-add"
+            type="button"
+            class="primary"
+            data-workspace-server-text="add"
+          ></button>
+        </div>
+        <p class="settings-description" data-workspace-server-text="help"></p>
+        <p id="workspace-server-status" role="status" aria-live="polite"></p>
+        <div id="workspace-server-list" class="workspace-server-list"></div>
+        <form
+          id="workspace-server-form"
+          class="workspace-server-form"
+          hidden
+          autocomplete="off"
+        >
+          <h4 id="workspace-server-form-title"></h4>
+          <label
+            ><span data-workspace-server-text="host"></span
+            ><input
+              id="workspace-server-host"
+              required
+              maxlength="253"
+              dir="ltr"
+              placeholder="192.168.1.10"
+          /></label>
+          <div class="workspace-server-fields">
+            <label
+              ><span data-workspace-server-text="username"></span
+              ><input
+                id="workspace-server-username"
+                required
+                maxlength="100"
+                autocomplete="off"
+                dir="ltr"
+            /></label>
+            <label
+              ><span data-workspace-server-text="password"></span
+              ><input
+                id="workspace-server-password"
+                type="password"
+                maxlength="4096"
+                autocomplete="new-password"
+                dir="ltr"
+            /></label>
+          </div>
+          <p
+            id="workspace-server-password-help"
+            class="settings-description"
+            hidden
+            data-workspace-server-text="keepPassword"
+          ></p>
+          <details>
+            <summary data-workspace-server-text="advanced"></summary>
+            <div class="workspace-server-fields">
+              <label
+                ><span data-workspace-server-text="name"></span
+                ><input id="workspace-server-name" maxlength="100"
+              /></label>
+              <label
+                ><span data-workspace-server-text="port"></span
+                ><input
+                  id="workspace-server-port"
+                  type="number"
+                  min="1"
+                  max="65535"
+                  value="22"
+                  required
+                  dir="ltr"
+              /></label>
+            </div>
+          </details>
+          <div class="workspace-server-actions">
+            <button
+              id="workspace-server-cancel"
+              type="button"
+              class="folder-action"
+              data-workspace-server-text="cancel"
+            ></button>
+            <button
+              type="submit"
+              class="primary"
+              data-workspace-server-text="save"
+            ></button>
+          </div>
+        </form>
+      </section>
+    </dialog>
+
+    <dialog
+      id="studio-github-dialog"
+      class="chat-dialog studio-connections-dialog"
+      aria-labelledby="studio-github-title"
+    >
+      <header class="chat-dialog-header">
+        <h2 id="studio-github-title">GitHub</h2>
+        <button id="studio-github-close" class="dialog-close" type="button">
+          ×
+        </button>
+      </header>
+      <section id="studio-github-content" class="studio-connections-content">
+        <div class="settings-section-heading">
+          <button
+            id="github-add"
+            type="button"
+            class="primary"
+            data-github-text="add"
+          ></button>
+        </div>
+        <p class="settings-description" data-github-text="help"></p>
+        <p id="github-status" role="status" aria-live="polite"></p>
+        <div id="github-list" class="github-list"></div>
+        <form
+          id="github-form"
+          class="workspace-server-form"
+          autocomplete="off"
+          hidden
+        >
+          <h4 id="github-form-title"></h4>
+          <label
+            ><span data-github-text="label"></span
+            ><input id="github-label" maxlength="100"
+          /></label>
+          <label
+            ><span>Personal access token (classic)</span
+            ><input
+              id="github-token"
+              type="password"
+              maxlength="255"
+              required
+              autocomplete="new-password"
+              dir="ltr"
+              placeholder="ghp_…"
+              spellcheck="false"
+              autocapitalize="off"
+          /></label>
+          <p
+            id="github-keep-help"
+            class="settings-description"
+            data-github-text="keep"
+            hidden
+          ></p>
+          <p class="settings-description" data-github-text="scopeHelp"></p>
+          <a
+            class="github-create-link"
+            href="https://github.com/settings/tokens/new"
+            target="_blank"
+            rel="noopener noreferrer"
+            data-github-text="create"
+          ></a>
+          <div class="workspace-server-actions">
+            <button
+              id="github-cancel"
+              type="button"
+              class="folder-action"
+              data-github-text="cancel"
+            ></button>
+            <button
+              type="submit"
+              class="primary"
+              data-github-text="save"
+            ></button>
+          </div>
+        </form>
+      </section>
+    </dialog>
+
+    <dialog
+      id="workspace-server-confirm"
+      class="chat-dialog"
+      aria-labelledby="workspace-server-confirm-title"
+    >
+      <h2
+        id="workspace-server-confirm-title"
+        data-workspace-server-text="removeTitle"
+      ></h2>
+      <p data-workspace-server-text="removeHelp"></p>
+      <p id="workspace-server-confirm-name" dir="auto"></p>
+      <div class="workspace-server-actions">
+        <button
+          id="workspace-server-remove-cancel"
+          type="button"
+          class="folder-action"
+          data-workspace-server-text="cancel"
+        ></button>
+        <button
+          id="workspace-server-remove-submit"
+          type="button"
+          class="workspace-server-danger"
+          data-workspace-server-text="remove"
+        ></button>
+      </div>
+    </dialog>
+
+    <dialog
+      id="github-confirm"
+      class="chat-dialog"
+      aria-labelledby="github-confirm-title"
+    >
+      <h2 id="github-confirm-title" data-github-text="removeTitle"></h2>
+      <p data-github-text="removeHelp"></p>
+      <p id="github-confirm-name" dir="auto"></p>
+      <div class="workspace-server-actions">
+        <button
+          id="github-remove-cancel"
+          type="button"
+          class="folder-action"
+          data-github-text="cancel"
+        ></button>
+        <button
+          id="github-remove-submit"
+          type="button"
+          class="workspace-server-danger"
+          data-github-text="remove"
+        ></button>
+      </div>
+    </dialog>
+
+    <section
+      id="workspace-dialog"
+      class="workspace-dialog workspace-page"
+      aria-labelledby="workspace-title"
+      role="main"
+      hidden
+    >
+      <header class="chat-dialog-header studio-header">
+        <button
+          id="studio-menu"
+          type="button"
+          aria-controls="sidebar"
+          aria-expanded="false"
+          aria-label="Menü"
+        >
+          ☰
+        </button>
+        <div class="studio-brand">
+          <span class="studio-brand-icon" aria-hidden="true"
+            ><svg viewBox="0 0 32 32">
+              <path d="M2 5h7l8 19L25 5h5L19 29h-5Z" fill="currentColor" />
+              <path
+                d="m12 5 5 12 3-7-2-5Z"
+                fill="currentColor"
+                opacity=".4"
+              /></svg
+          ></span>
+          <div>
+            <span class="studio-eyebrow">VERİÜSSÜ STUDIO</span>
+            <h2
+              id="workspace-title"
+              data-workspace-text="title"
+              tabindex="-1"
+            ></h2>
+          </div>
+        </div>
+        <div class="studio-header-actions">
+          <button id="studio-projects-open" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 7V4h6l2 3h10v13H3z" /></svg
+            ><span data-project-text="projects"></span>
+          </button>
+          <span class="studio-private" data-workspace-text="privateSpace"></span
+          ><button
+            id="workspace-fullscreen"
+            type="button"
+            aria-pressed="false"
+            data-workspace-text="fullscreen"
+          ></button
+          ><button id="workspace-close" type="button" aria-label="Close">
+            ×
+          </button>
+        </div>
+      </header>
+      <div class="workspace-picker studio-picker" hidden>
+        <div class="studio-picker-select">
+          <label for="workspace-select" data-workspace-text="choose"></label
+          ><select id="workspace-select"></select>
+        </div>
+        <form id="workspace-create">
+          <input
+            id="workspace-new-name"
+            maxlength="120"
+            required
+            data-workspace-placeholder="workspaceName"
+            aria-label="Workspace name"
+          /><button type="submit" data-workspace-text="create"></button>
+        </form>
+      </div>
+      <div
+        class="workspace-body studio-body"
+        id="studio-layout"
+        data-mobile-panel="editor"
+      >
+        <nav class="studio-activity" aria-label="Studio">
+          <button
+            type="button"
+            data-studio-panel="files"
+            data-studio-label="files"
+            aria-pressed="true"
+          >
+            <svg viewBox="0 0 24 24">
+              <path d="M8 3h9l4 4v14H8zM17 3v5h4M4 17H2V1h11v2" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            id="studio-history-open"
+            data-studio-label="history"
+            aria-haspopup="dialog"
+            aria-controls="studio-history-dialog"
+          >
+            <svg viewBox="0 0 24 24">
+              <path d="M3 11a9 9 0 1 1 2 7M3 4v7h7m2-5v6l4 2" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            id="studio-terminal-activity"
+            data-studio-label="terminal"
+            aria-controls="studio-bottom-panel"
+            aria-expanded="false"
+            aria-pressed="false"
+            disabled
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="2" y="3" width="20" height="18" rx="2" />
+              <path d="m6 8 4 4-4 4m7 0h5" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            id="studio-servers-open"
+            aria-haspopup="dialog"
+            aria-controls="studio-servers-dialog"
+            disabled
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="3" y="3" width="18" height="7" rx="2" />
+              <rect x="3" y="14" width="18" height="7" rx="2" />
+              <path d="M7 6.5h.01M7 17.5h.01M12 6.5h5M12 17.5h5" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            id="studio-github-open"
+            aria-haspopup="dialog"
+            aria-controls="studio-github-dialog"
+            disabled
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M9 19c-4.3 1.3-4.3-2.1-6-2.6m12 5v-3.4c0-1 .1-1.5-.5-2.1 3.3-.4 6.8-1.6 6.8-7.3A5.7 5.7 0 0 0 19.8 5a5.3 5.3 0 0 0-.1-3.5s-1.2-.4-3.8 1.5a13.1 13.1 0 0 0-7 0C6.3 1.1 5.1 1.5 5.1 1.5A5.3 5.3 0 0 0 5 5a5.7 5.7 0 0 0-1.5 4c0 5.6 3.5 6.9 6.8 7.3-.6.5-.7 1.2-.7 2.1v3.4"
+              />
+            </svg>
+          </button>
+          <button
+            type="button"
+            id="studio-extensions"
+            aria-haspopup="dialog"
+            aria-controls="studio-extensions-dialog"
+            disabled
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 2v5m8-5v5M6 7h12v4a6 6 0 0 1-12 0V7Zm6 10v5M4 7h16" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            id="studio-mail"
+            aria-haspopup="dialog"
+            aria-controls="studio-workflow-dialog"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="2" y="4" width="20" height="16" rx="2" />
+              <path d="m3 6 9 7 9-7" />
+            </svg>
+            <span class="studio-activity-tooltip" aria-hidden="true"></span>
+          </button>
+          <button
+            type="button"
+            id="studio-app-toggle"
+            aria-pressed="false"
+            aria-controls="studio-app-panel"
+            title="Canlı önizleme"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="3" y="3" width="18" height="14" rx="2" />
+              <path d="M8 21h8m-4-4v4m-2-14 5 3-5 3z" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            id="studio-quality-open"
+            hidden
+            aria-label="Kod kalitesi"
+            title="Kod kalitesi"
+            aria-haspopup="dialog"
+          >
+            <svg viewBox="0 0 24 24">
+              <path d="M12 3 3 7v5c0 5 9 9 9 9s9-4 9-9V7zM8 12l3 3 5-6" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            id="studio-api-open"
+            hidden
+            aria-label="API"
+            title="API"
+            aria-haspopup="dialog"
+          >
+            <svg viewBox="0 0 24 24">
+              <path d="m8 6-6 6 6 6m8-12 6 6-6 6m-3-15-2 18" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            id="studio-database-open"
+            hidden
+            aria-label="Veritabanı"
+            title="Veritabanı"
+            aria-haspopup="dialog"
+          >
+            <svg viewBox="0 0 24 24">
+              <ellipse cx="12" cy="5" rx="8" ry="3" />
+              <path d="M4 5v14c0 4 16 4 16 0V5M4 12c0 4 16 4 16 0" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            id="studio-references-open"
+            aria-label="Kaynaklar"
+            title="Kaynaklar"
+            aria-haspopup="dialog"
+          >
+            <svg viewBox="0 0 24 24">
+              <path d="M4 3h6l2 2h8v16H4zM8 10h8M8 14h8M8 18h5" />
+            </svg>
+          </button>
+          <span class="studio-activity-spacer"></span>
+          <button
+            type="button"
+            id="studio-agent-toggle"
+            data-studio-label="assistant"
+            aria-pressed="true"
+          >
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M21 15a3 3 0 0 1-3 3H8l-5 4V5a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3zM7 8h10M7 12h6"
+              />
+            </svg>
+          </button>
+        </nav>
+        <aside class="workspace-files studio-explorer">
+          <div class="studio-explorer-heading">
+            <span data-workspace-text="files"></span
+            ><span id="workspace-file-count" class="studio-count">0</span
+            ><button
+              id="workspace-tree-more"
+              type="button"
+              aria-label="File actions"
+              aria-haspopup="menu"
+            >
+              ⋯
+            </button>
+          </div>
+          <input
+            id="workspace-file-search"
+            type="search"
+            data-workspace-placeholder="searchFiles"
+            aria-label="Search files"
+            autocomplete="off"
+          />
+          <button
+            id="workspace-new-file"
+            type="button"
+            data-workspace-text="newFile"
+          ></button>
+          <div class="studio-tree-actions">
+            <button id="workspace-new-folder" type="button" hidden></button
+            ><button id="workspace-tree-refresh" type="button" hidden></button>
+          </div>
+          <p
+            id="workspace-tree-status"
+            class="studio-project-help"
+            role="status"
+            aria-live="polite"
+          ></p>
+          <p
+            id="studio-explorer-status"
+            class="studio-project-help"
+            role="status"
+            aria-live="polite"
+          ></p>
+          <nav id="workspace-files" aria-label="Files"></nav>
+          <details id="workspace-version-panel">
+            <summary data-workspace-text="versions"></summary>
+            <div id="workspace-versions"></div>
+          </details>
+          <button
+            id="workspace-remove"
+            type="button"
+            class="workspace-danger"
+            data-workspace-text="removeWorkspace"
+          ></button>
+        </aside>
+        <div class="studio-editor-column">
+          <div class="studio-mobile-tabs" role="group" aria-label="Studio">
+            <button
+              type="button"
+              data-studio-mobile="files"
+              data-studio-text="files"
+            ></button>
+            <button
+              type="button"
+              data-studio-mobile="editor"
+              data-studio-text="editor"
+              aria-pressed="true"
+            ></button>
+            <button
+              type="button"
+              data-studio-mobile="assistant"
+              data-studio-text="assistant"
+            ></button>
+          </div>
+          <div class="studio-breadcrumb">
+            <span class="studio-project-dot"></span
+            ><span id="studio-project-name">Studio</span
+            ><span aria-hidden="true">/</span
+            ><span id="studio-breadcrumb-file" data-studio-text="welcome"></span
+            ><span class="studio-mode" data-studio-text="virtual"></span>
+          </div>
+          <section id="studio-app-panel" class="studio-app-panel" hidden>
+            <header class="studio-app-heading" hidden>
+              <div>
+                <strong data-app-text="0"></strong
+                ><span
+                  id="studio-app-state"
+                  role="status"
+                  aria-live="polite"
+                ></span>
+              </div>
+              <button
+                id="studio-app-close"
+                type="button"
+                data-app-text="8"
+              ></button>
+            </header>
+            <details id="studio-app-settings" hidden>
+              <summary data-app-text="9"></summary>
+              <form id="studio-app-form" class="studio-app-form">
+                <label class="studio-app-command"
+                  ><span data-browser-text="mode"></span>
+                  <select id="studio-app-mode">
+                    <option value="ATTACH" data-browser-text="attach"></option>
+                    <option value="START" data-browser-text="start"></option>
+                  </select>
+                </label>
+                <label class="studio-app-command"
+                  ><span data-app-text="1"></span
+                  ><input
+                    id="studio-app-command"
+                    dir="ltr"
+                    autocomplete="off"
+                    placeholder="npm run dev -- --host 127.0.0.1 --port $PORT --strictPort"
+                    maxlength="4000"
+                    required
+                /></label>
+                <label
+                  ><span data-app-text="2"></span
+                  ><input
+                    id="studio-app-cwd"
+                    dir="ltr"
+                    autocomplete="off"
+                    placeholder="."
+                    maxlength="1024"
+                /></label>
+                <label
+                  ><span data-app-text="3"></span
+                  ><input
+                    id="studio-app-port"
+                    dir="ltr"
+                    type="number"
+                    min="1"
+                    max="65535"
+                    value="5173"
+                    required
+                /></label>
+                <p data-app-text="10"></p>
+              </form>
+            </details>
+            <div class="studio-app-toolbar" hidden>
+              <div>
+                <button
+                  type="submit"
+                  form="studio-app-form"
+                  id="studio-app-start"
+                  class="primary"
+                  data-app-text="4"
+                ></button
+                ><button
+                  id="studio-app-stop"
+                  type="button"
+                  data-app-text="5"
+                  disabled
+                ></button
+                ><button
+                  id="studio-app-reload"
+                  type="button"
+                  data-app-text="6"
+                  disabled
+                ></button>
+              </div>
+              <button
+                type="button"
+                id="studio-browser-open"
+                class="folder-action"
+              >
+                Tarayıcı testi
+              </button>
+              <select id="studio-app-size" aria-label="Preview size">
+                <option value="desktop" data-app-text="11"></option>
+                <option value="tablet" data-app-text="12"></option>
+                <option value="mobile" data-app-text="13"></option>
+              </select>
+            </div>
+            <form
+              id="studio-app-navigation"
+              class="studio-app-navigation"
+              hidden
+            >
+              <button
+                id="studio-app-back"
+                type="button"
+                data-browser-label="back"
+                disabled
+              >
+                ←
+              </button>
+              <button
+                id="studio-app-forward"
+                type="button"
+                data-browser-label="forward"
+                disabled
+              >
+                →
+              </button>
+              <button
+                id="studio-app-home"
+                type="button"
+                data-browser-label="home"
+                disabled
+              >
+                ⌂
+              </button>
+              <span id="studio-app-host" dir="ltr"></span>
+              <input
+                id="studio-app-address"
+                data-browser-label="address"
+                dir="ltr"
+                value="/"
+                maxlength="2048"
+                autocomplete="off"
+                spellcheck="false"
+                disabled
+              />
+              <button
+                id="studio-app-go"
+                type="submit"
+                data-browser-text="go"
+                disabled
+              ></button>
+            </form>
+            <p
+              id="studio-app-message"
+              class="studio-app-message"
+              role="status"
+              aria-live="polite"
+            ></p>
+            <div id="studio-app-viewport" class="studio-app-viewport">
+              <div id="studio-app-empty">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="2" y="3" width="20" height="14" rx="2" />
+                  <path d="M8 21h8m-4-4v4m-2-14 5 3-5 3z" />
+                </svg>
+                <h3 data-app-text="14"></h3>
+                <p data-app-text="15"></p>
+              </div>
+              <iframe
+                id="studio-app-frame"
+                title="Application preview"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-downloads"
+                referrerpolicy="origin"
+                hidden
+              ></iframe>
+            </div>
+            <details class="studio-app-logs" hidden>
+              <summary data-app-text="7"></summary>
+              <pre id="studio-app-output" dir="ltr"></pre>
+              <p id="studio-app-log-limit" data-app-text="16" hidden></p>
+            </details>
+          </section>
+          <section class="workspace-editor studio-main">
+            <section
+              id="studio-live-preview"
+              class="studio-live-preview"
+              hidden
+            >
+              <header>
+                <strong id="studio-live-path"></strong
+                ><span id="studio-live-state"></span
+                ><button
+                  id="studio-live-close"
+                  type="button"
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </header>
+              <pre><code id="studio-live-content"></code></pre>
+            </section>
+            <div id="workspace-empty" class="studio-empty">
+              <span class="studio-empty-icon" aria-hidden="true"
+                >&lt;/&gt;</span
+              >
+              <h3 data-workspace-text="emptyTitle"></h3>
+              <p data-workspace-text="empty"></p>
+              <div class="studio-welcome-actions">
+                <button type="button" id="studio-welcome-new">
+                  <span data-studio-text="newFile"></span><kbd>＋</kbd>
+                </button>
+                <button type="button" id="studio-welcome-search">
+                  <span data-studio-text="search"></span><kbd>⌘ K</kbd>
+                </button>
+              </div>
+              <div class="studio-empty-languages" aria-hidden="true">
+                <span>Python</span><span>JavaScript</span><span>TypeScript</span
+                ><span>HTML / CSS</span>
+              </div>
+            </div>
+            <form id="workspace-editor" hidden>
+              <div class="studio-tabbar">
+                <nav id="studio-open-tabs" aria-label="Open files"></nav>
+                <div class="studio-file-tab">
+                  <span class="studio-file-icon" aria-hidden="true"
+                    >&lt;/&gt;</span
+                  ><span id="workspace-tab-name" dir="auto"></span
+                  ><span
+                    id="workspace-unsaved"
+                    class="studio-unsaved"
+                    hidden
+                  ></span
+                  ><button
+                    id="workspace-tab-close"
+                    type="button"
+                    aria-label="Close file"
+                  >
+                    ×
+                  </button>
+                </div>
+                <span id="workspace-language" class="studio-language"
+                  >Plain text</span
+                >
+              </div>
+              <div class="studio-commandbar">
+                <label
+                  for="workspace-filename"
+                  class="studio-sr"
+                  data-workspace-text="filename"
+                ></label
+                ><input
+                  dir="auto"
+                  id="workspace-filename"
+                  maxlength="180"
+                  required
+                  placeholder="main.py"
+                />
+                <div class="workspace-toolbar">
+                  <button
+                    type="submit"
+                    id="workspace-save"
+                    class="primary"
+                    data-workspace-text="save"
+                  ></button
+                  ><button
+                    type="button"
+                    id="workspace-download"
+                    data-workspace-text="download"
+                  ></button
+                  ><button
+                    type="button"
+                    id="workspace-preview-toggle"
+                    aria-pressed="false"
+                    data-workspace-text="preview"
+                  ></button>
+                  <details class="studio-file-menu">
+                    <summary data-workspace-text="more"></summary>
+                    <div>
+                      <button
+                        type="button"
+                        id="workspace-reload"
+                        data-workspace-text="reload"
+                      ></button
+                      ><button
+                        type="button"
+                        id="workspace-delete"
+                        class="workspace-danger"
+                        data-workspace-text="deleteFile"
+                      ></button>
+                    </div>
+                  </details>
+                </div>
+              </div>
+              <div class="studio-panes" id="workspace-panes">
+                <div class="studio-code-surface">
+                  <div class="studio-gutter" aria-hidden="true">
+                    <div id="workspace-line-numbers">1</div>
+                  </div>
+                  <div class="studio-code-stack">
+                    <pre
+                      id="workspace-highlight"
+                      aria-hidden="true"
+                    ><code></code></pre>
+                    <label
+                      for="workspace-content"
+                      class="studio-sr"
+                      data-workspace-text="content"
+                    ></label
+                    ><textarea
+                      dir="ltr"
+                      id="workspace-content"
+                      maxlength="200000"
+                      spellcheck="false"
+                      wrap="off"
+                      autocapitalize="off"
+                      autocomplete="off"
+                      autocorrect="off"
+                      aria-describedby="workspace-shortcuts"
+                    ></textarea>
+                  </div>
+                </div>
+                <section
+                  id="workspace-preview-panel"
+                  class="studio-preview"
+                  hidden
+                >
+                  <div class="studio-preview-heading">
+                    <span data-workspace-text="preview"></span
+                    ><button
+                      id="workspace-preview-refresh"
+                      type="button"
+                      data-workspace-text="refreshPreview"
+                    ></button>
+                  </div>
+                  <p data-workspace-text="previewHint"></p>
+                  <iframe
+                    id="workspace-preview-frame"
+                    sandbox=""
+                    referrerpolicy="no-referrer"
+                    title="HTML preview"
+                  ></iframe>
+                </section>
+              </div>
+            </form>
+          </section>
+          <section id="studio-bottom-panel" class="studio-bottom-panel" hidden>
+            <div
+              id="studio-terminal-resizer"
+              role="separator"
+              tabindex="0"
+              aria-orientation="horizontal"
+              aria-valuemin="120"
+              aria-valuemax="600"
+              aria-valuenow="220"
+              aria-controls="studio-bottom-panel"
+            ></div>
+            <div class="studio-bottom-heading">
+              <span data-studio-text="terminal"></span
+              ><span id="studio-terminal-status" role="status"></span>
+              <button type="button" id="studio-terminal-reconnect"></button>
+              <button
+                type="button"
+                id="studio-terminal-close"
+                data-studio-label="close"
+              >
+                ×
+              </button>
+            </div>
+            <div id="studio-terminal-screen" dir="ltr"></div>
+          </section>
+        </div>
+        <div
+          id="studio-chat-resizer"
+          class="studio-resizer"
+          role="separator"
+          aria-orientation="vertical"
+          tabindex="0"
+          aria-valuemin="260"
+          aria-valuemax="600"
+          aria-valuenow="320"
+          data-studio-label="resize"
+        ></div>
+        <aside class="studio-agent" id="studio-agent">
+          <header class="studio-agent-header">
+            <span
+              ><svg viewBox="0 0 24 24">
+                <path
+                  d="m12 2 2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5z"
+                /></svg
+              ><strong data-studio-text="assistant"></strong></span
+            ><span class="studio-design-tag" id="studio-agent-engine"
+              >Umay</span
+            >
+          </header>
+          <div class="studio-agent-body" id="studio-agent-welcome">
+            <div class="studio-agent-orb" aria-hidden="true">
+              <svg viewBox="0 0 32 32">
+                <path d="M2 5h7l8 19L25 5h5L19 29h-5Z" fill="currentColor" />
+                <path
+                  d="m12 5 5 12 3-7-2-5Z"
+                  fill="currentColor"
+                  opacity=".4"
+                />
+              </svg>
+            </div>
+            <h3 data-studio-text="agentTitle"></h3>
+            <p data-studio-text="agentHint"></p>
+            <div class="studio-agent-prompts">
+              <button
+                type="button"
+                data-studio-prompt="build"
+                data-studio-text="build"
+              ></button
+              ><button
+                type="button"
+                data-studio-prompt="review"
+                data-studio-text="review"
+              ></button
+              ><button
+                type="button"
+                data-studio-prompt="debug"
+                data-studio-text="debug"
+              ></button>
+            </div>
+          </div>
+          <div
+            id="studio-agent-feed"
+            class="studio-agent-feed"
+            aria-live="polite"
+            hidden
+          ></div>
+          <p id="studio-agent-status" role="status"></p>
+          <details id="studio-task-panel" class="studio-task-panel">
+            <summary id="studio-task-title"></summary>
+            <div id="studio-health" class="studio-health"></div>
+            <div id="studio-task-list"></div>
+          </details>
+          <details class="studio-task-budget">
+            <summary id="studio-task-budget-title"></summary>
+            <label
+              ><span id="studio-task-token-label"></span
+              ><input
+                id="studio-task-budget-tokens"
+                type="number"
+                min="1000"
+                max="1000000"
+                step="1000"
+                value="200000"
+            /></label>
+            <label
+              ><span id="studio-task-time-label"></span
+              ><input
+                id="studio-task-budget-seconds"
+                type="number"
+                min="30"
+                max="7200"
+                value="900"
+            /></label>
+          </details>
+          <div id="studio-agent-approvals"></div>
+          <div class="studio-agent-compose">
+            <div class="studio-compose-context">
+              <span aria-hidden="true">⌘</span
+              ><span
+                id="studio-context-file"
+                data-studio-text="projectContext"
+              ></span>
+            </div>
+            <label
+              for="studio-agent-draft"
+              class="studio-sr"
+              data-studio-text="prompt"
+            ></label
+            ><textarea
+              id="studio-agent-draft"
+              enterkeyhint="send"
+              rows="4"
+              maxlength="12000"
+              data-studio-placeholder="prompt"
+            ></textarea>
+            <div class="studio-compose-footer">
+              <button id="studio-agent-model" type="button"></button>
+              <label class="studio-access-control">
+                <span class="studio-sr" id="studio-agent-access-label"></span>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="m12 3 8 4v5c0 5-8 9-8 9s-8-4-8-9V7l8-4Z" />
+                  <path d="m8 12 3 3 5-6" />
+                </svg>
+                <select
+                  id="studio-agent-access"
+                  aria-labelledby="studio-agent-access-label"
+                >
+                  <option value="ASK"></option>
+                  <option value="FULL"></option>
+                </select>
+              </label>
+              <button id="studio-task-enqueue" type="button" hidden></button>
+              <button
+                id="studio-agent-send"
+                type="button"
+                disabled
+                data-studio-label="send"
+              >
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 20V4m-6 6 6-6 6 6" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <p class="studio-agent-note" id="studio-agent-capabilities"></p>
+        </aside>
+      </div>
+      <footer class="studio-statusbar">
+        <div class="studio-save-status">
+          <span class="studio-status-dot" aria-hidden="true"></span>
+          <p id="workspace-status" role="status" aria-live="polite"></p>
+        </div>
+        <div class="studio-cursor-status">
+          <button
+            id="studio-terminal-toggle"
+            type="button"
+            aria-expanded="false"
+            data-studio-text="terminal"
+          ></button>
+          <span id="workspace-cursor"></span
+          ><span id="workspace-character-count"></span
+          ><span id="workspace-shortcuts">Ctrl / ⌘ S · Esc → Tab</span>
+        </div>
+      </footer>
+    </section>
+    <dialog
+      id="studio-projects-dialog"
+      class="chat-dialog studio-project-dialog"
+      aria-labelledby="studio-projects-title"
+    >
+      <header class="studio-project-dialog-heading">
+        <div>
+          <span class="studio-eyebrow">VERİÜSSÜ STUDIO</span>
+          <h2 id="studio-projects-title" data-project-text="projects"></h2>
+        </div>
+        <button type="button" id="studio-projects-close" aria-label="Close">
+          ×
+        </button>
+      </header>
+      <p class="studio-project-intro" data-project-text="intro"></p>
+      <p id="studio-project-status" role="status" aria-live="polite"></p>
+      <div id="studio-project-list-view">
+        <div class="studio-project-list-heading">
+          <span data-project-text="allProjects"></span
+          ><button
+            type="button"
+            class="primary"
+            id="studio-project-add"
+            data-project-text="add"
+          ></button>
+        </div>
+        <div id="studio-project-list"></div>
+      </div>
+      <form id="studio-project-form" hidden>
+        <h3 id="studio-project-form-title"></h3>
+        <label
+          ><span data-project-text="name"></span
+          ><input
+            id="studio-project-name-input"
+            maxlength="120"
+            required
+            autocomplete="off"
+        /></label>
+        <fieldset class="studio-project-mode">
+          <legend data-project-text="location"></legend>
+          <label
+            ><input
+              type="radio"
+              name="project-mode"
+              value="VIRTUAL"
+              checked /><span
+              ><strong data-project-text="virtual"></strong
+              ><small data-project-text="virtualHint"></small></span
+          ></label>
+          <label
+            ><input type="radio" name="project-mode" value="SSH" /><span
+              ><strong data-project-text="server"></strong
+              ><small data-project-text="serverHint"></small></span
+          ></label>
+        </fieldset>
+        <div id="studio-project-server-fields" hidden>
+          <label
+            ><span data-project-text="chooseServer"></span
+            ><select id="studio-project-server"></select
+          ></label>
+          <p
+            id="studio-project-no-servers"
+            data-project-text="noServers"
+            hidden
+          ></p>
+          <label
+            ><span data-project-text="path"></span>
+            <div class="studio-project-path-row">
+              <input id="studio-project-path" readonly /><button
+                id="studio-project-browse"
+                type="button"
+                data-project-text="choosePath"
+              ></button></div
+          ></label>
+          <p class="studio-project-help" data-project-text="pathHint"></p>
+          <p
+            id="studio-project-destination"
+            class="studio-project-help"
+            dir="ltr"
+          ></p>
+        </div>
+        <div class="studio-project-form-actions">
+          <button
+            id="studio-project-cancel"
+            type="button"
+            data-project-text="cancel"
+          ></button
+          ><button
+            id="studio-project-save"
+            class="primary"
+            type="submit"
+            data-project-text="save"
+          ></button>
+        </div>
+      </form>
+    </dialog>
+    <dialog
+      id="studio-path-dialog"
+      class="chat-dialog studio-project-dialog studio-path-dialog"
+      aria-labelledby="studio-path-title"
+    >
+      <header class="studio-project-dialog-heading">
+        <h2 id="studio-path-title" data-project-text="choosePath"></h2>
+        <button id="studio-path-close" type="button" aria-label="Close">
+          ×
+        </button>
+      </header>
+      <p class="studio-project-intro" data-project-text="pathIntro"></p>
+      <form id="studio-path-navigate">
+        <label
+          class="studio-sr"
+          for="studio-path-input"
+          data-project-text="path"
+        ></label
+        ><input
+          id="studio-path-input"
+          maxlength="4096"
+          autocomplete="off"
+          dir="ltr"
+        /><button type="submit" data-project-text="go"></button>
+      </form>
+      <p id="studio-path-status" role="status" aria-live="polite"></p>
+      <button
+        id="studio-path-up"
+        type="button"
+        data-project-text="parent"
+      ></button>
+      <div id="studio-path-directories"></div>
+      <div class="studio-project-form-actions">
+        <button
+          id="studio-path-cancel"
+          type="button"
+          data-project-text="cancel"
+        ></button
+        ><button
+          id="studio-path-select"
+          type="button"
+          class="primary"
+          data-project-text="usePath"
+          disabled
+        ></button>
+      </div>
+    </dialog>
+    <dialog
+      id="studio-project-delete-dialog"
+      class="chat-dialog"
+      aria-labelledby="studio-project-delete-title"
+    >
+      <h2 id="studio-project-delete-title" data-project-text="deleteTitle"></h2>
+      <p id="studio-project-delete-name"></p>
+      <p data-project-text="deleteHint"></p>
+      <div class="studio-project-form-actions">
+        <button
+          id="studio-project-delete-cancel"
+          type="button"
+          data-project-text="cancel"
+        ></button
+        ><button
+          id="studio-project-delete-confirm"
+          type="button"
+          class="primary"
+          data-project-text="remove"
+        ></button>
+      </div>
+    </dialog>
+    <dialog
+      id="workspace-entry-dialog"
+      class="chat-dialog studio-entry-dialog"
+      aria-labelledby="workspace-entry-title"
+    >
+      <form id="workspace-entry-form">
+        <header class="studio-project-dialog-heading">
+          <h2 id="workspace-entry-title"></h2>
+          <button id="workspace-entry-close" type="button" aria-label="Close">
+            ×
+          </button>
+        </header>
+        <p
+          id="workspace-entry-parent"
+          class="studio-project-intro"
+          dir="ltr"
+        ></p>
+        <label for="workspace-entry-name" id="workspace-entry-label"></label
+        ><input
+          id="workspace-entry-name"
+          maxlength="255"
+          required
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <p id="workspace-entry-status" role="status" aria-live="polite"></p>
+        <div class="studio-project-form-actions">
+          <button id="workspace-entry-cancel" type="button"></button
+          ><button
+            id="workspace-entry-submit"
+            class="primary"
+            type="submit"
+          ></button>
+        </div>
+      </form>
+    </dialog>
+    <div id="studio-context-menu" role="menu" hidden></div>
+
+    <dialog
+      id="studio-action-dialog"
+      class="chat-dialog studio-entry-dialog"
+      aria-labelledby="studio-action-title"
+    >
+      <form id="studio-action-form">
+        <header class="studio-project-dialog-heading">
+          <h2 id="studio-action-title"></h2>
+          <button id="studio-action-close" type="button" aria-label="Close">
+            ×
+          </button>
+        </header>
+        <p id="studio-action-source" class="studio-project-intro" dir="ltr"></p>
+        <label id="studio-action-label" for="studio-action-path"></label
+        ><input
+          id="studio-action-path"
+          maxlength="2048"
+          required
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <p id="studio-action-error" role="status" aria-live="polite"></p>
+        <div class="studio-project-form-actions">
+          <button id="studio-action-cancel" type="button"></button
+          ><button
+            id="studio-action-submit"
+            type="submit"
+            class="primary"
+          ></button>
+        </div>
+      </form>
+    </dialog>
+    <dialog
+      id="studio-remove-dialog"
+      class="chat-dialog studio-entry-dialog"
+      aria-labelledby="studio-remove-title"
+    >
+      <h2 id="studio-remove-title"></h2>
+      <p id="studio-remove-path" dir="ltr"></p>
+      <p id="studio-remove-help"></p>
+      <p id="studio-remove-error" role="status" aria-live="polite"></p>
+      <div class="studio-project-form-actions">
+        <button id="studio-remove-cancel" type="button"></button
+        ><button
+          id="studio-remove-confirm"
+          type="button"
+          class="primary"
+        ></button>
+      </div>
+    </dialog>
+    <dialog
+      id="workspace-confirm"
+      class="chat-dialog"
+      aria-labelledby="workspace-confirm-title"
+    >
+      <h2 id="workspace-confirm-title" data-workspace-text="confirm"></h2>
+      <p id="workspace-confirm-description"></p>
+      <div class="workspace-toolbar">
+        <button
+          id="workspace-confirm-cancel"
+          type="button"
+          data-workspace-text="cancel"
+        ></button
+        ><button
+          id="workspace-confirm-submit"
+          class="primary"
+          type="button"
+          data-workspace-text="continue"
+        ></button>
+      </div>
+    </dialog>
+    <dialog
+      id="studio-history-dialog"
+      class="chat-dialog studio-history-dialog"
+      aria-labelledby="studio-history-title"
+    >
+      <header class="chat-dialog-header">
+        <div>
+          <h2 id="studio-history-title"></h2>
+          <p id="studio-history-project"></p>
+        </div>
+        <button type="button" id="studio-history-close">×</button>
+      </header>
+      <div
+        class="studio-history-tabs"
+        role="tablist"
+        aria-label="Project history"
+      >
+        <button
+          type="button"
+          id="studio-history-changes-tab"
+          role="tab"
+          aria-selected="true"
+          aria-controls="studio-history-list"
+        ></button>
+        <button
+          type="button"
+          id="studio-history-memory-tab"
+          role="tab"
+          aria-selected="false"
+          aria-controls="studio-history-list"
+        ></button>
+      </div>
+      <form
+        id="studio-history-memory-search"
+        class="studio-memory-search"
+        hidden
+      >
+        <input
+          id="studio-history-memory-query"
+          type="search"
+          maxlength="1500"
+          autocomplete="off"
+        />
+        <select id="studio-history-memory-kind"></select>
+        <button type="submit" id="studio-history-memory-find"></button>
+      </form>
+      <section
+        id="studio-history-summary"
+        class="studio-history-summary"
+      ></section>
+      <div class="studio-history-toolbar">
+        <p id="studio-history-status" role="status" aria-live="polite"></p>
+        <button type="button" id="studio-history-refresh"></button>
+      </div>
+      <div id="studio-history-list" class="studio-history-list"></div>
+      <button type="button" id="studio-history-more" hidden></button>
+      <p id="studio-history-legend" class="studio-history-legend"></p>
+    </dialog>
+    <dialog id="studio-task-review" class="chat-dialog studio-task-dialog">
+      <header class="chat-dialog-header">
+        <h2 id="studio-task-review-title"></h2>
+        <button id="studio-task-review-close" type="button">×</button>
+      </header>
+      <p id="studio-task-review-description"></p>
+      <pre id="studio-task-review-data"></pre>
+      <form id="studio-task-review-form">
+        <label
+          ><span id="studio-task-review-decision-label"></span
+          ><select id="studio-task-review-decision">
+            <option value="APPLIED"></option>
+            <option value="NOT_APPLIED"></option></select
+        ></label>
+        <label
+          ><span id="studio-task-review-note-label"></span
+          ><textarea
+            id="studio-task-review-note"
+            required
+            minlength="5"
+            maxlength="1000"
+            rows="3"
+          ></textarea>
+        </label>
+        <p id="studio-task-review-status" role="status"></p>
+        <button id="studio-task-review-save" type="submit"></button>
+      </form>
+    </dialog>
+    <dialog
+      id="studio-task-checkpoints"
+      class="chat-dialog studio-task-dialog"
+      aria-labelledby="studio-task-checkpoints-title"
+    >
+      <header class="chat-dialog-header">
+        <h2 id="studio-task-checkpoints-title"></h2>
+        <button type="button" id="studio-task-checkpoints-close">×</button>
+      </header>
+      <p id="studio-task-checkpoints-status" role="status"></p>
+      <div id="studio-task-checkpoints-list"></div>
+      <button type="button" id="studio-task-checkpoints-more" hidden></button>
+    </dialog>
+  </body>
+</html>

@@ -238,3 +238,10 @@ Tespit: beam sağlayıcısı desteklenmeyen search_web çağrısı döndürüyor
 cevabı tekrar edip INVALID_PROVIDER_RESPONSE veriyor. Sınırlı ve dürüst araç devamı,
 öğrenilen kısa yetenek önbelleği ve masaüstünde soğuk ses başlangıcından bağımsız
 yazılı gönderim eklendi. Kontroller 600ms'den 250ms'ye düşürüldü; hata sohbette görünür.
+
+## [2026-11-04] Kullanıcı — anlaşılır hata uyarıları
+Talep: token limitiniz yetersiz gibi kullanıcıların anlayacağı hata mesajlarını göster.
+Uygulama: web ve Windows ortak hata kataloğu, neden+çözüm açıklaması, görünür sohbet
+uyarısı. Token yetersizliği / kullanım sınırı / bekleyen tüketim ayrı anlatılır;
+sağlayıcı ve ağ hatalarının teknik kodları ekranda gösterilmez. 65 test ve gerçek
+Electron web/Windows uyarı akışları PASS; 0.3.3 installer hazır.

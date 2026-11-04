@@ -129,3 +129,11 @@ istenmeyen araç çağrısı boş yanıt olarak tekrarlanmaz: çalıştırılmad
 bir final devamı istenir; aynı sağlayıcı/model için kısa süreli metin modu öğrenilir.
 Bu akış bir web araştırması çalıştırmaz. Modelin sağlayıcı kaynaklı bekleme süresini
 ortadan kaldırdığı iddia edilmez. Mevcut STT/TTS paketlerini yeniden indirmeyin.
+
+### Anlaşılır hata uyarıları — 0.3.3
+Web ve Windows'ta token yetersizliği, kullanım limiti, bekleyen token işlemi,
+oturum, bağlantı ve model hataları kullanıcı diliyle açıklanır. Uyarı sohbet içinde
+ve ekran okuyucuya uygun görünür; teknik kodlar ve sağlayıcı hata içerikleri saklanır.
+Bu değişiklik token bakiyesini veya bekleyen rezervasyonları değiştirmez.
+Yeni modeller indirmek gerekmez. Ortak mesaj kataloğu src/ui/user-errors.js içindedir;
+webde dağıtılan aynı katalog tests/web-errors.test.cjs ile eşleştirilir.

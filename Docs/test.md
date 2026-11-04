@@ -279,3 +279,23 @@ yardımcı modül yükleme PASS. Frontend/DB değiştirilmedi. Geri dönüş dos
 Canlı imajda aynı ayrı DB HTTP testi tekrar PASS. İki worker veriussu-umay-chat:0.3.2
 ve healthy; son npm test 55 PASS. Installer SHA256:
 9ec8e566754a28785bd145815aa273095e1dff6fc4168b1f079d9acdea177abc.
+
+## [2026-11-04] 0.3.3 hata uyarıları
+65 Node PASS. Ortak katalog ve POST HTTP sebep koruma, bilinmeyen metni gizleme,
+uyarı güncelleme/temizleme ve Windows/web aynı katalog eşleşmesi sınandı.
+Gerçek Electron testleri: electron-errors.cjs Windows gönderim hatasında Türkçe
+uyarı role=alert, teknik kod yok, açık/koyu PASS. electron-web-errors.cjs gerçek
+web HTML/JS/CSS, sahte hesap/API, terminal SSE ve renderRun akışı: Türkçe kart,
+açık1280px ve koyu390px ekranda görünür, yatay taşma yok PASS.
+Ekranlar .superpowers/errors-{desktop-dark,desktop-light,web-light,web-mobile-dark}.png.
+Testler gerçek kullanıcı hesabına mesaj göndermez; harici okumalar yalnız açık web varlıklarıdır.
+Installer 478044335 byte; asar0.3.3 ve6 değişen runtime kaynağı eşleşti.
+
+Web yayını tamamlandı: veriussu-umay-errors-{chat,frontend}:0.3.3. İki servis healthy;
+3 varlık hash eşleşti, ortam değerleri veportlar önceki durumla eşit. Hosttaki diğer
+kod düzenlemeleri dar git patch ile korundu. İlk deneme ortam-listesi karşılaştırması
+fark gördüğünden geri alındı; sonraki denemede ortam snapshot'ı açıkça korunup
+anahtar/değerler sıralanarak karşılaştırıldı. BACKUP=/root/umay-error-ui-1793819994.
+Canlı chat10203 / HTML uyarı alanı, /chat.js ve/chat.css200; 10203/10202 oturumsuz
+/site/auth/me401 PASS. Backend model işçileri0.3.2 healthy. Bu adım DB mutasyonu yapmaz.
+Installer SHA256:561bec448512e5252de8afd8c8a8545e523f4cacc645870697038c7ebc9dad23.

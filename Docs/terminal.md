@@ -204,3 +204,20 @@ Bu nedenle tüm proje typecheck başarılı sayılmadı. Aday HTTP ve29 regresyo
 Canlıya yalnız chat-worker servisi 2 replica ile aktarıldı; iki worker healthy ve
 yardımcı modül yükleme PASS. Frontend/DB değiştirilmedi. Geri dönüş dosyaları:
 /root/umay-chat-fix-1793813162; önce aktif run sayısı 0 kontrol edildi.
+
+## [2026-11-04] 0.3.3 UI hata mesajları
+Çalışan chat/ frontend chat.js vechat.html host checkout'tan farklıydı. Canlı varlıklar
+okundu, dar değişiklik git apply --check ile host değişiklikleri korunarak doğrulandı.
+Ortak src/ui/user-errors.js + web chat.js içindeki aynı katalog; site-response.cjs
+HTTP error cause korunur. server/web yalnız public3varlık aynasıdır.
+65 Node PASS; gerçek Electron desktop veweb gönderim/SSE hata akışı PASS.
+0.3.3 installer478044335byte, asar sürüm +6 dosya eşleştirmesi PASS.
+
+Web yayını tamamlandı: veriussu-umay-errors-{chat,frontend}:0.3.3. İki servis healthy;
+3 varlık hash eşleşti, ortam değerleri veportlar önceki durumla eşit. Hosttaki diğer
+kod düzenlemeleri dar git patch ile korundu. İlk deneme ortam-listesi karşılaştırması
+fark gördüğünden geri alındı; sonraki denemede ortam snapshot'ı açıkça korunup
+anahtar/değerler sıralanarak karşılaştırıldı. BACKUP=/root/umay-error-ui-1793819994.
+Canlı chat10203 / HTML uyarı alanı, /chat.js ve/chat.css200; 10203/10202 oturumsuz
+/site/auth/me401 PASS. Backend model işçileri0.3.2 healthy. Bu adım DB mutasyonu yapmaz.
+Installer SHA256:561bec448512e5252de8afd8c8a8545e523f4cacc645870697038c7ebc9dad23.
