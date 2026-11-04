@@ -1,5 +1,6 @@
-faster-whisper==1.2.1
-pocket-tts-turkish
+sedalib[format]==1.1.0
+sherpa-onnx==2.0.1
+pocket-tts-turkish==0.1.0
 numpy
 av
 huggingface-hub
