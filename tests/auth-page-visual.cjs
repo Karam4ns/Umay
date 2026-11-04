@@ -7,7 +7,7 @@ let signedIn=true;const server=http.createServer((req,res)=>{
  if(req.url==='/site/auth/me'){res.writeHead(signedIn?200:401,{'Content-Type':'application/json'});return res.end(JSON.stringify(signedIn?{firstName:'Deniz',lastName:'Yılmaz',email:'deniz@example.com'}:{message:'LOGIN_REQUIRED'}));}
  if(req.url==='/site/desktop-auth/style.css'){res.setHeader('Content-Type','text/css');return res.end(desktopAuthStyles);}
  if(req.url==='/site/desktop-auth/client.js'){res.setHeader('Content-Type','text/javascript');return res.end(desktopAuthScript);}
- res.setHeader('Content-Type','text/html');res.setHeader('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'");
+ res.setHeader('Content-Type','text/html');res.setHeader('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'");
  res.end(renderDesktopAuthPage('authorize','<input type="hidden" name="state" value="fixture">'));
 });
 const timeout=setTimeout(()=>{console.error('Visual check timeout');app.exit(1);},20000);

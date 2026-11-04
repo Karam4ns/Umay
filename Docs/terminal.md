@@ -131,3 +131,10 @@ Node 30 PASS; gerçek Electron görsel/oturum fixture PASS; kod incelemesinde ö
 frontend yenilendi, healthy. İmaj veriussu-umay-auth:0.1.3; yedek/geri dönüş:
 /root/umay-auth-design-1793801133. Aday/canlı HTTP regresyonu ve 10 dış sınır kontrolü PASS.
 CSS/client.js canlı içeriği kaynakla eşleşiyor. Masaüstü installer değiştirilmedi.
+
+## [2026-11-04] Marka ekleme
+Sitedeki home.html logo vektörü ve favicon.svg okundu; geçici dört kare marka kaldırıldı.
+Controller img-src self ile faviconu açıyor. Node 30, Electron görsel kontrol,
+aday/canlı HTTP regresyonu ve 10 canlı sınır PASS. İki sayfanın favicon/logo/CSP ve
+favicon MIME kontrolü PASS. İmaj veriussu-umay-auth:0.1.4; frontend healthy;
+yedek/geri dönüş /root/umay-auth-design-1793801516. Desktop installer değişmedi.

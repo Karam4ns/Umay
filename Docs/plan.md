@@ -654,3 +654,7 @@ Kullanıcı GPT benzeri sade bağlama sayfası istedi. Görsel yön ve uygulama 
 account-link-design.md'de: aktif hesap satırı, erişim özeti, tek onay düğmesi,
 açık/koyu tema, mobil düzen ve oturumsuz giriş/kayıt yönlendirmesi.
 Sayfa/component ve client script ayrıldı; mevcut PKCE/exchange sözleşmesi korundu.
+
+## [2026-11-04] Özgün logo ve favicon
+Veriüssü sitesinin mevcut V vektörü üst marka ve sağlayıcı işaretine; aynı sitenin
+/favicon.svg?v=2 faviconu hesap bağlama/çıkış sayfalarına eklendi.
