@@ -164,3 +164,23 @@ electron-live-stt.cjs: 1517ms partial, 7048ms final, continuousTurns=2 PASS.
 Runtime gerçek TTS 26 audio chunk PASS. Windows build (useZip=true,
 differentialPackage=false, compression level 1) PASS.
 Asar sürüm/kaynak + speech dosyaları eşleştirmesi PASS; shipped runtime/STT PASS.
+
+## [2026-11-04] 0.3.1 regresyon çalışması
+Kurulu 0.3.0 ve hazır STT/TTS durumu Computer Use ile okundu; son konuşma read-only
+incelendi. SSH üzerinden güncel chat.controller/chat-execution sözleşmesi okundu,
+sunucu değiştirilmedi. Geçici Paramiko uv --with kullanıldı; runtime lock değişmedi.
+Kırmızı Node/Python regresyonları üretildi; renderer ve live_stt düzeltildi.
+Soğuk worker JSON yükleme deneyi: 36s timeout; faulthandler 20s traceback native
+ONNX/SciPy import takılması gösterdi. Ana thread preload + model-load lock sonrası
+Electron gerçek STT → gerçek send → run → gerçek TTS/oynatım PASS.
+İlk parça 243ms, oynatma kaynağı 266ms; listening=true, messages=2.
+npm test 50 PASS; pytest worker/live_stt 7 PASS. 0.3.1 Windows build başlatıldı.
+
+Son incelemede yavaş HTTP iptali tamamlanmadan yeni sesli turun gönderilmesi de
+kırmızı testle üretildi; yeni tur önceki sunucu iptalini bekliyor. 50 Node / 7 Python
+PASS. Paketli Python soğuk eşzamanlı yükleme istekleri 11.711s içinde tamamlandı;
+sıcak TTS ilk parça 110ms, 26 ses parçası PASS.
+
+Run ID henüz dönmeyen ilk /messages POST'u sırasında söz kesme de FAIL üretildi.
+Sunucu yazımları ve stale run iptali tek gönderim kuyruğuna alındı; sonraki POST
+önceki yazım ve iptalin bitmesini bekler. Ek regresyonla Node 50 PASS.
