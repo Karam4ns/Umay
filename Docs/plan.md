@@ -697,3 +697,14 @@ Sağlayıcı/model/credential anahtarına özel 5dk/200 kayıt önbelleği sonra
 metin çağrısıyla gönderir. Güncel bilgi doğrulanamadığında model bunu belirtmeli.
 Masaüstü: yazılı soru soğuk ses motoru iptalini beklemez; 250ms durum kontrolü ve
 sohbette anlaşılır hata. TTS/STT motorları değişmez; sunucu kalite/faturalama korunur.
+
+## [2026-11-04] Kullanıcıya anlaşılır hata mesajları — 0.3.3
+Kapsam: Veriüssü 10203 web sohbeti ve Umay Windows. Kullanıcı teknik hata yerine
+“Token limitiniz yetersiz” gibi açıklama ve çözüm yönlendirmesi istiyor.
+Ortak TR/EN hata kataloğu; HTTP ve run hata kodunu kaybetmeden güvenli eşleme.
+Token bakiyesi, dönem limiti ve bekleyen kullanım doğrulaması ayrı mesajlardır.
+Webde sohbet altında tek role=alert kartı; yeni çalışan turda/hesap çıkışında temizlenir.
+Windows'ta uyarı mesajı sohbet içinde görünür. Kod/ham sağlayıcı yanıtı gösterilmez.
+Sunucuda yalnız chat.js/chat.html/chat.css varlıkları değişir; host checkout içindeki
+başka mevcut değişiklikleri korumak için çalışan sürüme göre dar git patch uygulanır.
+Frontend ve chat imajları kendi çalışan temelinden üretilir; ortam/port eşitliği kontrol edilir.
