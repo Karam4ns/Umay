@@ -145,3 +145,14 @@ Tarih, saat, ondalık ve cümle sonundaki miktarlar ayrılır. Noktalama modele
 korunarak verilir; cümle/paragraf aralarına kısa duraklamalar eklenir.
 Mevcut TTS ve klon sesler kullanılır; konuşma paketini yeniden indirmek gerekmez.
 Python kontrolleri: `uv run --no-project --python .venv/Scripts/python.exe --with pytest python -m pytest tests/test_turkish_speech.py tests/test_worker.py tests/test_live_stt.py -q`.
+
+### Klon ses hazırlama — 0.3.5
+Klonlama kaynak kaydın ilk saniyeleri yerine uygun bir kısa konuşma arası seçer;
+seçilen referansı WAV olarak saklar ve yeniden kesmez. Özgün MP3 korunur.
+Doğal ses için tek kişinin konuştuğu, müziksiz10–30 saniyelik kayıt önerilir.
+50MB/10dk sınırı aynı; ses yetersizse anlaşılır kayıt önerisi gösterilir.
+Yeni klon otomatik seçilir; aynı adlı profiller ayrılır, seçim yeniden kodlama yapmaz.
+Eski profiller seçilince hazırlanır. Mevcut TTS modeli, Türkçe okuma ve duraklamalar
+korunur; yeni model indirilmez. Ses benzerliği için %100 garanti verilmez.
+Kontrol: Python komutuna tests/test_voice_cloning.py eklenir; gerçek UI akışı
+`node_modules/.bin/electron.cmd tests/electron-clone.cjs` ile sınanır.
