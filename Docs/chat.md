@@ -268,3 +268,11 @@ yapıyı bozma. Mikrofon kapalı kontrolünü henüz denemediğini belirtti.
 TTS metnin tamamını üretir; gecikmeli kendi sesinin enerji kapısından stop üretmesi
 yeniden gösterildi. Oynatım PCM eşleşmesiyle dar yankı düzeltmesi eklendi.
 Ses modelleri, klonlama ve onaylanan okuma ayarları değiştirilmedi.
+
+## [2026-11-05] Kullanıcı — üç aşamalı cihaz yetenekleri
+İstek: Obsidian benzeri yerel hafıza, her konuşmanın kalıcı arşivi/tercihleri,
+dosya yolları, yapılan işlem günlükleri, özel hesap tablosu; konum/saat/hava
+ve doğal afet/önemli gelişmeler için otomatik kaynak takibi; tam ekran/klavye/fare
+bilgisayar kontrolü. Mevcut yapı korunacak, adım adım test edilecek. İptalden
+sonra “atlama yapmadan kaldığımız yerden devam et” dedi; önceki değişiklikler
+korunarak devam edildi. Bağımsız yerel servisler ve opsiyonel sunucu bağlamı eklendi.
