@@ -368,4 +368,4 @@ sıcak TTS ilk parça 110ms, 26 ses parçası PASS.
 - [x] Sunucu adayında gerçek HTTP/PostgreSQL ve normal sohbet regresyonu.
 - [x] 10203 chat ve2 worker healthy; ortam/port ve3 modül hash eşitliği.
 - [x] Windows0.4.0 kurulum/runtime/native yardımcı bütünlüğü; paketli gerçek giriş testi.
-- [ ] GitHub kaynak eşleştirmesi.
+- [x] GitHub main:38 kaynak/doküman dosyası yerel Git blob SHA ile birebir doğrulandı.
