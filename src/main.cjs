@@ -4,7 +4,7 @@ const path=require('node:path');const fs=require('node:fs');const {spawn}=requir
 const {randomUUID}=require('node:crypto');const readline=require('node:readline');
 const {autoUpdater}=require('electron-updater');const {validateReference}=require('./core.cjs');
 const {BrowserAuth}=require('./browser-auth.cjs');
-let win,worker,site,browserAuth;let pending=new Map();let running=false;let updateReady=false;let speechEpoch=0;let authEpoch=0;let authMutation=Promise.resolve();
+let win,worker,site,browserAuth;let pending=new Map();let running=false;let updateReady=false;let speechEpoch=0;let authEpoch=0;let authMutation=Promise.resolve();let activeRecognition=null;
 function authTask(task){const result=authMutation.then(task,task);authMutation=result.catch(()=>{});return result;}
 const ORIGIN='https://veriussu.com';
 async function revokeSessionToken(token){
@@ -21,14 +21,14 @@ function startWorker(){
  worker=spawn(python,['-u',script],{windowsHide:true,env:{...process.env,UMAY_DATA:path.join(app.getPath('userData'),'speech'),PYTHONIOENCODING:'utf-8'}});
  readline.createInterface({input:worker.stdout}).on('line',line=>{
   let data;try{data=JSON.parse(line);}catch{return;}
-  if(data.event){if(data.event==='audio'&&pending.get(data.id)?.epoch!==speechEpoch)return;publish(data);return;}
+  if(data.event){if(data.event==='audio'&&pending.get(data.id)?.epoch!==speechEpoch)return;if(data.event==='transcript'&&(data.streamId!==activeRecognition?.streamId||data.generation!==activeRecognition?.generation))return;publish(data);return;}
   const entry=pending.get(data.id);if(!entry)return;pending.delete(data.id);
   clearTimeout(entry.timer);data.error?entry.reject(Error(data.error)):entry.resolve(data.result);
  });
  // Do not forward third-party logs: they can contain local filenames or credentials.
  worker.stderr.on('data',()=>{});
  worker.on('error',()=>publish({event:'error',message:'Ses işçisi başlatılamadı.'}));
- worker.on('exit',()=>{worker=null;for(const item of pending.values()){clearTimeout(item.timer);item.reject(Error('Ses işçisi kapandı.'));}pending.clear();publish({event:'worker-exit'});});
+ worker.on('exit',()=>{worker=null;activeRecognition=null;for(const item of pending.values()){clearTimeout(item.timer);item.reject(Error('Ses işçisi kapandı.'));}pending.clear();publish({event:'worker-exit'});});
 }
 function speech(method,params={}){
  if(method==='cancel')speechEpoch++;
@@ -65,10 +65,23 @@ app.whenReady().then(()=>{
  handle('window-action',action=>windowAction(win,action));
  handle('cancel-login',()=>{++authEpoch;browserAuth.cancel();return true;});
  handle('speech',async(method,params)=>{
-  if(!['hardware','status','install','remove','load','transcribe','speak','cancel','voices','select_voice','delete_voice'].includes(method))throw Error('İşlem izinli değil.');
+  if(!['hardware','status','install','remove','load','transcribe','speak','cancel','voices','select_voice','delete_voice','stt_start','stt_feed','stt_reset','stt_stop'].includes(method))throw Error('İşlem izinli değil.');
+  if(method.startsWith('stt_')){
+   if(typeof params?.streamId!=='string'||!/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(params.streamId))throw Error('Konuşma oturumu geçersiz.');
+   if(method!=='stt_stop'&&(!Number.isInteger(params.generation)||params.generation<0||params.generation>1000000))throw Error('Konuşma nesli geçersiz.');
+   if(method==='stt_start')activeRecognition={streamId:params.streamId,generation:params.generation};
+   else if(params.streamId!==activeRecognition?.streamId)return {skipped:true};
+   if(method==='stt_reset'){if(params.generation<=activeRecognition.generation)return {skipped:true};activeRecognition.generation=params.generation;}
+   if(method==='stt_feed'){
+    if(params.generation!==activeRecognition.generation)return {skipped:true};
+    if(typeof params.audio!=='string'||params.audio.length>24000)throw Error('Canlı ses paketi geçersiz.');
+   }
+   if(method==='stt_stop')activeRecognition=null;
+  }
   if(['install','load','remove'].includes(method)&&!['stt','tts'].includes(params?.kind))throw Error('Paket geçersiz.');
+  if(method==='remove'&&params.kind==='stt')activeRecognition=null;
   if(method==='transcribe'&&(typeof params?.audio!=='string'||params.audio.length>5200000))throw Error('Ses çok büyük.');
-  return speech(method,params);
+  try{return await speech(method,params);}catch(error){if(method==='stt_start'&&activeRecognition?.streamId===params.streamId)activeRecognition=null;throw error;}
  });
  handle('clone',async()=>{
   const selected=await dialog.showOpenDialog(win,{filters:[{name:'MP3',extensions:['mp3']}],properties:['openFile']});
