@@ -19,6 +19,7 @@ ROOT = Path(os.environ.get('UMAY_DATA', Path.home() / '.umay'))
 ROOT.mkdir(parents=True, exist_ok=True)
 os.environ['HF_HOME'] = str(ROOT / 'hf')
 LOCK = threading.Lock()
+MODEL_LOAD_LOCK = threading.Lock()
 PROTOCOL_OUT = sys.stdout
 CANCEL = threading.Event()
 EPOCH = 0
@@ -66,6 +67,14 @@ def hardware():
 
 
 def load(kind):
+    # Windows native DLL initializers (ONNX/SciPy/PyTorch) can deadlock when
+    # imported concurrently on the independent STT and TTS executor threads.
+    # Serialize cold initialization, while hot inference keeps separate queues.
+    with MODEL_LOAD_LOCK:
+        return _load(kind)
+
+
+def _load(kind):
     if kind in MODELS:
         return {'device': MODELS[kind][1], 'resident': True}
     location = package_path(kind)
@@ -232,6 +241,13 @@ def run(request):
 LIVE=LiveSTT(emit)
 
 if __name__ == '__main__':
+    # Load native extensions on the owning thread before either inference queue
+    # starts. Windows DLL initialization across different executor threads can
+    # otherwise stall in SciPy BLAS / ONNX Runtime even with model-load locking.
+    with contextlib.redirect_stdout(sys.stderr):
+        import scipy.signal
+        import torch
+        import onnxruntime
     emit({'event': 'ready'})
     for line in sys.stdin:
         try:
