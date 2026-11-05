@@ -391,4 +391,4 @@ Detaylar ve dış model/Windows/çoklu monitör test sınırları computer-model
 - [x] Bağımsız inceleme ve3 önemli bulguya testli düzeltme.
 - [x] 129 uygulama /60 ses testi; gerçek Windows pipe/protokol ve normal masaüstü giriş/UI testleri.
 - [x] 0.4.2 installer ve paket içi giriş/arayüz/bütünlük kontrolleri.
-- [ ] Gerçek yönetici WinForms penceresi testi: kullanıcı test onayı bekleniyor. Mevcut Codex oturumu zaten yönetici; gerçek standart kullanıcı UAC istemi bu ortamda doğrulanmadı.
+- [x] Kullanıcı onaylı gerçek yönetici WinForms penceresi testi ve paket içi tekrarı geçti: hedef alan seçimi, tam Türkçe metin, yönetici tokenı ve helper sürecinin kapanması. Mevcut oturum zaten yönetici olduğundan standart kullanıcı UAC diyaloğu ayrıca doğrulanmış sayılmaz.

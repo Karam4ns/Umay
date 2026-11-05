@@ -20,7 +20,7 @@ Yeni taşıma yalnızca mevcut native ekran/UIA/klavye/fare protokolünü taşı
 - [x] Native gözlemde hedef pencerenin yükseltilmiş tokenını ve yardımcı yetkisini bildir; yetki gerektiğinde giriş yapma.
 - [x] Bilgisayar sayfasında açıklama ve Windows onay düğmesi; otomatik geçiş yok.
 - [x] Transport kimlik doğrulama, reddedilmiş UAC, iptal ve geç bağlantı testleri; normal Windows gerçek giriş, UI ve sohbet/ses regresyonları.
-- [ ] Yönetici tokenıyla gerçek test ancak kullanıcının gerçek Windows UAC onayıyla yapılabilir; denenmediyse açıkça kaydet.
+- [x] Kullanıcının açık test onayıyla gerçek yönetici penceresi ve paket içi yönetici kontrolü çalıştırıldı. Oturum zaten yönetici olduğundan standart kullanıcı UAC diyaloğu ayrıca doğrulanmış sayılmaz.
 - [x] Bağımsız inceleme, tam test ve Windows kurulum paketi.
 
 Kaynaklar: [Microsoft yönetici süreçleri](https://learn.microsoft.com/en-us/windows/win32/secbp/running-with-administrator-privileges/), [SendInput yetki seviyesi](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput), [UAC çalışma biçimi](https://learn.microsoft.com/en-gb/windows-server/security/user-account-control/how-user-account-control-works).
@@ -37,8 +37,17 @@ Kaynaklar: [Microsoft yönetici süreçleri](https://learn.microsoft.com/en-us/w
 - Eski `dist/win-unpacked/resources/app.asar` Windows tarafından kilitlendiği için çalışan uygulamaya müdahale edilmedi. Paket `dist/admin-0.4.2` altında oluşturulup installer dist köküne kopyalandı. Doğrulama: `node tests/verify-computer-package.cjs dist/admin-0.4.2/win-unpacked/resources`.
 - Sunucu, hesap bakiyeleri, STT/TTS modelleri ve klonlama değiştirilmedi.
 
-## Bekleyen kullanıcı onaylı test
+## Kullanıcı onayıyla tamamlanan gerçek test
 
-`electron tests/electron-admin-desktop.cjs` gerçek Windows `runas` başlatıcısı ve yönetici WinForms penceresinde UIA/SendInput testidir. Ayrı yönetici test penceresi açacağı için kullanıcıya açık test onayı soruldu; henüz başlatılmadı. Test yalnızca kendi geçici penceresine yazı yazar ve yardımcısını/pencereyi kapatır. Mevcut ortam zaten yönetici ise yeni UAC istemi çıkmayabilir; script bu durumu açıkça raporlar. Standart kullanıcıdan UAC kabul/ret diyaloğunun gerçek doğrulaması normal yetkili bir oturum gerektirir.
+Kullanıcı «Testi başlat; Windows UAC onayını vereceğim.» yanıtıyla testi açıkça onayladı. `electron tests/electron-admin-desktop.cjs` ve aynı testin 0.4.2 paket modüllerini kullanan sürümü başarıyla tamamlandı.
+
+- Gerçek `runas` başlatıcısı, yönetici helper tokenı, pipe bağlantısı ve native UIA/SendInput doğrulandı.
+- Geçici yönetici WinForms penceresindeki metin alanı fiziksel sınırlarıyla bulundu; fareyle seçilip `Umay yönetici erişimi ığüşöç doğrulandı.` metninin tamamı yazıldı.
+- Bu eski WinForms kontrolü UIA'da adı/değeri olmayan bir Pane olarak göründüğünden yazı, test penceresinin kendi TextChanged olayının güncellediği başlıktan bağımsız olarak doğrulandı. Test UI olay kuyruğunun tamamlanmasını koşulla bekler; SendInput dönüşünü ekranda tamamlanma kabul etmez. Test penceresi kullanıcı tarafından istenen görünür pencere olduğundan Normal başlatılır; gerçek yönetici helper gizli kalır.
+- Oturum iptalinden sonra yardımcı sürecin gerçekten sonlandığı PID kontrolüyle doğrulandı. Geçici pencere helper'ın finally bloğunda kapatıldı.
+- Paket bütünlüğü yeniden geçti:36 uygulama dosyası, unpacked native yardımcı,4 ses modülü. `npm test`:129/129.
+- İki çalıştırmada da `CLIENT_ALREADY_ADMINISTRATOR=true` ölçüldü. Dolayısıyla bu testte standart kullanıcıdan yeni UAC kabul/ret diyaloğu gösterilmedi; bu dalın gerçek testi normal yetkili bir Windows oturumu gerektirir. Diyalog çıkmaması gizli onay veya UAC ilke değişikliği değildir.
+
+Ürün kodunda değişiklik gerekmedi; test penceresinin görünür başlatılması ve platforma uygun bağımsız metin doğrulaması düzeltildi. 0.4.2 installer ve SHA256 değeri değişmedi.
 
 F8 normal masaüstündeki çalışan/bekleyen görevleri durdurur. Windows güvenli UAC masaüstündeyken Umay kısayolunun çalışacağı iddia edilmez; o onayı kullanıcı Windows'un kendi Evet/Hayır/Esc denetimleriyle tamamlar. UAC ilkesi, kilit ekranı veya Windows korumaları kapatılmaz. Aynı kullanıcı hesabında zaten keyfi kod çalıştıran saldırgan ayrı bir güvenlik sınırı olarak ele alınmaz; pipe sırrı loglanmaz ve yanlış token kabul edilmez.
