@@ -20,9 +20,7 @@ app.on('browser-window-created',(_e,window)=>{window.webContents.once('did-finis
   await js("document.getElementById('role-chat').value='PERSONAL:model';document.getElementById('role-computer').value='SUBSCRIPTION:model';document.getElementById('model-roles-save').onclick()");
   assert.equal(service.memory.setting('modelRoles').computer.source,'SUBSCRIPTION');
   await js('refresh()');assert.equal(await js("document.getElementById('models').selectedOptions[0].dataset.source"),'PERSONAL');
-  assert.equal(await js("document.getElementById('computer-model').value"),'SUBSCRIPTION:model');
-  const executed=[];service.agent.run=async(goal,model)=>{executed.push({goal,model});return {status:'completed',message:'Test tamamlandı'};};
-  await js("window.umayDevice.runComputer('Rol testi',{id:'model',source:'PERSONAL'})");assert.equal(executed.at(-1).model.source,'SUBSCRIPTION');
+  assert.equal(await js("!!document.getElementById('computer')||!!document.getElementById('computer-mode')||!!document.querySelector('[data-page=computer]')"),false);
   await paint();fs.writeFileSync('.superpowers/model-roles-dark.png',(await window.capturePage()).toPNG());
   await js("document.getElementById('theme').click()");await paint();fs.writeFileSync('.superpowers/model-roles-light.png',(await window.capturePage()).toPNG());await js("document.getElementById('theme').click()");
   await js("window.umayShell.navigate('memory')");
@@ -34,15 +32,8 @@ app.on('browser-window-created',(_e,window)=>{window.webContents.once('did-finis
   await js(`new Promise((r,j)=>{const end=Date.now()+5000;const check=()=>{if(document.getElementById('private-status').textContent.includes('kaydedildi'))return r();if(Date.now()>end)return j(Error('Secure save failed'));setTimeout(check,20)};check()})`);
   assert.doesNotMatch(service.memory.db.prepare('SELECT encrypted FROM private_accounts').get().encrypted.toString(),/fixture-secret/);assert.doesNotMatch(JSON.stringify(service.memory.context('e-posta')),/fixture-secret|fixture@example/);
   await js("window.umayShell.navigate('environment')");await js("document.getElementById('weather-refresh').onclick()");assert.match(await js("document.getElementById('weather-data').textContent"),/19°/);await paint();fs.writeFileSync('.superpowers/environment-device-dark.png',(await window.capturePage()).toPNG());
-  await js("window.umayShell.navigate('computer')");await paint();assert.equal(await js("document.getElementById('computer').hidden"),false);
-  await js("document.getElementById('computer-enabled').checked=true;document.getElementById('computer-enabled').onchange()");await js("document.getElementById('computer-preview').onclick()");await js("Promise.all([...document.querySelectorAll('#computer-screens img')].map(image=>image.decode()))");assert.ok(await js("document.querySelector('#computer-screens img').naturalWidth>0"));
-  fs.writeFileSync('.superpowers/computer-device-dark.png',(await window.capturePage()).toPNG());
-  service.agent.task={id:'admin-task',status:'permission',sequence:service.agent.sequence,epoch:service.memory.epoch,steps:[],message:'Windows yönetici izni gerekiyor.'};service.agent.publish=event=>window.webContents.send('event',event);service.agent.emit();
-  await paint();assert.equal(await js("document.getElementById('computer-elevation').hidden"),false);
-  let granted=0;service.control.native.elevate=async()=>{granted++;return {administrator:true};};service.agent.resume=async(id,input)=>{assert.equal(id,'admin-task');assert.equal(input.elevated,true);return {status:'completed',message:'İzin testi tamamlandı.'};};
-  await js("document.getElementById('computer-elevate').onclick()");assert.equal(granted,1);assert.equal(await js("document.getElementById('computer-elevation').hidden"),true);service.agent.task=null;
   await js("window.umayShell.navigate('memory');document.querySelector('[data-memory-tab=notes]').click();document.getElementById('theme').click()");await paint();fs.writeFileSync('.superpowers/memory-device-light.png',(await window.capturePage()).toPNG());assert.equal(await js('document.documentElement.scrollWidth<=innerWidth'),true);
   await js('clearAccount()');assert.equal(await js("document.getElementById('memory-nodes').children.length"),0);assert.equal(await js("document.getElementById('private-password').value"),'');
-  console.log('PASS real Electron memory/archive/graph, Windows encryption, environment view, computer view, themes, account cleanup');service.close();clearTimeout(timeout);app.quit();
+  console.log('PASS real Electron memory/archive/graph, Windows encryption, environment view, chat-only computer entry, themes, account cleanup');service.close();clearTimeout(timeout);app.quit();
  }catch(error){console.error(error);service?.close();clearTimeout(timeout);app.exit(1);}
 });});

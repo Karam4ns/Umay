@@ -761,3 +761,6 @@ Sohbet ve bilgisayar kontrolü için Ayarlar / Modeller sayfasında hesaba özel
 
 ## [2026-11-05] Kullanıcı onaylı yönetici kontrolü — 0.4.2
 Gereken görevde permission duraklaması, gerçek Windows runas/UAC, tek kullanımlı yerel pipe ve bağımsız Windows token doğrulaması. Yönetici yardımcısı görev/hesap/durdurma yaşam döngüsüne bağlıdır. Ayrıntılar ve bekleyen gerçek yönetici pencere testi computer-elevation.md içinde.
+
+## [2026-11-05] Sohbetten doğal bilgisayar görevi — 0.4.3
+Kullanıcı ayrı bilgisayar sayfası istemediğini düzeltti. Sayfa ve mod seçimi kaldırıldı; normal yazılı/sesli sohbet modeli aynı çağrıda gerektiğinde doğrulanmış görev devri yapar. Computer rolü, soru/izin/sonuç sohbet içinde; tekrar yürütme ve geçmiş/saat kayması korumaları. Ayrıntılar conversational-computer.md içinde.

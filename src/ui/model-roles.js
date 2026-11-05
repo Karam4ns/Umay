@@ -13,9 +13,7 @@
    select.value=key(roles[role]);detail(role);
   }
   if(roles.chat){const option=[...$('models').options].find(o=>o.value===roles.chat.id&&o.dataset.source===roles.chat.source);$('models').selectedIndex=option?option.index:-1;}
-  const computer=roles.computer||models.find(vision)||models[0];$('computer-model').replaceChildren();
-  if(computer){const found=models.find(m=>key(m)===key(computer));$('computer-model').append(new Option(found?.name||'Atanan modele erişilemiyor',key(computer)));}
-  $('computer-model-hint').textContent=roles.computer?'Ayarlar / Modeller sayfasında atanan model kullanılır.':'Henüz rol atanmadı. İlk görsel model kullanılacak; Ayarlar / Modeller sayfasından atayabilirsin.';
+
  }
  async function load(){if(!api.modelRoles)return;const current=epoch,id=++request,result=await api.modelRoles('state');if(current!==epoch||id!==request)return;roles=result.roles;paint();return result;}
  async function save(input){const current=epoch,result=await api.modelRoles('save',input);if(current!==epoch)return false;roles=result.roles;paint();return true;}
@@ -27,6 +25,5 @@
   const old=key(roles.chat);if(await save(input)){if(old!==key(roles.chat)){await stop();conversation=null;$('messages').replaceChildren();window.umayShell?.reset();}$('model-roles-status').textContent='Sohbet ve bilgisayar model rolleri kaydedildi.';}
  }catch(error){if(current===epoch)showError(error);}finally{$('model-roles-save').disabled=false;}};
  $('model-roles-refresh').onclick=async()=>{try{await refresh();await load();$('model-roles-status').textContent='Modeller güncellendi.';}catch(error){showError(error);}};
- $('computer-model-settings').onclick=()=>{window.umayShell.navigate('settings');tab('models');};
- window.umayModelRoles={load,paint,async selectChat(model){if(api.modelRoles&&model)await save({chat:{id:model.id,source:model.source}});},reset(){epoch++;request++;roles={chat:null,computer:null};for(const id of ['role-chat','role-computer','computer-model'])$(id).replaceChildren();$('model-roles-status').textContent='';tab('speech');}};
+ window.umayModelRoles={load,paint,async selectChat(model){if(api.modelRoles&&model)await save({chat:{id:model.id,source:model.source}});},reset(){epoch++;request++;roles={chat:null,computer:null};for(const id of ['role-chat','role-computer'])$(id).replaceChildren();$('model-roles-status').textContent='';tab('speech');}};
 })();

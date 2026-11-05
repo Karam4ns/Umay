@@ -98,3 +98,7 @@ test('a pending administrator permission is stopped and cannot be replaced by an
  const f=agent([]);f.control.observe=async()=>{throw Object.assign(Error('Yönetici izni gerekli'),{code:'NATIVE_ELEVATION_REQUIRED'});};
  const result=await f.planner.run('Görev',model);assert.equal(result.status,'permission');await assert.rejects(f.planner.run('Başka görev',model),/etkin/);await f.planner.stop();assert.equal(f.planner.state().status,'stopped');
 });
+test('chat planner receives original authorization intact and the inferred goal separately',async()=>{
+ const f=agent([{action:'done',message:'Doğrulandı.'}]),request='Raporu aç. '+('Başka hiçbir işlem yapma. '.repeat(150));await f.planner.run('Raporu aç ve dosyaları sil',model,{conversationId:'chat',userRequest:request});
+ const prompt=JSON.parse(f.getPosted().content);assert.equal(prompt.originalUserRequest,request);assert.equal(prompt.proposedGoal,'Raporu aç ve dosyaları sil');assert.equal(prompt.task,undefined);
+});

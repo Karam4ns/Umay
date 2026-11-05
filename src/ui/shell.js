@@ -9,14 +9,14 @@
   $('auth-action-label').textContent=entry==='register'?'Veriüssü hesabı oluştur':'Veriüssü ile giriş yap';
  }
  function navigate(value){
-  if(!['home','chat','settings','memory','environment','computer'].includes(value))return;page=value;
+  if(!['home','chat','settings','memory','environment'].includes(value))return;page=value;
   document.body.classList.remove('history-open');
-  for(const id of ['chat','settings','memory','environment','computer'])$(id).hidden=id==='chat'?!['home','chat'].includes(page):id!==page;
+  for(const id of ['chat','settings','memory','environment'])$(id).hidden=id==='chat'?!['home','chat'].includes(page):id!==page;
   for(const button of document.querySelectorAll('[data-page]')){button.classList.toggle('active',button.dataset.page===page);button.setAttribute('aria-current',button.dataset.page===page?'page':'false');}
-  $('page-label').textContent=({home:'Ana Sayfa',chat:'Sohbet',settings:'Ayarlar',memory:'Hafıza',environment:'Konum ve uyarılar',computer:'Bilgisayar'})[page];
+  $('page-label').textContent=({home:'Ana Sayfa',chat:'Sohbet',settings:'Ayarlar',memory:'Hafıza',environment:'Konum ve uyarılar'})[page];
   $('home-stage').hidden=page!=='home';$('chat-thread').hidden=page!=='chat';$('chat-empty').hidden=messageCount>0;
   if(page==='settings')$('settings').dispatchEvent(new Event('settings-open'));
-  if(['memory','environment','computer'].includes(page))document.getElementById(page).dispatchEvent(new Event('device-open'));
+  if(['memory','environment'].includes(page))document.getElementById(page).dispatchEvent(new Event('device-open'));
  }
  function activity(text){
   if(!user)return;const node=document.createElement('div');node.className='activity-item';

@@ -53,3 +53,28 @@ test('administrator grant requires a paused task and is invalidated by account c
  service.control.enable(true);service.agent.task={id:'task',status:'permission',sequence:service.agent.sequence,epoch:service.memory.epoch,steps:[]};
  const granting=service.computer('elevate',{id:'task'});await new Promise(r=>setImmediate(r));service.activate('bob');finish({administrator:true});await assert.rejects(granting,/Hesap değişti|durduruldu/);assert.equal(service.agent.task,null);service.close();
 });
+test('chat advertises computer capability without changing the actual user text',async()=>{
+ let posted;const service=fixture(async(_route,body)=>{posted=body;return {run:{id:'run'}};});service.activate('alice');await service.siteApi('/site/chat/conversations/c/messages',{content:'Not Defteri’ni aç',requestId:'r'});assert.equal(posted.content,'Not Defteri’ni aç');assert.equal(JSON.parse(posted.desktopContext).capabilities.computerControl,true);service.close();
+});
+test('chat dispatch uses its assigned computer model once and binds the original conversation',async()=>{
+ const run={id:'run',conversationId:'chat',createdAt:new Date().toISOString(),status:'COMPLETED',mediaOptions:{desktopChatTask:{version:1,goal:'Not Defteri’ni aç',acknowledgement:'Açıyorum.',userRequest:'Not Defteri’ni aç',anchorMessageId:'ack'}}};const service=fixture(async route=>route==='/site/chat/models'?{models:roleModels}:{run});service.activate('alice');await service.modelRoles('save',{computer:{id:'same',source:'SUBSCRIPTION'}});let executed=0;
+ service.agent.run=async(goal,model,origin)=>{executed++;assert.equal(model.source,'SUBSCRIPTION');assert.equal(origin.conversationId,'chat');assert.match(goal,/Not Defteri/);return {id:'task',status:'completed',message:'Açıldı.'};};
+ const result=await service.computer('dispatch',{runId:'run',conversationId:'chat'});assert.equal(result.status,'completed');assert.equal(service.control.enabled,true);await assert.rejects(service.computer('dispatch',{runId:'run',conversationId:'chat'}),/çalıştırıldı|başlatıldı/);assert.equal(executed,1);service.close();
+});
+test('unrelated or stale runs cannot start native computer input',async()=>{
+ const run={id:'r',conversationId:'other',createdAt:new Date().toISOString(),status:'COMPLETED',mediaOptions:{desktopChatTask:{version:1,goal:'Yaz',acknowledgement:'Başlıyorum.',userRequest:'Yaz',anchorMessageId:'ack'}}};const service=fixture(async()=>({run,models:roleModels}));service.activate('alice');let executed=0;service.agent.run=async()=>executed++;
+ await assert.rejects(service.computer('dispatch',{runId:'r',conversationId:'chat'}),/sohbet|görev/);run.conversationId='chat';run.createdAt='2020-01-01';await assert.rejects(service.computer('dispatch',{runId:'r',conversationId:'chat'}),/güncel|eski/);assert.equal(executed,0);service.close();
+});
+test('computer questions, user replies and results remain in the original local chat history',async()=>{
+ const service=fixture(async()=>({conversation:{id:'chat',title:'Planım'},messages:[{id:'user',role:'user',content:'Planımı kaydet',createdAt:'2026-01-01T00:00:00Z'}]}));service.activate('alice');service.memory.archiveConversation({id:'chat',title:'Planım'});service.control.enable(true);
+ service.agent.task={id:'task',status:'question',message:'Hangi klasöre?',goal:'Planımı kaydet',origin:{conversationId:'chat'},sequence:service.agent.sequence,epoch:service.memory.epoch,steps:[]};service.agent.emit();service.agent.resume=async()=>{service.agent.task.status='completed';service.agent.task.message='Belgeler klasörüne kaydedildi.';service.agent.emit();return service.agent.state();};
+ await service.computer('resume',{id:'task',answer:'Belgeler',userReply:'Belgeler'});const detail=await service.siteApi('/site/chat/conversations/chat');assert.deepEqual(detail.messages.slice(-3).map(m=>m.content),['Hangi klasöre?','Belgeler','Belgeler klasörüne kaydedildi.']);service.close();
+});
+test('computer history follows its server acknowledgement instead of a skewed device clock',async()=>{
+ const messages=[{id:'ack',role:'assistant',content:'Açıyorum.',createdAt:'2020-01-01T00:00:00Z'},{id:'next-user',role:'user',content:'selam',createdAt:'2020-01-01T00:01:00Z'},{id:'next-answer',role:'assistant',content:'Merhaba.',createdAt:'2020-01-01T00:01:01Z'}];const service=fixture(async()=>({conversation:{id:'chat',title:'Sohbet'},messages}));service.activate('alice');service.memory.archiveConversation({id:'chat',title:'Sohbet'},[messages[0]]);
+ service.agent.task={id:'old',origin:{conversationId:'chat',anchorMessageId:'ack'},goal:'Raporu aç',status:'completed',message:'Rapor açıldı.',steps:[],epoch:service.memory.epoch};service.agent.emit();const result=await service.siteApi('/site/chat/conversations/chat');assert.deepEqual(result.messages.map(m=>m.content),['Açıyorum.','Rapor açıldı.','selam','Merhaba.']);service.close();
+});
+test('an inferred computer goal without an original user request is rejected',async()=>{
+ const run={id:'r',conversationId:'c',createdAt:new Date().toISOString(),status:'COMPLETED',mediaOptions:{desktopChatTask:{version:1,goal:'Raporu aç ve dosyaları sil',acknowledgement:'Başlıyorum.',anchorMessageId:'ack'}}};const service=fixture(async()=>({run,models:roleModels}));service.activate('alice');let executed=0;service.agent.run=async()=>executed++;
+ await assert.rejects(service.computer('dispatch',{runId:'r',conversationId:'c'}),/kullanıcı isteği|doğrulanmış/i);assert.equal(executed,0);service.close();
+});

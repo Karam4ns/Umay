@@ -8,7 +8,7 @@ const playbackEcho=new window.PlaybackEcho();
 const safe=fn=>async(...args)=>{try{return await fn(...args);}catch(e){const text=e.message.replace(/^Error invoking remote method '[^']+': (?:Error: )?/,'');status(window.UmayErrors.isKnown(text)?errorText(text):text);}};
 function errorText(code){const info=window.UmayErrors.describe(code);return info.title+'\n'+info.message;}
 function showChatError(code){const text=errorText(code);const node=message('error',text,false);node.setAttribute?.('role','alert');status(text);}
-function clearAccount(){window.umayDevice?.reset();++sessionEpoch;accountId=null;conversation=null;models=[];releaseMicrophone();$('messages').replaceChildren();$('history').replaceChildren();$('models').replaceChildren();$('memory-data').textContent='';window.umayShell?.history(0);window.umayShell?.account(null);return stop();}
+function clearAccount(){window.umayComputerChat?.reset();window.umayDevice?.reset();++sessionEpoch;accountId=null;conversation=null;models=[];releaseMicrophone();$('messages').replaceChildren();$('history').replaceChildren();$('models').replaceChildren();$('memory-data').textContent='';window.umayShell?.history(0);window.umayShell?.account(null);return stop();}
 function message(role,text,record=true){const node=document.createElement('div');node.className='message '+String(role).toLowerCase();node.textContent=text;$('messages').append(node);window.umayShell?.message(role,record);node.scrollIntoView();return node;}
 async function refresh(){
  const epoch=++sessionEpoch;let user;try{user=await api.api('/site/auth/me');}catch(e){if(epoch!==sessionEpoch)return;if(epoch===sessionEpoch){if(accountId!==null){const cleanup=clearAccount(),cleared=sessionEpoch;await cleanup;if(cleared!==sessionEpoch)return;}if(/Oturum doğrulaması gerekli|LOGIN_REQUIRED/.test(e.message)){window.umayShell?.account(null);status('Devam etmek için Veriüssü hesabınla giriş yap.');return;}}throw e;}if(epoch!==sessionEpoch)return;
@@ -25,13 +25,13 @@ function clearVoiceDraft(){
  if(!voiceEdited&&liveDraft&&$('input').value===liveDraft)$('input').value='';
  liveDraft='';voiceEdited=false;$('live-caption').hidden=true;
 }
-async function stop(advance=true,preserveCapture=false){
+async function stop(advance=true,preserveCapture=false,preserveComputer=false){
  if(advance)++ticket;const hadPlayback=sources.length>0;sources.forEach(source=>{try{source.stop();}catch{}});sources=[];if(audioContext)playbackEcho.stop(audioContext.currentTime);playHead=0;if(hadPlayback)echoGuardUntil=Date.now()+200;window.umayShell?.speaking(false);
  const previous=runId;runId=null;responseActive=false;
  // Local output is stopped synchronously. A cold Python worker must not hold
  // a text message behind speech-library startup before its cancel ack arrives.
  void api.speech('cancel').catch(()=>{});
- const computerCancel=window.umayDevice?.running()&&api.computer?api.computer('stop').catch(()=>{}):Promise.resolve();
+ const computerCancel=!preserveComputer&&window.umayComputerChat?.running()&&api.computer?api.computer('stop').catch(()=>{}):Promise.resolve();
  const cancelRun=previous?api.api('/site/chat/runs/'+previous+'/cancel',{}).catch(()=>{}):Promise.resolve();
  pendingRunCancel=Promise.all([pendingRunCancel,cancelRun,computerCancel]).then(()=>{});
  const idle=api.busy(false);
@@ -56,12 +56,10 @@ function submitMessage(text,current){
 }
 async function send(text,fromVoice=false){
  if(!text.trim())return;
- if(window.umayDevice?.computerMode()){
-  const current=++ticket;await stop(false,fromVoice);if(current!==ticket)return;
+ if(window.umayComputerChat?.pending()){
+  const current=++ticket;await stop(false,fromVoice,true);if(current!==ticket)return;
   message('user',text);await api.busy(true);responseActive=true;
-  try{const result=await window.umayDevice.runComputer(text);if(current!==ticket||!result)return;
-   if(result.status==='completed'){message('assistant',result.message);if($('speak').checked)await api.speech('speak',{text:result.message,voice});}
-   else if(result.status==='failed'){const info=window.UmayErrors.isKnown(result.message)?errorText(result.message):result.message;message('error',info,false);status(info);}
+  try{const result=await window.umayComputerChat.answer(text);if(current===ticket&&result)await finishComputerReply(result,current);
   }finally{if(current===ticket){responseActive=false;if(!sources.length)await api.busy(false);}}
   return;
  }
@@ -73,14 +71,17 @@ async function send(text,fromVoice=false){
   while(current===ticket){
    const {run}=await api.api('/site/chat/runs/'+runId);if(current!==ticket)return;
    if(!['QUEUED','RUNNING'].includes(run.status)){
-    runId=null;
+    const completedRunId=runId;runId=null;
     if(!['COMPLETED','SUCCEEDED'].includes(run.status)){
      showChatError(run.errorCode||run.status);return;
     }
     const detail=await api.api('/site/chat/conversations/'+conversation.id);
     if(current!==ticket)return;conversation=detail.conversation;
-    const last=[...detail.messages].reverse().find(m=>m.role.toLowerCase()==='assistant');
-    if(last){message('assistant',last.content);if($('speak').checked){status('Seslendiriliyor…');await api.speech('speak',{text:last.content,voice});}}
+    const last=[...detail.messages].reverse().find(m=>m.role.toLowerCase()==='assistant'&&!m.localComputerTask);
+    if(last)message('assistant',last.content);
+    if(run.mediaOptions?.desktopChatTask&&window.umayComputerChat){
+     const result=await window.umayComputerChat.dispatch({...run,id:completedRunId});if(current!==ticket)return;if(result)await finishComputerReply(result,current);
+    }else if(last&&$('speak').checked){status('Seslendiriliyor…');await api.speech('speak',{text:last.content,voice});}
     runId=null;break;
    }
    if(Date.now()>deadline)throw Error('Yanıt zaman aşımı; durdurup yeniden deneyin.');
@@ -89,6 +90,11 @@ async function send(text,fromVoice=false){
   }
   if(current===ticket)status('Hazır.');
  }catch(error){if(current===ticket)showChatError(error.message);}finally{if(current===ticket){responseActive=false;if(!sources.length)await api.busy(false);}}
+}
+async function finishComputerReply(result,current=ticket){
+ if(current!==ticket)return;window.umayComputerChat?.paint(result);
+ if(result.status==='failed'){const text=window.UmayErrors.isKnown(result.message)?errorText(result.message):result.message;message('error',text,false);status(text);return;}
+ if(result.message){message('assistant',result.message);status(result.message);if($('speak').checked)await api.speech('speak',{text:result.message,voice});}
 }
 async function play(data){
  const generation=ticket;audioContext ||= new AudioContext();await audioContext.resume();if(generation!==ticket)return;const raw=Uint8Array.from(atob(data),c=>c.charCodeAt(0));
@@ -106,7 +112,7 @@ function createLiveRecognizer(){
    if(!listening||playbackSuppressed)return;
    // Raw microphone energy is not a new turn. Interrupt a pending response only
    // after the recognizer has actual words; playback has its stricter local gate.
-   if(responseActive&&text.trim())void stop(true,true).catch(error=>status(error.message));
+   if(responseActive&&text.trim())void stop(true,true,!!window.umayComputerChat?.pending()).catch(error=>status(error.message));
    if($('input').value!==liveDraft&&$('input').value.trim())voiceEdited=true;
    if(!voiceEdited){$('input').value=text;liveDraft=text;}
    $('live-caption').hidden=!text;$('live-text').textContent=text;$('voice-status').textContent='Seni dinliyorum…';
@@ -135,7 +141,7 @@ async function onFrame(frame){
  if(!recording&&voiced>=5){
   recording=true;playbackSuppressed=false;$('voice-status').textContent='Seni dinliyorum…';
   if(gated){for(const part of gateFrames)liveRecognizer?.accept(part);gateFrames=[];replayed=true;}
-  if(sources.length)void stop(true,true).catch(error=>status(error.message));
+  if(sources.length)void stop(true,true,!!window.umayComputerChat?.pending()).catch(error=>status(error.message));
  }
  if(!gated||recording){if(!replayed)liveRecognizer?.accept(frame);}else liveRecognizer?.accept(new Float32Array(frame.length));
  if(!gated)gateFrames=[];

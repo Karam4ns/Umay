@@ -1,4 +1,4 @@
-"""Run on the server: prepare, test, then activate a planner-only image overlay.
+"""Run on the server: prepare, test, then activate the desktop chat image overlay.
 
 The caller uploads this script, desktop-context.ts, compile-computer-planner.cjs
 and server-desktop-context.cjs into one private staging directory. Credentials
@@ -43,20 +43,20 @@ if mode == 'prepare':
         states[service] = state
         (root / (service + '-before.json')).write_text(json.dumps(state))
     baseline = test(states['chat-worker']['Image'], root, 'before')
-    if baseline.returncode == 0 or 'deployed planner supports window focus' not in baseline.stderr:
+    if baseline.returncode == 0 or 'chat handoff metadata' not in baseline.stderr:
         raise RuntimeError('Baseline did not fail for the expected missing planner capability')
-    print('PASS baseline RED: deployed planner lacks new window action', flush=True)
+    print('PASS baseline RED: deployed planner lacks conversational handoff metadata', flush=True)
     for service, state in states.items():
         context = root / service
         context.mkdir()
-        for name in ['desktop-context.ts', 'compile-computer-planner.cjs']:
+        for name in ['desktop-context.ts', 'compile-computer-planner.cjs', 'patch-chat-dispatch.cjs']:
             (context / name).write_bytes((stage / name).read_bytes())
-        (context / 'Dockerfile').write_text('FROM ' + state['Image'] + '\nCOPY --chown=node:node desktop-context.ts compile-computer-planner.cjs /tmp/umay-computer/\nRUN node /tmp/umay-computer/compile-computer-planner.cjs\n')
-        tag = 'veriussu-umay-computer-' + service + ':0.4.1'
+        (context / 'Dockerfile').write_text('FROM ' + state['Image'] + '\nCOPY --chown=node:node desktop-context.ts compile-computer-planner.cjs patch-chat-dispatch.cjs /tmp/umay-computer/\nRUN node /tmp/umay-computer/compile-computer-planner.cjs\n')
+        tag = 'veriussu-umay-computer-' + service + ':0.4.3'
         subprocess.run(['docker', 'build', '--pull=false', '-t', tag, str(context)], check=True)
         for suffix, image in [('candidate', tag), ('rollback', state['Image'])]:
             (root / (service + '-' + suffix + '.json')).write_text(json.dumps({'services': {service: {'image': image, 'environment': compose_environment(state['Config']['Env'])}}}))
-    checked = test('veriussu-umay-computer-chat-worker:0.4.1', root, 'candidate')
+    checked = test('veriussu-umay-computer-chat-worker:0.4.3', root, 'candidate')
     if checked.returncode or 'PASS real HTTP/isolated PostgreSQL' not in checked.stdout:
         raise RuntimeError('Candidate HTTP tests failed; inspect ' + str(root / 'test-candidate.log'))
     (stage / 'candidate-root').write_text(str(root))
@@ -122,7 +122,7 @@ elif mode == 'activate':
             raise RuntimeError('Host planner source changed during deployment')
         source.write_bytes((stage / 'desktop-context.ts').read_bytes())
         (root / 'activated').write_text(str(time.time()))
-        print('PASS planner-only deployment activated; chat stays on port 10203', flush=True)
+        print('PASS desktop chat handoff deployed; chat stays on port 10203', flush=True)
     except Exception:
         for service in reversed(applied):
             subprocess.run(rollout(service, 'rollback'), cwd=cwd, check=True)

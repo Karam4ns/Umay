@@ -120,6 +120,21 @@ test('overlapping sends only post the newest question after cancellation resolve
   assert.equal(posts[0].body.content,'second question');
   assert.deepEqual(app.node('messages').children.map(n=>n.textContent),['second question']);
 });
+test('a normal spoken or typed chat reply automatically dispatches a verified computer task',async()=>{
+ for(const fromVoice of [false,true]){
+  const calls=[],app=renderer({computer:async(method,input)=>{calls.push({method,input});return {id:'task',status:'completed',message:'Not Defteri açıldı.'};},api:async(route)=>route==='/site/chat/conversations'?{conversation:{id:'chat',version:1}}:route.endsWith('/messages')?{run:{id:'run'}}:route.includes('/runs/')?{run:{id:'run',status:'COMPLETED',mediaOptions:{desktopChatTask:{version:1,goal:'Not Defteri aç',acknowledgement:'Açıyorum.'}}}}:{conversation:{id:'chat',version:2},messages:[{role:'assistant',content:'Açıyorum.'}]}});
+  await new Promise(r=>setImmediate(r));app.node('models').selectedOptions=[{value:'model',dataset:{source:'PERSONAL'}}];app.run("models=[{id:'model',source:'PERSONAL'}];window.umayComputerChat={pending:()=>null,running:()=>false,paint(){},dispatch:run=>api.computer('dispatch',{runId:run.id,conversationId:conversation.id})}");
+  await app.run(`send('Not Defteri aç',${fromVoice})`);assert.equal(calls.filter(c=>c.method==='dispatch').length,1);assert.deepEqual(app.node('messages').children.map(n=>n.textContent),['Not Defteri aç','Açıyorum.','Not Defteri açıldı.']);
+ }
+});
+test('a chat reply to the computer question resumes it instead of cancelling or creating a new chat run',async()=>{
+ const calls=[],app=renderer({computer:async(method,input)=>{calls.push({method,input});return {id:'task',status:'completed',message:'Dosya kaydedildi.'};}});await new Promise(r=>setImmediate(r));
+ app.run("window.umayComputerChat={running:()=>true,pending:()=>({id:'task',status:'question'}),paint(){},answer:text=>api.computer('resume',{id:'task',answer:text})}");
+ await app.run("send('Belgeler klasörüne kaydet',true)");assert.deepEqual(calls.map(c=>c.method),['resume']);assert.equal(app.node('messages').children.at(-1).textContent,'Dosya kaydedildi.');
+});
+test('an old locally archived computer result cannot replace the current server answer',async()=>{
+ const app=renderer({api:async route=>route==='/site/chat/conversations'?{conversation:{id:'chat',version:1}}:route.endsWith('/messages')?{run:{id:'run'}}:route.includes('/runs/')?{run:{status:'COMPLETED'}}:{conversation:{id:'chat',version:2},messages:[{id:'new',role:'assistant',content:'Merhaba, yeni normal cevap.'},{id:'computer:old',role:'assistant',content:'Önceki görev tamamlandı.',localComputerTask:true}]}});await new Promise(r=>setImmediate(r));app.node('models').selectedOptions=[{value:'model',dataset:{source:'PERSONAL'}}];app.run("models=[{id:'model',source:'PERSONAL'}]");await app.run("send('selam')");assert.equal(app.node('messages').children.at(-1).textContent,'Merhaba, yeni normal cevap.');
+});
 
 test('quiet residual output does not interrupt Umay',async()=>{
  const app=renderer();await new Promise(r=>setImmediate(r));

@@ -392,3 +392,14 @@ Detaylar ve dış model/Windows/çoklu monitör test sınırları computer-model
 - [x] 129 uygulama /60 ses testi; gerçek Windows pipe/protokol ve normal masaüstü giriş/UI testleri.
 - [x] 0.4.2 installer ve paket içi giriş/arayüz/bütünlük kontrolleri.
 - [x] Kullanıcı onaylı gerçek yönetici WinForms penceresi testi ve paket içi tekrarı geçti: hedef alan seçimi, tam Türkçe metin, yönetici tokenı ve helper sürecinin kapanması. Mevcut oturum zaten yönetici olduğundan standart kullanıcı UAC diyaloğu ayrıca doğrulanmış sayılmaz.
+
+## [2026-11-05] Bilgisayar kontrolünü sohbet içine taşıma — 0.4.3
+- [x] Bilgisayar sayfası/nav/form ve Bilgisayarda çalış kutusu kaldırıldı.
+- [x] Aynı sohbet yanıtında görev devri; asli kullanıcı isteği ve gerçek sunucu mesajı doğrulaması; tek yürütme.
+- [x] Aynı sohbette soru, sesli/yazılı yanıt, özel işlem onayı, Windows izin düğmesi ve sonuç.
+- [x] Asıl sohbetin yerel arşivinde yanıt/sonuç; sunucu mesaj bağıyla doğru sıra.
+- [x] Bağımsız incelemedeki2 önemli bulgu RED → GREEN;141 uygulama /60 ses testi.
+- [x] Gerçek ses yakalama/STT/otomatik dispatch/TTS; dinleme açık.
+- [x] Gerçek Windows giriş/F8; paket içinden giriş ve sohbet/ayarlar/hafıza/konum/tema regresyonları.
+- [x] İzole HTTP/DB normal sohbet+handoff testleri;10203 chat ve2worker healthy; controller/ortam/port korundu.
+- [x] Windows0.4.3 installer ve38 paket dosyası/native/4 ses modülü bütünlüğü.

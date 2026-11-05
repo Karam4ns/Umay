@@ -4,13 +4,22 @@ const {LocalMemory}=require('./local-memory.cjs');
 const {EnvironmentService}=require('./environment-service.cjs');
 const {NativeDesktop,ComputerControl}=require('./computer-control.cjs');
 const {ComputerAgent}=require('./computer-agent.cjs');
+const {chatComputerTask}=require('./chat-computer-task.cjs');
 class DeviceServices{
  constructor({directory,api,encrypt,decrypt,screen,capture,notify,publish=()=>{},onComputerStart=()=>{},onComputerFinish=()=>{},excludedWindowHandles=()=>[],chooseRoots,saveFile,openSource=()=>{},defaultRoots=[],native=new NativeDesktop(),background=true}){
   Object.assign(this,{api,publish,chooseRoots,saveFile,openSource,defaultRoots,background});this.indexCancelled=false;this.indexing=null;this.bridgeSupported=null;
   this.memory=new LocalMemory(path.join(directory,'memory'),{encrypt,decrypt});
   this.environment=new EnvironmentService({memory:this.memory,locate:()=>native.request('location'),notify,publish});
   this.control=new ComputerControl({native,capture,screen,excludedWindowHandles});
-  this.agent=new ComputerAgent({control:this.control,api,memory:this.memory,publish,onStart:onComputerStart,onFinish:()=>{const status=this.agent.task?.status;if(!status||['completed','failed','stopped'].includes(status))void native.release?.();onComputerFinish();}});
+  this.agent=new ComputerAgent({control:this.control,api,memory:this.memory,publish:event=>{if(event.event==='computer-task'){const task=this.agent.task;if(task&&task.status!=='running')this.recordComputerLine(task,'assistant',task.message);}publish(event);},onStart:onComputerStart,onFinish:()=>{const status=this.agent.task?.status;if(!status||['completed','failed','stopped'].includes(status))void native.release?.();onComputerFinish();}});
+ }
+ recordComputerLine(task,role,content){
+  const id=task?.origin?.conversationId;if(!id||!content||task.epoch!==this.memory.epoch||!this.memory.account)return;
+  if(task.origin.anchorMessageId)this.memory.setSetting('computer.anchor:'+task.id,task.origin.anchorMessageId);
+  if(task.lastChatLine===role+':'+content)return;task.lastChatLine=role+':'+content;task.chatCounter=(task.chatCounter||0)+1;
+  const parent=this.memory.require().prepare('SELECT * FROM conversations WHERE id=?').get(id),latest=this.memory.require().prepare('SELECT max(created_at) AS date FROM messages WHERE conversation_id=?').get(id)?.date;
+  task.lastChatAt=Math.max(Date.now(),(task.lastChatAt||0)+1,(Date.parse(latest)||0)+1);
+  this.memory.archiveConversation({id,title:parent?.title||task.goal},[{id:'computer:'+task.id+':'+task.chatCounter,role,content,createdAt:new Date(task.lastChatAt).toISOString()}]);
  }
  activate(account){
   if(String(account??'')===String(this.memory.account??''))return;
@@ -28,14 +37,14 @@ class DeviceServices{
   try{const remote=await this.api('/site/user-memory');this.memory.check(epoch);const text=JSON.stringify(remote);if(text!=='{}'&&text.length>2)this.memory.putNode({kind:'remote',key:'veriussu.memory',title:'Veriüssü hafızası',content:text.slice(0,10000),tags:['Veriüssü']});}catch(error){if(epoch!==this.memory.epoch)throw error;}
  }
  async prepareContext(query){
-  const context={memory:this.memory.context(query),environment:this.environment.context(query)};
+  const context={capabilities:{computerControl:true,protocol:'umay-computer-task-v1'},memory:this.memory.context(query),environment:this.environment.context(query)};
   if(/hava|sıcaklık|yağmur|kar yağ|şemsiye|rüzgâr|rüzgar/i.test(query)){
    try{context.environment.weather=await this.environment.weather();}catch(error){context.environment.weather={available:false,message:error.message};}
   }
   if(/dosya|klasör|yolu|nerede|\.pdf|\.docx|\.xlsx/i.test(query)){
    const filename=query.match(/[\p{L}\p{N}_() -]+\.[a-z0-9]{1,8}\b/iu)?.[0]?.trim();context.files=this.memory.findFiles(filename||query.split(/\s+/).filter(w=>w.length>3)[0]||'').slice(0,8);
   }
-  let text=JSON.stringify(context);while(text.length>11500&&context.memory.messages.length){context.memory.messages.pop();text=JSON.stringify(context);}while(text.length>11500&&context.memory.profile.length){context.memory.profile.pop();text=JSON.stringify(context);}if(text.length>12000)text=text.slice(0,11900)+' [bağlam kısaltıldı]';return text;
+  let text=JSON.stringify(context);while(text.length>11500&&context.memory.messages.length){context.memory.messages.pop();text=JSON.stringify(context);}while(text.length>11500&&context.memory.profile.length){context.memory.profile.pop();text=JSON.stringify(context);}if(text.length>12000)text=JSON.stringify({capabilities:context.capabilities,environment:context.environment.clock,memory:{profile:[],messages:[],operations:context.memory.operations?.slice(0,3)||[]},truncated:true});return text;
  }
  async siteApi(route,body){
   if(!this.memory.account)return this.api(route,body);const epoch=this.memory.epoch,match=route.match(/^\/site\/chat\/conversations\/([^/]+)\/messages$/);let payload=body;
@@ -53,6 +62,12 @@ class DeviceServices{
   this.memory.check(epoch);
   if(match&&body){this.memory.outgoing(match[1],body.requestId,body.content,'submitted');if(payload!==body&&this.bridgeSupported!==false)this.bridgeSupported=true;this.memory.log('chat-send','Kullanıcı mesajı kaydedildi',{details:{conversationId:match[1]}});}
   if(result.conversation)this.memory.archiveConversation(result.conversation,result.messages||[]);
+  if(result.conversation&&Array.isArray(result.messages)&&!route.includes('?')){
+   const earliest=Math.min(...result.messages.map(m=>Date.parse(m.createdAt||m.created_at)||0));
+   const local=this.memory.conversation(result.conversation.id).filter(m=>m.id.startsWith('computer:')).map(m=>({id:m.id,role:m.role,content:m.content,createdAt:m.created_at,localComputerTask:true,parentMessageId:this.memory.setting('computer.anchor:'+m.id.split(':')[1])}));
+   const ids=new Set(result.messages.map(m=>m.id)),merged=[];for(const message of result.messages){merged.push(message);merged.push(...local.filter(m=>!ids.has(m.id)&&m.parentMessageId===message.id));}
+   merged.push(...local.filter(m=>!ids.has(m.id)&&!m.parentMessageId&&(!result.hasMoreMessages||Date.parse(m.createdAt)>=earliest)));result.messages=merged;
+  }
   if(route==='/site/chat/conversations'&&!body)for(const c of result.conversations||[])this.memory.archiveConversation(c);
   if(/\/site\/chat\/runs\//.test(route)&&result.run&&!['QUEUED','RUNNING'].includes(result.run.status))this.memory.log('chat-run','Model yanıt işlemi '+result.run.status.toLocaleLowerCase('tr'),{status:result.run.status,details:{runId:result.run.id,errorCode:result.run.errorCode||null}});
   return result;
@@ -121,9 +136,22 @@ class DeviceServices{
    case 'enable':if(!input.enabled)await this.agent.stop();this.memory.log('computer-permission',input.enabled?'Bilgisayar kontrolü açıldı':'Bilgisayar kontrolü kapatıldı');return {enabled:this.control.enable(input.enabled)};
    case 'preview':return this.control.observe({image:true});
    case 'run':{const sequence=this.agent.sequence,model=await this.modelRoles('resolve',{role:'computer',...(input.modelId?{model:{id:input.modelId,source:input.source}}:{})});if(sequence!==this.agent.sequence)throw Error('Bilgisayar görevi durduruldu.');return this.agent.run(input.goal,model);}
-   case 'elevate':{const task=this.agent.task;if(!task||task.id!==input.id||task.status!=='permission')throw Error('Yönetici izni bekleyen etkin görev bulunamadı.');this.agent.check(task);if(!this.control.native.elevate)throw Error('Windows yönetici izni bu ortamda kullanılamıyor.');await this.control.native.elevate();this.memory.check(task.epoch);this.agent.check(task);this.memory.log('computer-elevation','Kullanıcı Windows yönetici onayını verdi',{details:{taskId:task.id}});return this.agent.resume(task.id,{approved:true,elevated:true});}
-   case 'stop':return this.agent.stop();
-   case 'resume':return this.agent.resume(input.id,input);
+   case 'dispatch':{
+    const epoch=this.memory.epoch,sequence=this.agent.sequence,{run}=await this.api('/site/chat/runs/'+String(input.runId));this.memory.check(epoch);
+    if(sequence!==this.agent.sequence)throw Error('Bilgisayar görevi durduruldu.');
+    const task=chatComputerTask(run?.mediaOptions?.desktopChatTask);
+    if(!task||run.id!==input.runId||run.conversationId!==input.conversationId||!['COMPLETED','SUCCEEDED'].includes(run.status))throw Error('Bu sohbet için doğrulanmış bilgisayar görevi bulunamadı.');
+    const age=Date.now()-Date.parse(run.createdAt);if(!Number.isFinite(age)||age< -60000||age>15*60000)throw Error('Bilgisayar görevi güncel değil. İsteğini yeniden yazabilirsin.');
+    const key='computer.dispatch:'+run.id;if(this.memory.setting(key))throw Error('Bu sohbet görevi zaten başlatıldı.');
+    const model=await this.modelRoles('resolve',{role:'computer'});this.memory.check(epoch);if(sequence!==this.agent.sequence)throw Error('Bilgisayar görevi durduruldu.');
+    if(this.memory.setting(key))throw Error('Bu sohbet görevi zaten başlatıldı.');
+    if(this.agent.task&&['running','question','confirmation','permission'].includes(this.agent.task.status))throw Error('Önce etkin bilgisayar görevini bitirin veya durdurun.');
+    this.memory.setSetting(key,{startedAt:new Date().toISOString()});this.control.enable(true);
+    return this.agent.run(task.goal,model,{conversationId:run.conversationId,runId:run.id,userRequest:task.userRequest,anchorMessageId:task.anchorMessageId});
+   }
+   case 'elevate':{const task=this.agent.task;if(!task||task.id!==input.id||task.status!=='permission')throw Error('Yönetici izni bekleyen etkin görev bulunamadı.');this.agent.check(task);if(!this.control.native.elevate)throw Error('Windows yönetici izni bu ortamda kullanılamıyor.');this.recordComputerLine(task,'user',input.userReply||'Windows yönetici onayını aç');await this.control.native.elevate();this.memory.check(task.epoch);this.agent.check(task);this.memory.log('computer-elevation','Kullanıcı Windows yönetici onayını verdi',{details:{taskId:task.id}});return this.agent.resume(task.id,{approved:true,elevated:true});}
+   case 'stop':if(this.agent.task?.id===input.id&&input.userReply)this.recordComputerLine(this.agent.task,'user',input.userReply);return this.agent.stop();
+   case 'resume':{const task=this.agent.task;if(task?.id===input.id)this.recordComputerLine(task,'user',input.userReply||input.answer||(input.approved?'Onaylıyorum.':'Vazgeçtim.'));return this.agent.resume(input.id,input);}
    default:throw Error('Bilgisayar kontrol işlemi geçersiz.');
   }
  }
