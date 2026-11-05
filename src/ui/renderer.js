@@ -4,6 +4,7 @@ let conversation=null,runId=null,ticket=0,models=[],voice='',audioContext,playHe
 let pre=[],frames=[],voiced=0,silence=0,recording=false,transcribing=false,noise=.0005;
 let captureModule, microphoneSource, microphoneGain, inputFrames=0, microphoneEpoch=0,inputContext,liveRecognizer=null,liveDraft='',voiceEdited=false,echoGuardUntil=0,playbackSuppressed=false,gateFrames=[];
 let computerControlTimer=null;
+let playbackId=crypto.randomUUID(),audioQueue=Promise.resolve();
 const status=text=>{$('status').textContent=text;window.umayShell?.status(text);};
 const playbackEcho=new window.PlaybackEcho();
 const safe=fn=>async(...args)=>{try{return await fn(...args);}catch(e){const text=e.message.replace(/^Error invoking remote method '[^']+': (?:Error: )?/,'');status(window.UmayErrors.isKnown(text)?errorText(text):text);}};
@@ -26,34 +27,88 @@ function clearVoiceDraft(){
  if(!voiceEdited&&liveDraft&&$('input').value===liveDraft)$('input').value='';
  liveDraft='';voiceEdited=false;$('live-caption').hidden=true;
 }
-async function stop(advance=true,preserveCapture=false,preserveComputer=false){
- if(advance)++ticket;const hadPlayback=sources.length>0;sources.forEach(source=>{try{source.stop();}catch{}});sources=[];if(audioContext)playbackEcho.stop(audioContext.currentTime);playHead=0;if(hadPlayback)echoGuardUntil=Date.now()+200;window.umayShell?.speaking(false);
+function silenceReply(){
+ playbackId=crypto.randomUUID();audioQueue=Promise.resolve();const hadPlayback=sources.length>0;sources.forEach(source=>{try{source.stop();}catch{}});sources=[];if(audioContext)playbackEcho.stop(audioContext.currentTime);playHead=0;if(hadPlayback)echoGuardUntil=Date.now()+200;window.umayShell?.speaking(false);
+ void api.speech('cancel').catch(()=>{});
+}
+function speakReply(text,current=ticket){if(current!==ticket)return Promise.resolve();return api.speech('speak',{text,voice,playbackId});}
+async function stop(advance=true,preserveCapture=false,preserveComputer=false,cancelServer=false){
+ if(advance)++ticket;silenceReply();
  const previous=runId;runId=null;responseActive=false;
  // Local output is stopped synchronously. A cold Python worker must not hold
  // a text message behind speech-library startup before its cancel ack arrives.
- void api.speech('cancel').catch(()=>{});
  const computerCancel=!preserveComputer&&window.umayComputerChat?.running()&&api.computer?api.computer('stop').catch(()=>{}):Promise.resolve();
- const cancelRun=previous?api.api('/site/chat/runs/'+previous+'/cancel',{}).catch(()=>{}):Promise.resolve();
+ const cancelRun=previous&&cancelServer?api.api('/site/chat/runs/'+previous+'/cancel',{}).catch(()=>{}):Promise.resolve();
  pendingRunCancel=Promise.all([pendingRunCancel,cancelRun,computerCancel]).then(()=>{});
  const idle=api.busy(false);
  let reset=Promise.resolve();
  if(!preserveCapture){recording=false;frames=[];pre=[];voiced=0;silence=0;gateFrames=[];clearVoiceDraft();if(liveRecognizer)reset=liveRecognizer.reset().catch(error=>{releaseMicrophone();status(error.message);});}
  await Promise.all([pendingRunCancel,idle,reset]);
 }
-function submitMessage(text,current){
- // A run can be committed while its POST response is still in flight. Complete
- // that write (and cancel its stale run) before the next turn writes to the chat.
+function replySpeech(output,text,final=false){
+ if(output.current!==ticket||!$('speak').checked)return output.tail;
+ if(!text.startsWith(output.spoken)){silenceReply();output.spoken='';}
+ let end=final?text.length:output.spoken.length;
+ if(!final)for(const match of text.matchAll(/[.!?…](?=\s)/g)){
+  const prefix=text.slice(0,match.index+1),word=prefix.match(/([^\s]+)$/)?.[1]||'';
+  if(/\d\.$|^[A-ZÇĞİÖŞÜ]\.$|^(?:Dr|Prof|Doç|Sn|vb|vs)\.$/u.test(word))continue;
+  if(match.index+1>output.spoken.length)end=match.index+1;
+ }
+ const part=text.slice(output.spoken.length,end).trim();if(!part)return output.tail;
+ output.spoken=text.slice(0,end);
+ output.tail=output.tail.then(()=>output.current===ticket?speakReply(part,output.current):undefined);return output.tail;
+}
+function showReplyDraft(output,text){
+ if(output.current!==ticket||typeof text!=='string'||!text.trim())return;
+ if(!output.node)output.node=message('assistant',text,false);else output.node.textContent=text;
+ void replySpeech(output,text).catch(error=>{if(output.current===ticket)status(error.message);});
+}
+function submitMessage(text,current,output){
+ // Superseding a turn only quarantines its local output. Account for every
+ // accepted run, including an in-flight POST, before writing the next turn.
  const submission=pendingSubmission.then(async()=>{
   if(current!==ticket)return null;
+  let before=[];
   if(!conversation){const option=$('models').selectedOptions[0],m=models.find(x=>x.id===option?.value&&x.source===option?.dataset.source);if(!m)throw Error('Önce Ayarlar / Modeller sayfasından erişilebilir bir sohbet modeli seçin.');
    const created=await api.api('/site/chat/conversations',{source:m.source,modelId:m.id,title:text.slice(0,140),requestId:crypto.randomUUID()});
    if(current!==ticket)return;conversation=created.conversation;
+  }else{
+   const detail=await api.api('/site/chat/conversations/'+conversation.id);if(current!==ticket)return;
+   conversation=detail.conversation;before=detail.messages||[];
   }
-  const posted=await api.api('/site/chat/conversations/'+conversation.id+'/messages',{content:text,requestId:crypto.randomUUID(),expectedVersion:Number(conversation.version),kind:'CHAT'});
-  if(current!==ticket){if(posted.run?.id)await api.api('/site/chat/runs/'+posted.run.id+'/cancel',{});return;}
-  return posted;
+  const conversationId=conversation.id;
+  const posted=await api.api('/site/chat/conversations/'+conversationId+'/messages',{content:text,requestId:crypto.randomUUID(),expectedVersion:Number(conversation.version),kind:'CHAT'});
+  const acceptedRunId=posted.run.id;if(current===ticket)runId=acceptedRunId;
+  const deadline=Date.now()+180000;
+  let run;
+  while(true){
+   const result=await api.api('/site/chat/runs/'+acceptedRunId);run={...posted.run,...result.run};
+   if(output&&current===ticket&&run.status==='RUNNING'&&run.phase==='generating'&&run.draftContent)showReplyDraft(output,run.draftContent);
+   if(!['QUEUED','RUNNING'].includes(run.status))break;
+   if(Date.now()>deadline)throw Error('Yanıt zaman aşımı; durdurup yeniden deneyin.');
+   if(current===ticket)status(run.phase==='reviewing'?'Yanıt kontrol ediliyor…':run.status==='QUEUED'?'Model sırası bekleniyor…':'Model yanıtı hazırlanıyor…');
+   await new Promise(r=>setTimeout(r,250));
+  }
+  if(runId===acceptedRunId)runId=null;
+  if(!['COMPLETED','SUCCEEDED'].includes(run.status))return {run};
+  const detail=await api.api('/site/chat/conversations/'+conversationId);
+  return {run,detail,reply:currentReply(detail.messages||[],before,run,text)};
  });
  pendingSubmission=submission.then(()=>{},()=>{});return submission;
+}
+function currentReply(messages,before,run,text){
+ const assistant=m=>String(m.role).toLowerCase()==='assistant'&&!m.localComputerTask;
+ const assistantId=run.assistantMessageId||run.mediaOptions?.desktopChatTask?.anchorMessageId;
+ if(assistantId)return messages.find(m=>m.id===assistantId&&assistant(m));
+ const seen=new Set(before.map(m=>m.id).filter(Boolean));
+ const anchors=messages.map((m,index)=>({m,index})).filter(({m})=>String(m.role).toLowerCase()==='user'&&(run.userMessageId?m.id===run.userMessageId:m.content===text&&(!m.id||!seen.has(m.id))));
+ if(anchors.length!==1)return;
+ const replies=[];
+ for(const m of messages.slice(anchors[0].index+1)){
+  if(String(m.role).toLowerCase()==='user')break;
+  if(assistant(m)&&(!m.id||!seen.has(m.id)))replies.push(m);
+ }
+ return replies.length===1?replies[0]:undefined;
 }
 async function send(text,fromVoice=false){
  if(!text.trim())return;
@@ -70,43 +125,34 @@ async function send(text,fromVoice=false){
   }finally{if(current===ticket){responseActive=false;if(!sources.length)await api.busy(false);}}
   return;
  }
- const current=++ticket;await stop(false,fromVoice);if(current!==ticket)return;await api.busy(true);if(current!==ticket)return;responseActive=true;message('user',text);status('Yanıt hazırlanıyor…');
+ const current=++ticket;await stop(false,fromVoice,false,false);if(current!==ticket)return;await api.busy(true);if(current!==ticket)return;responseActive=true;message('user',text);status('Yanıt hazırlanıyor…');
+ const output={current,node:null,spoken:'',tail:Promise.resolve()};
  try{
-  const posted=await submitMessage(text,current);if(!posted||current!==ticket)return;
-  runId=posted.run.id;
-  const deadline=Date.now()+180000;
-  while(current===ticket){
-   const {run}=await api.api('/site/chat/runs/'+runId);if(current!==ticket)return;
-   if(!['QUEUED','RUNNING'].includes(run.status)){
-    const completedRunId=runId;runId=null;
+  const completed=await submitMessage(text,current,output);if(!completed||current!==ticket)return;
+  const {run,detail,reply:last}=completed;
     if(!['COMPLETED','SUCCEEDED'].includes(run.status)){
-     showChatError(run.errorCode||run.status);return;
+     if(output.node){output.node.textContent='Yanıt tamamlanamadı.';silenceReply();}showChatError(run.errorCode||run.status);return;
     }
-    const detail=await api.api('/site/chat/conversations/'+conversation.id);
-    if(current!==ticket)return;conversation=detail.conversation;
-    const last=[...detail.messages].reverse().find(m=>m.role.toLowerCase()==='assistant'&&!m.localComputerTask);
-    if(last)message('assistant',last.content);
-    if(run.mediaOptions?.desktopChatTask&&window.umayComputerChat){
-     const result=await window.umayComputerChat.dispatch({...run,id:completedRunId});if(current!==ticket)return;if(result)await finishComputerReply(result,current);
-    }else if(last&&$('speak').checked){status('Seslendiriliyor…');await api.speech('speak',{text:last.content,voice});}
-    runId=null;break;
-   }
-   if(Date.now()>deadline)throw Error('Yanıt zaman aşımı; durdurup yeniden deneyin.');
-   status(run.phase==='reviewing'?'Yanıt kontrol ediliyor…':run.status==='QUEUED'?'Model sırası bekleniyor…':'Model yanıtı hazırlanıyor…');
-   await new Promise(r=>setTimeout(r,250));
-  }
+    conversation=detail.conversation;
+    if(!last){if(output.node){output.node.textContent='Yanıt tamamlanamadı.';silenceReply();}showChatError('INVALID_PROVIDER_RESPONSE');return;}
+    if(last){if(output.node){output.node.textContent=last.content;window.umayShell?.message('assistant',true);}else message('assistant',last.content);}
+    if(last&&run.mediaOptions?.desktopChatTask&&window.umayComputerChat){
+     const acknowledgement=replySpeech(output,last.content,true).catch(error=>{if(current===ticket)status(error.message);});
+     const result=await window.umayComputerChat.dispatch(run);if(current!==ticket)return;await acknowledgement;if(result)await finishComputerReply(result,current);
+    }else if(last&&$('speak').checked){status('Seslendiriliyor…');await replySpeech(output,last.content,true);}
   if(current===ticket)status('Hazır.');
  }catch(error){if(current===ticket)showChatError(error.message);}finally{if(current===ticket){responseActive=false;if(!sources.length)await api.busy(false);}}
 }
 async function finishComputerReply(result,current=ticket){
  if(current!==ticket)return;window.umayComputerChat?.paint(result);
  if(result.status==='failed'){const text=window.UmayErrors.isKnown(result.message)?errorText(result.message):result.message;message('error',text,false);status(text);return;}
- if(result.message){message('assistant',result.message);status(result.message);if($('speak').checked)await api.speech('speak',{text:result.message,voice});}
+ if(result.message){message('assistant',result.message);status(result.message);if($('speak').checked)await speakReply(result.message,current);}
 }
-async function play(data){
- const generation=ticket;audioContext ||= new AudioContext();await audioContext.resume();if(generation!==ticket)return;const raw=Uint8Array.from(atob(data),c=>c.charCodeAt(0));
- const buffer=await audioContext.decodeAudioData(raw.buffer);if(generation!==ticket)return;
- await api.busy(true);if(generation!==ticket)return;const source=audioContext.createBufferSource();source.buffer=buffer;source.connect(audioContext.destination);
+async function play(data,generation=ticket,expectedPlaybackId=playbackId){
+ const stale=()=>generation!==ticket||expectedPlaybackId!==playbackId;
+ if(stale())return;audioContext ||= new AudioContext();await audioContext.resume();if(stale())return;const raw=Uint8Array.from(atob(data),c=>c.charCodeAt(0));
+ const buffer=await audioContext.decodeAudioData(raw.buffer);if(stale())return;
+ await api.busy(true);if(stale())return;const source=audioContext.createBufferSource();source.buffer=buffer;source.connect(audioContext.destination);
  playHead=Math.max(audioContext.currentTime+.03,playHead);playbackEcho.add(buffer,playHead,audioContext.currentTime);source.start(playHead);playHead+=buffer.duration;sources.push(source);window.umayShell?.speaking(true);
  source.onended=()=>{sources=sources.filter(s=>s!==source);if(!sources.length){echoGuardUntil=Date.now()+200;window.umayShell?.speaking(false);if(!runId)void api.busy(false);}};
 }
@@ -118,13 +164,12 @@ function createLiveRecognizer(){
   onPartial:text=>{
    if(!listening||playbackSuppressed)return;
    clearTimeout(computerControlTimer);computerControlTimer=null;
-   const command=window.ComputerCommands?.computerCommand(text),computerActive=window.umayComputerChat?.running();
+   const command=window.ComputerCommands?.computerCommand(text);
    if(['pause','stop'].includes(command)&&window.umayComputerChat?.canControl?.(command))computerControlTimer=setTimeout(()=>{
     computerControlTimer=null;if(!listening||!window.umayComputerChat?.canControl?.(command))return;void (async()=>{const current=++ticket,operation=window.umayComputerChat.control(command,text);await stop(false,true,true);const result=await operation;if(result&&current===ticket)status(result.message);})().catch(error=>status(error.message));
    },150);
-   // Raw microphone energy is not a new turn. Interrupt a pending response only
-   // after the recognizer has actual words; playback has its stricter local gate.
-   if(responseActive&&text.trim()&&!computerActive)void stop(true,true,!!window.umayComputerChat?.pending()).catch(error=>status(error.message));
+   // Partials can be corrected or discarded. Only a final instruction supersedes
+   // a pending answer; real playback barge-in keeps its local energy/echo gate.
    if($('input').value!==liveDraft&&$('input').value.trim())voiceEdited=true;
    if(!voiceEdited){$('input').value=text;liveDraft=text;}
    $('live-caption').hidden=!text;$('live-text').textContent=text;$('voice-status').textContent='Seni dinliyorum…';
@@ -154,7 +199,7 @@ async function onFrame(frame){
  if(!recording&&voiced>=5){
   recording=true;playbackSuppressed=false;$('voice-status').textContent='Seni dinliyorum…';
   if(gated){for(const part of gateFrames)liveRecognizer?.accept(part);gateFrames=[];replayed=true;}
-  if(sources.length)void stop(true,true,!!window.umayComputerChat?.running()).catch(error=>status(error.message));
+  if(sources.length)void stop(true,true,!!window.umayComputerChat?.running(),false).catch(error=>status(error.message));
  }
  if(!gated||recording){if(!replayed)liveRecognizer?.accept(frame);}else liveRecognizer?.accept(new Float32Array(frame.length));
  if(!gated)gateFrames=[];
@@ -212,12 +257,12 @@ $('hardware').onclick=safe(async()=>{$('devices').textContent=JSON.stringify(awa
 $('cancel-install').onclick=safe(()=>api.speech('cancel'));
 $('clone').onclick=safe(async()=>{await stop();await api.busy(true);$('clone').disabled=true;try{const result=await api.clone();if(result){voice=result.voice;localStorage.setItem('voice-profile',result.id);await packages();$('voices').value=result.id;const warning=(result.quality?.warnings||[]).join(' ');const text='Ses profilin hazır ve seçildi: '+result.name+'. Önizle ile dinleyebilirsin.'+(warning?' '+warning:'');$('clone-quality').textContent=text;status(text);}}finally{$('clone').disabled=false;await api.busy(false);}});
 $('select-voice').onclick=safe(async()=>{voice=$('voices').value?await api.speech('select_voice',{id:$('voices').value}):'';localStorage.setItem('voice-profile',$('voices').value);status('Ses seçildi.');});
-$('preview').onclick=safe(()=>api.speech('speak',{text:'Merhaba, ben Umay. Bugün sana nasıl yardımcı olabilirim?',voice}));
+$('preview').onclick=safe(()=>speakReply('Merhaba, ben Umay. Bugün sana nasıl yardımcı olabilirim?'));
 $('delete-voice').onclick=safe(async()=>{if(!$('voices').value)return;await api.speech('delete_voice',{id:$('voices').value});voice='';localStorage.removeItem('voice-profile');await packages();});
 $('load-memory').onclick=safe(async()=>{const epoch=sessionEpoch;const data=await api.api('/site/user-memory');if(epoch===sessionEpoch)$('memory-data').textContent=JSON.stringify(data,null,2);});
 $('theme').onclick=()=>{document.body.classList.toggle('dark');localStorage.setItem('theme',document.body.classList.contains('dark')?'dark':'light');};if(localStorage.getItem('theme')==='light')document.body.classList.remove('dark');
 $('update').onclick=safe(async()=>{const r=await api.update();status(r?.development?'Geliştirme sürümünde otomatik güncelleme kapalı.':'Güncelleme kontrol edildi.');});
 $('restart').onclick=safe(()=>api.restartUpdate());
-api.onEvent(data=>{if(data.event==='transcript')liveRecognizer?.receive(data);if(data.event==='audio')void play(data.audio).catch(e=>status(e.message));if(data.event==='progress')status(data.kind+': '+data.stage);if(data.event==='session-changed'){clearAccount();safe(refresh)();}if(data.event==='update-ready')$('restart').hidden=false;if(data.event==='error'||data.event==='update-error')status(data.message);if(data.event==='worker-exit'){releaseMicrophone();status('Ses bağlantısı kesildi. Konuşmayı yeniden başlatabilirsin.');}});
+api.onEvent(data=>{if(data.event==='transcript')liveRecognizer?.receive(data);if(data.event==='audio'&&(!data.playbackId||data.playbackId===playbackId)){const generation=ticket,id=playbackId;audioQueue=audioQueue.then(()=>play(data.audio,generation,id)).catch(e=>status(e.message));}if(data.event==='progress')status(data.kind+': '+data.stage);if(data.event==='session-changed'){clearAccount();safe(refresh)();}if(data.event==='update-ready')$('restart').hidden=false;if(data.event==='error'||data.event==='update-error')status(data.message);if(data.event==='worker-exit'){releaseMicrophone();status('Ses bağlantısı kesildi. Konuşmayı yeniden başlatabilirsin.');}});
 safe(async()=>{await refresh();})().catch(()=>{});
 safe(async()=>{const state=await api.speech('status');window.umayShell?.speech(state);for(const kind of ['stt','tts'])if(state[kind].installed)await api.speech('load',{kind});const profile=localStorage.getItem('voice-profile');if(profile&&state.tts.installed)voice=await api.speech('select_voice',{id:profile});if(window.umayShell)window.umayShell.speech(await api.speech('status'));})();

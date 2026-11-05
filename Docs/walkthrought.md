@@ -427,3 +427,15 @@ Detaylar ve dış model/Windows/çoklu monitör test sınırları computer-model
 - [x] Immutable helper-only worker adayında izole HTTP/DB RED→GREEN; iki worker/front/10203 healthy, diğer modüller/varlıklar/ortam/port/mount korunuyor.
 - [x] Bağımsız incelemedeki4 önemli/2 küçük bulgu giderildi; son inceleme temiz.
 - [ ] Son dış-model kabulü: eski Alfa1.2 kullanım-mutabakatı kayıtları engelliyor. Kayıtlar/bakiye elle değiştirilmedi. Kapsam ve rapor: `Docs/full-computer-control-verification.md`.
+
+## [2026-11-05] Sohbet ve konuşma düzeltmeleri — 0.5.1
+
+- [x] Yerel arşiv ve gerçek sunucu sohbet/işlem kayıtlarını karşılaştır; gerçek başarısız görev devrini yeniden üret.
+- [x] Geçici STT metninin yanıtı iptal etmesini engelle; kabul edilmiş çağrıyı muhasebe bitene kadar izleyip eski çıktıyı karantinaya al.
+- [x] Güncel sohbet sürümü ve mesaj kimlikleriyle doğru yanıt; eksik yanıt için görünür hata; eski/geç sesin reddi.
+- [x] Teknik planlayıcı arşivlerini otomatik sohbet hafızasından ayır; geçmiş kayıtlar ve normal insan tercihlerini koru.
+- [x] Cihaz bağlamını belge bağlamından ayır; masaüstü işlev aktarımı ve eski gözlemleri tekrar göndermeyen planlayıcı.
+- [x] Eski frontend yürütücüsünü kapat; iki güncel worker, aynı HTTP hizmeti/portlar ve kalıcı dağıtım overlay'i.
+- [x] 184 uygulama ve60 konuşma testi; gerçek capture→STT→sohbet→TTS; kaynak/paket Windows giriş/odak/dur/F8 regresyonu; paket Python ile gerçek klon TTS.
+- [x] Gerçek Veriüssü modelleriyle gerçek Windows test penceresine metin yazılması ve görünür sonucun doğrulanması.
+- [x] 0.5.1 installer ve kaynak/native/konuşma/runtime bütünlüğü. Son performans ve dağıtım sonuçları `Docs/chat-voice-hotfix.md` içinde tutulur.

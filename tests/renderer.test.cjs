@@ -103,7 +103,7 @@ test('overlapping sends only post the newest question after cancellation resolve
       if(route==='/site/chat/conversations')return {conversation:{id:'conversation',version:0}};
       if(route.endsWith('/messages'))return {run:{id:'run'}};
       if(route==='/site/chat/runs/run')return {run:{status:'COMPLETED'}};
-      return {conversation:{id:'conversation',version:1},messages:[]};
+      return {conversation:{id:'conversation',version:1},messages:[{role:'user',content:'second question'},{role:'assistant',content:'Second answer.'}]};
     }
   });
   app.node('models').value='model';
@@ -118,11 +118,11 @@ test('overlapping sends only post the newest question after cancellation resolve
   const posts=requests.filter(r=>r.route.endsWith('/messages'));
   assert.equal(posts.length,1);
   assert.equal(posts[0].body.content,'second question');
-  assert.deepEqual(app.node('messages').children.map(n=>n.textContent),['second question']);
+  assert.deepEqual(app.node('messages').children.map(n=>n.textContent),['second question','Second answer.']);
 });
 test('a normal spoken or typed chat reply automatically dispatches a verified computer task',async()=>{
  for(const fromVoice of [false,true]){
-  const calls=[],app=renderer({computer:async(method,input)=>{calls.push({method,input});return {id:'task',status:'completed',message:'Not Defteri açıldı.'};},api:async(route)=>route==='/site/chat/conversations'?{conversation:{id:'chat',version:1}}:route.endsWith('/messages')?{run:{id:'run'}}:route.includes('/runs/')?{run:{id:'run',status:'COMPLETED',mediaOptions:{desktopChatTask:{version:1,goal:'Not Defteri aç',acknowledgement:'Açıyorum.'}}}}:{conversation:{id:'chat',version:2},messages:[{role:'assistant',content:'Açıyorum.'}]}});
+  const calls=[],app=renderer({computer:async(method,input)=>{calls.push({method,input});return {id:'task',status:'completed',message:'Not Defteri açıldı.'};},api:async(route)=>route==='/site/chat/conversations'?{conversation:{id:'chat',version:1}}:route.endsWith('/messages')?{run:{id:'run'}}:route.includes('/runs/')?{run:{id:'run',status:'COMPLETED',mediaOptions:{desktopChatTask:{version:1,goal:'Not Defteri aç',acknowledgement:'Açıyorum.'}}}}:{conversation:{id:'chat',version:2},messages:[{id:'user',role:'user',content:'Not Defteri aç'},{id:'answer',role:'assistant',content:'Açıyorum.'}]}});
   await new Promise(r=>setImmediate(r));app.node('models').selectedOptions=[{value:'model',dataset:{source:'PERSONAL'}}];app.run("models=[{id:'model',source:'PERSONAL'}];window.umayComputerChat={pending:()=>null,running:()=>false,paint(){},dispatch:run=>api.computer('dispatch',{runId:run.id,conversationId:conversation.id})}");
   await app.run(`send('Not Defteri aç',${fromVoice})`);assert.equal(calls.filter(c=>c.method==='dispatch').length,1);assert.deepEqual(app.node('messages').children.map(n=>n.textContent),['Not Defteri aç','Açıyorum.','Not Defteri açıldı.']);
  }
@@ -133,7 +133,7 @@ test('a chat reply to the computer question resumes it instead of cancelling or 
  await app.run("send('Belgeler klasörüne kaydet',true)");assert.deepEqual(calls.map(c=>c.method),['resume']);assert.equal(app.node('messages').children.at(-1).textContent,'Dosya kaydedildi.');
 });
 test('an old locally archived computer result cannot replace the current server answer',async()=>{
- const app=renderer({api:async route=>route==='/site/chat/conversations'?{conversation:{id:'chat',version:1}}:route.endsWith('/messages')?{run:{id:'run'}}:route.includes('/runs/')?{run:{status:'COMPLETED'}}:{conversation:{id:'chat',version:2},messages:[{id:'new',role:'assistant',content:'Merhaba, yeni normal cevap.'},{id:'computer:old',role:'assistant',content:'Önceki görev tamamlandı.',localComputerTask:true}]}});await new Promise(r=>setImmediate(r));app.node('models').selectedOptions=[{value:'model',dataset:{source:'PERSONAL'}}];app.run("models=[{id:'model',source:'PERSONAL'}]");await app.run("send('selam')");assert.equal(app.node('messages').children.at(-1).textContent,'Merhaba, yeni normal cevap.');
+ const app=renderer({api:async route=>route==='/site/chat/conversations'?{conversation:{id:'chat',version:1}}:route.endsWith('/messages')?{run:{id:'run'}}:route.includes('/runs/')?{run:{status:'COMPLETED'}}:{conversation:{id:'chat',version:2},messages:[{id:'user',role:'user',content:'selam'},{id:'new',role:'assistant',content:'Merhaba, yeni normal cevap.'},{id:'computer:old',role:'assistant',content:'Önceki görev tamamlandı.',localComputerTask:true}]}});await new Promise(r=>setImmediate(r));app.node('models').selectedOptions=[{value:'model',dataset:{source:'PERSONAL'}}];app.run("models=[{id:'model',source:'PERSONAL'}]");await app.run("send('selam')");assert.equal(app.node('messages').children.at(-1).textContent,'Merhaba, yeni normal cevap.');
 });
 
 test('quiet residual output does not interrupt Umay',async()=>{
@@ -303,14 +303,14 @@ test('quiet microphone audio is streamed without waiting for silence',async()=>{
 });
 
 test('unrecognized microphone energy cannot cancel a pending answer or its speech',async()=>{
- const poll=deferred(),calls=[],spoken=[];
+ const poll=deferred(),calls=[],spoken=[];let posted=false;
  const app=renderer({api:async(route,body)=>{
   if(route==='/site/auth/me')throw Error('No account in test');
   calls.push(route);
-  if(route.endsWith('/messages'))return {run:{id:'pending'}};
+  if(route.endsWith('/messages')){posted=true;return {run:{id:'pending'}};}
   if(route==='/site/chat/runs/pending')return poll.promise;
   if(route.endsWith('/cancel'))return {ok:true};
-  return {conversation:{id:'chat',version:1},messages:[{role:'assistant',content:'Merhaba, seni dinliyorum.'}]};
+  return {conversation:{id:'chat',version:1},messages:posted?[{id:'user',role:'user',content:'Selam Umay'},{id:'answer',role:'assistant',content:'Merhaba, seni dinliyorum.'}]:[]};
  },speech:async(method,p)=>{if(method==='status')return {stt:{installed:false},tts:{installed:false}};if(method==='speak')spoken.push(p.text);return true;}});
  await new Promise(r=>setImmediate(r));app.node('speak').checked=true;
  app.run("conversation={id:'chat',version:1};listening=true");
@@ -343,41 +343,79 @@ test('failed runs do not speak an old assistant message and show the failure',as
  assert.equal(spoken.length,0);assert.match(app.node('status').textContent,/beklenenden uzun/);assert.doesNotMatch(app.node('status').textContent,/PROVIDER_TIMEOUT/);
 });
 
-test('recognized new words still interrupt a pending response without resetting capture',async()=>{
+test('a completed run uses its own assistant id instead of the newest assistant',async()=>{
+ const spoken=[];let posted=false;const app=renderer({api:async(route)=>{
+  if(route==='/site/auth/me')throw Error('No account');
+  if(route.endsWith('/messages')){posted=true;return {run:{id:'run',userMessageId:'user-current'}};}
+  if(route==='/site/chat/runs/run')return {run:{status:'COMPLETED',assistantMessageId:'answer-current'}};
+  return {conversation:{id:'chat',version:posted?3:1},messages:posted?[
+   {id:'old',role:'assistant',content:'Eski yanıt.'},
+   {id:'user-current',role:'user',content:'Sorum'},
+   {id:'answer-current',role:'assistant',content:'Bu isteğin yanıtı.'},
+   {id:'other-user',role:'user',content:'Başka istemci'},
+   {id:'other-answer',role:'assistant',content:'Başka isteğin yanıtı.'}
+  ]:[{id:'old',role:'assistant',content:'Eski yanıt.'}]};
+ },speech:async(method,p)=>{if(method==='status')return {stt:{installed:false},tts:{installed:false}};if(method==='speak')spoken.push(p.text);return true;}});
+ await new Promise(r=>setImmediate(r));app.node('speak').checked=true;app.run("conversation={id:'chat',version:1}");await app.run("send('Sorum')");
+ assert.deepEqual(app.node('messages').children.map(n=>n.textContent),['Sorum','Bu isteğin yanıtı.']);assert.deepEqual(spoken,['Bu isteğin yanıtı.']);
+});
+
+test('a completed run with a missing current assistant cannot replay an old answer',async()=>{
+ const spoken=[];const app=renderer({api:async(route)=>{
+  if(route==='/site/auth/me')throw Error('No account');
+  if(route.endsWith('/messages'))return {run:{id:'run'}};
+  if(route==='/site/chat/runs/run')return {run:{status:'COMPLETED',assistantMessageId:'missing'}};
+  return {conversation:{id:'chat',version:1},messages:[{id:'old',role:'assistant',content:'Eski yanıt.'}]};
+ },speech:async(method,p)=>{if(method==='status')return {stt:{installed:false},tts:{installed:false}};if(method==='speak')spoken.push(p.text);return true;}});
+ await new Promise(r=>setImmediate(r));app.node('speak').checked=true;app.run("conversation={id:'chat',version:1}");await app.run("send('Sorum')");
+ assert.equal(app.node('messages').children.some(n=>n.textContent==='Eski yanıt.'),false);assert.deepEqual(spoken,[]);assert.ok(app.node('messages').children.some(n=>n.className==='message error'),'missing current reply must stay visible');
+});
+
+test('a tentative partial cannot cancel a pending response or reset capture',async()=>{
  const calls=[];const app=renderer({api:async(route)=>{calls.push(route);return {};}});await new Promise(r=>setImmediate(r));calls.length=0;
  app.run('listening=true;liveRecognizer=createLiveRecognizer();responseActive=true;runId="pending"');await app.run("liveRecognizer.start('session')");
  app.emit({event:'transcript',streamId:'session',generation:0,utterance:0,text:'',final:false});assert.equal(calls.length,0);
  app.emit({event:'transcript',streamId:'session',generation:0,utterance:0,text:'bir dakika',final:false});
- assert.deepEqual(calls,['/site/chat/runs/pending/cancel']);assert.equal(app.run('listening'),true);assert.equal(app.run('liveRecognizer.generation'),0);assert.equal(app.node('input').value,'bir dakika');
+ assert.deepEqual(calls,[]);assert.equal(app.run('responseActive'),true);assert.equal(app.run('listening'),true);assert.equal(app.run('liveRecognizer.generation'),0);assert.equal(app.node('input').value,'bir dakika');
 });
 
-test('the next voice turn waits for the interrupted server run to be cancelled',async()=>{
- const cancellation=deferred(),posts=[];const app=renderer({api:async(route,body)=>{
+test('a final voice instruction quarantines the old reply and waits for terminal accounting with a fresh version',async()=>{
+ const completion=deferred(),posts=[],calls=[],spoken=[],dispatches=[];let version=1;const messages=[];const app=renderer({computer:async(method,run)=>{dispatches.push(run.id);return {};},api:async(route,body)=>{
   if(route==='/site/auth/me')throw Error('No account');
-  if(route.endsWith('/cancel'))return cancellation.promise;
-  if(route.endsWith('/messages')){posts.push(body.content);return {run:{id:'next'}};}
-  if(route==='/site/chat/runs/next')return {run:{status:'COMPLETED'}};
-  return {conversation:{id:'chat',version:1},messages:[]};
- }});await new Promise(r=>setImmediate(r));
- app.run('conversation={id:"chat",version:1};listening=true;liveRecognizer=createLiveRecognizer();responseActive=true;runId="previous"');await app.run("liveRecognizer.start('session')");
- app.emit({event:'transcript',streamId:'session',generation:0,utterance:0,text:'yeni soru',final:false});
- app.emit({event:'transcript',streamId:'session',generation:0,utterance:0,text:'Yeni soru.',final:true});await new Promise(r=>setImmediate(r));
- assert.equal(posts.length,0);cancellation.resolve({ok:true});await new Promise(r=>setImmediate(r));assert.deepEqual(posts,['Yeni soru.']);
+  calls.push(route);
+  if(route.endsWith('/messages')){posts.push(body);messages.push({id:'user-'+posts.length,role:'user',content:body.content});version++;return {run:{id:posts.length===1?'previous':'next'}};}
+  if(route==='/site/chat/runs/previous')return completion.promise;
+  if(route==='/site/chat/runs/next'){messages.push({id:'answer-next',role:'assistant',content:'Yeni yanıt.'});return {run:{status:'COMPLETED'}};}
+  return {conversation:{id:'chat',version},messages:[...messages]};
+ },speech:async(method,p)=>{if(method==='status')return {stt:{installed:false},tts:{installed:false}};if(method==='speak')spoken.push(p.text);return true;}});await new Promise(r=>setImmediate(r));
+ app.node('speak').checked=true;app.run('conversation={id:"chat",version:1};listening=true;liveRecognizer=createLiveRecognizer()');await app.run("liveRecognizer.start('session')");
+ app.run('window.umayComputerChat={running:()=>false,pending:()=>null,dispatch:run=>api.computer("dispatch",run)}');
+ const first=app.run("send('İlk soru.',true)");await new Promise(r=>setImmediate(r));
+ app.emit({event:'transcript',streamId:'session',generation:0,utterance:0,text:'Kase',final:false});
+ assert.equal(app.run('responseActive'),true);assert.equal(posts.length,1);
+ const next=app.run("send('Klasörü siler misin?',true)");await new Promise(r=>setImmediate(r));
+ assert.equal(posts.length,1);assert.equal(calls.some(route=>route.endsWith('/cancel')),false);
+ messages.push({id:'answer-old',role:'assistant',content:'Eski yanıt.'});version=4;
+ completion.resolve({run:{status:'COMPLETED',mediaOptions:{desktopChatTask:{goal:'Eski iş'}}}});
+ await Promise.all([first,next]);
+ assert.deepEqual(posts.map(p=>[p.content,p.expectedVersion]),[['İlk soru.',1],['Klasörü siler misin?',4]]);
+ assert.deepEqual(app.node('messages').children.map(n=>n.textContent),['İlk soru.','Klasörü siler misin?','Yeni yanıt.']);assert.deepEqual(spoken,['Yeni yanıt.']);assert.deepEqual(dispatches,[]);
 });
 
-test('interrupting an in-flight message waits for its returned run to be cancelled before the next post',async()=>{
- const firstPost=deferred(),cancellation=deferred(),posts=[];const app=renderer({api:async(route,body)=>{
+test('superseding an in-flight POST still accounts for its returned run before the next post',async()=>{
+ const firstPost=deferred(),completion=deferred(),posts=[],calls=[];let version=1;const app=renderer({api:async(route,body)=>{
   if(route==='/site/auth/me')throw Error('No account');
+  calls.push(route);
   if(route.endsWith('/messages')){posts.push(body.content);return posts.length===1?firstPost.promise:{run:{id:'next'}};}
-  if(route.endsWith('/cancel'))return cancellation.promise;
+  if(route==='/site/chat/runs/previous')return completion.promise;
   if(route==='/site/chat/runs/next')return {run:{status:'COMPLETED'}};
-  return {conversation:{id:'chat',version:1},messages:[]};
+  return {conversation:{id:'chat',version},messages:[]};
  }});await new Promise(r=>setImmediate(r));
  app.run('conversation={id:"chat",version:1};listening=true;liveRecognizer=createLiveRecognizer()');await app.run("liveRecognizer.start('session')");
  const first=app.run("send('first',true)");await new Promise(r=>setImmediate(r));
  app.emit({event:'transcript',streamId:'session',generation:0,utterance:0,text:'next',final:false});const next=app.run("send('next',true)");await new Promise(r=>setImmediate(r));
  assert.deepEqual(posts,['first']);firstPost.resolve({run:{id:'previous'}});await new Promise(r=>setImmediate(r));assert.deepEqual(posts,['first']);
- cancellation.resolve({ok:true});await Promise.all([first,next]);assert.deepEqual(posts,['first','next']);
+ assert.equal(calls.some(route=>route.endsWith('/cancel')),false);version=3;completion.resolve({run:{status:'COMPLETED'}});await Promise.all([first,next]);assert.deepEqual(posts,['first','next']);
 });
 
 test('text messages do not wait for a cold speech cancellation to reach the server',async()=>{
@@ -391,17 +429,54 @@ test('text messages do not wait for a cold speech cancellation to reach the serv
  assert.deepEqual(posts,['text only']);cold.resolve();await sending;
 });
 
+test('a public streamed sentence is voiced before completion and the final answer is not repeated',async()=>{
+ const gate=deferred(),spoken=[];let polls=0;const app=renderer({api:async(route)=>{
+  if(route==='/site/auth/me')throw Error('No account');
+  if(route.endsWith('/messages'))return {run:{id:'run'}};
+  if(route==='/site/chat/runs/run')return ++polls===1?{run:{status:'RUNNING',phase:'generating',draftContent:'Merhaba, seni dinliyorum. Sonra'}}:gate.promise;
+  return {conversation:{id:'chat',version:2},messages:[{id:'u',role:'user',content:'Selam'},{id:'a',role:'assistant',content:'Merhaba, seni dinliyorum. Sonra konuşalım.'}]};
+ },speech:async(method,p)=>{if(method==='status')return {stt:{installed:false},tts:{installed:false}};if(method==='speak')spoken.push(p.text);return true;}});
+ await new Promise(r=>setImmediate(r));app.node('speak').checked=true;app.run('conversation={id:"chat",version:1}');const sending=app.run("send('Selam')");await new Promise(r=>setImmediate(r));
+ assert.deepEqual(spoken,['Merhaba, seni dinliyorum.']);
+ gate.resolve({run:{status:'COMPLETED',assistantMessageId:'a'}});await sending;assert.deepEqual(spoken,['Merhaba, seni dinliyorum.','Sonra konuşalım.']);
+ assert.equal(app.node('messages').children.filter(n=>n.className==='message assistant').length,1);
+ assert.equal(app.node('messages').children.at(-1).textContent,'Merhaba, seni dinliyorum. Sonra konuşalım.');
+});
+
+test('audio from a superseded speech request is ignored before decode or playback',async()=>{
+ let decodes=0;class Context{async resume(){}async decodeAudioData(){decodes++;return {duration:1};}createBufferSource(){return {connect(){},start(){}};}}
+ const app=renderer({AudioContext:Context});await new Promise(r=>setImmediate(r));
+ app.emit({event:'audio',audio:'AA==',playbackId:'superseded'});await new Promise(r=>setImmediate(r));assert.equal(decodes,0);
+});
+test('silencing the current turn also rejects audio that was already queued for decoding',async()=>{
+ const decoded=deferred();let starts=0;class Context{constructor(){this.currentTime=0;}async resume(){}decodeAudioData(){return decoded.promise;}createBufferSource(){return {connect(){},start(){starts++;}};}}
+ const app=renderer({AudioContext:Context});await new Promise(r=>setImmediate(r));app.emit({event:'audio',audio:'AA=='});await new Promise(r=>setImmediate(r));
+ await app.run('stop(false)');decoded.resolve({duration:1});await new Promise(r=>setImmediate(r));assert.equal(starts,0);
+});
+
+test('Stop keeps local silence immediate and settles the accepted run without aborting provider usage',async()=>{
+ const terminal=deferred(),calls=[];const app=renderer({api:async(route)=>{
+  if(route==='/site/auth/me')throw Error('No account');calls.push(route);
+  if(route.endsWith('/messages'))return {run:{id:'run'}};
+  if(route==='/site/chat/runs/run')return terminal.promise;
+  return {conversation:{id:'chat',version:1},messages:[]};
+ }});await new Promise(r=>setImmediate(r));app.run('conversation={id:"chat",version:1}');const sending=app.run("send('Soru')");await new Promise(r=>setImmediate(r));
+ await app.run('stop()');assert.equal(calls.some(r=>r.endsWith('/cancel')),false);terminal.resolve({run:{status:'COMPLETED'}});await sending;
+ assert.equal(app.node('messages').children.length,1);
+});
+
 test('a provider failure appears in the chat instead of leaving only an unanswered question',async()=>{
  const app=renderer({api:async(route)=>{
   if(route==='/site/auth/me')throw Error('No account');
   if(route.endsWith('/messages'))return {run:{id:'run'}};
   if(route==='/site/chat/runs/run')return {run:{status:'FAILED',errorCode:'PROVIDER_TOOL_UNAVAILABLE'}};
+  if(route==='/site/chat/conversations/chat')return {conversation:{id:'chat',version:1},messages:[]};
  }});await new Promise(r=>setImmediate(r));app.run('conversation={id:"chat",version:1}');await app.run("send('Soru')");
  assert.equal(app.node('messages').children.length,2);assert.match(app.node('messages').children[1].textContent,/özellik/);assert.doesNotMatch(app.node('messages').children[1].textContent,/TOOL_UNAVAILABLE/);
 });
 
 test('token denial during message submission is shown in chat without its technical code',async()=>{
- const app=renderer({api:async(route)=>{if(route==='/site/auth/me')throw Error('No account');if(route.endsWith('/messages'))throw Error('INSUFFICIENT_TOKENS');}});
+ const app=renderer({api:async(route)=>{if(route==='/site/auth/me')throw Error('No account');if(route.endsWith('/messages'))throw Error('INSUFFICIENT_TOKENS');if(route==='/site/chat/conversations/chat')return {conversation:{id:'chat',version:1},messages:[]};}});
  await new Promise(r=>setImmediate(r));app.run('conversation={id:"chat",version:1}');await app.run("send('Soru')");
  assert.equal(app.node('messages').children.length,2);const text=app.node('messages').children[1].textContent;assert.match(text,/Token limitiniz yetersiz/);assert.doesNotMatch(text,/INSUFFICIENT_TOKENS/);
 });

@@ -27,6 +27,12 @@ function agent(actions){
  const api=async(route,body)=>{if(route==='/site/chat/conversations')return {conversation:{id:'c',version}};if(route.endsWith('/messages')){posted=body;return {run:{id:'r'+step}};}if(route.includes('/runs/'))return {run:{status:'COMPLETED'}};return {conversation:{id:'c',version:++version},messages:[{role:'assistant',content:JSON.stringify(actions[step++])}]};};
  const planner=new ComputerAgent({control:f.control,api,memory,now:()=>clock,delay:async ms=>clock+=ms});return {...f,planner,memory,logs,getPosted:()=>posted};
 }
+test('planner sees the actual focused accessibility target instead of guessing from the last click',async()=>{
+ const f=agent([{action:'done',message:'Tamam.'}]),observe=f.control.observe.bind(f.control);
+ f.control.observe=async options=>{const view=await observe(options);view.elements=Array.from({length:151},(_,id)=>({...view.elements[0],id,focused:id===150}));return view;};
+ await f.planner.run('Metin alanını kontrol et',model);const prompt=JSON.parse(f.getPosted().content);
+ assert.equal(prompt.observation.focusedElementId,150);assert.ok(prompt.observation.elements.some(e=>e.id===150&&e.focused),'focused input survives a large accessibility tree');
+});
 const model={id:'model',source:'PERSONAL',categories:['vision']};
 test('a generic app watch polls locally and passes only its observed outcome to the next model step',async()=>{
  const f=agent([{action:'watch',windowHandle:1,contains:'completed',milliseconds:2000,intervalMs:500},{action:'done',message:'Görev izlendi.'}]),native=f.control.native.request,api=f.planner.api,posts=[];let polls=0;

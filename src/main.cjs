@@ -25,7 +25,7 @@ function startWorker(){
  worker=spawn(python,['-u',script],{windowsHide:true,env:{...process.env,UMAY_DATA:path.join(app.getPath('userData'),'speech'),PYTHONIOENCODING:'utf-8'}});
  readline.createInterface({input:worker.stdout}).on('line',line=>{
   let data;try{data=JSON.parse(line);}catch{return;}
-  if(data.event){if(data.event==='audio'&&pending.get(data.id)?.epoch!==speechEpoch)return;if(data.event==='transcript'&&(data.streamId!==activeRecognition?.streamId||data.generation!==activeRecognition?.generation))return;publish(data);return;}
+  if(data.event){if(data.event==='audio'){const entry=pending.get(data.id);if(entry?.epoch!==speechEpoch)return;data.playbackId=entry.playbackId;}if(data.event==='transcript'&&(data.streamId!==activeRecognition?.streamId||data.generation!==activeRecognition?.generation))return;publish(data);return;}
   const entry=pending.get(data.id);if(!entry)return;pending.delete(data.id);
   clearTimeout(entry.timer);data.error?entry.reject(Error(data.error)):entry.resolve(data.result);
  });
@@ -38,7 +38,7 @@ function speech(method,params={}){
  if(method==='cancel')speechEpoch++;
  startWorker();const id=randomUUID();return new Promise((resolve,reject)=>{
   const timer=setTimeout(()=>{pending.delete(id);reject(Error('Ses işlemi zaman aşımına uğradı.'));},method==='install'?1800000:180000);
-  pending.set(id,{resolve,reject,timer,epoch:speechEpoch});worker.stdin.write(JSON.stringify({id,method,params})+'\n');
+  pending.set(id,{resolve,reject,timer,epoch:speechEpoch,playbackId:params.playbackId});worker.stdin.write(JSON.stringify({id,method,params})+'\n');
  });
 }
 async function rawApi(route,body){

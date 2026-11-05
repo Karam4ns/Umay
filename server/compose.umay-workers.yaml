@@ -1,0 +1,9 @@
+# Include after the site's ordinary Compose files on subsequent deployments.
+# The frontend only enqueues/reads; dedicated worker replicas execute model jobs.
+services:
+  frontend:
+    environment:
+      CHAT_WORKER_ENABLED: "false"
+  chat-worker:
+    environment:
+      CHAT_WORKER_ENABLED: "true"

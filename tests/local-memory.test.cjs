@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
-const {LocalMemory}=require('../src/local-memory.cjs');
+const {LocalMemory,factsFrom}=require('../src/local-memory.cjs');
 function memory(options={}){return new LocalMemory(fs.mkdtempSync(path.join(os.tmpdir(),'umay-local-memory-')),options);}
 test('chat survives remote deletion, restart and searches Turkish word prefixes',()=>{
  const store=memory();store.activate('alice');
@@ -38,4 +38,35 @@ test('ordinary notes and device notes are recalled with provenance for matching 
 });
 test('quoted translation and example text cannot replace the actual user name',()=>{
  const store=memory();store.activate('a');store.archiveConversation({id:'c'},[{id:'m',role:'user',content:'Adım Kazım.'},{id:'m2',role:'user',content:'Şu cümleyi İngilizceye çevir: "Adım Berk. İstanbul’da yaşıyorum."'}]);const context=JSON.stringify(store.context('adım'));assert.ok(store.snapshot().nodes.filter(n=>n.kind==='profile').every(n=>n.content==='Kazım'));store.close();
+});
+
+test('automatic recall skips computer task archives before limiting matches but preserves their search records',()=>{
+ const store=memory();store.activate('a');
+ store.archiveConversation({id:'chat',title:'Klasör tercihim'},[{id:'human',role:'user',content:'Klasör adlarında Türkçe karakterleri tercih ediyorum.'},{id:'computer:task:1',role:'assistant',content:'Klasör masaüstünde oluşturuldu.'}]);
+ for(let i=0;i<8;i++)store.archiveConversation({id:'machine'+i,title:i%2?'Umay bilgisayar görevi: Klasör oluştur':'Klasör oluştur',...(i%2?{}:{localSource:'computer'})},[{id:'machine-message'+i,role:'assistant',content:'Klasör'}]);
+ const recalled=store.context('Klasör').messages;
+ assert.equal(recalled.length,2);assert.ok(recalled.some(m=>m.text==='Klasör masaüstünde oluşturuldu.'));
+ assert.ok(recalled.some(m=>m.text==='Klasör adlarında Türkçe karakterleri tercih ediyorum.'));
+ assert.equal(store.search('Klasör',30).length,10);assert.equal(store.conversation('machine1').length,1);store.close();
+});
+
+test('automatic recall excludes raw computer protocol in renamed chats while retaining ordinary JSON',()=>{
+ const store=memory();store.activate('a');
+ const prompt=JSON.stringify({originalUserRequest:'Klasör oluştur',proposedGoal:'Klasör oluştur',observation:{title:'Klasör',elements:[]},step:1});
+ store.archiveConversation({id:'renamed',title:'Eski sohbet'},[{id:'prompt',role:'user',content:prompt},{id:'action',role:'assistant',content:'```json\n{"action":"done","message":"Klasör oluşturuldu."}\n```'}]);
+ store.archiveConversation({id:'ordinary',title:'JSON örneğim'},[{id:'json',role:'user',content:'{"Klasör":"Belgeler","action":"review"}'}]);
+ assert.deepEqual(store.context('Klasör').messages.map(m=>m.text),['{"Klasör":"Belgeler","action":"review"}']);
+ assert.equal(store.search('Klasör').length,3);store.close();
+});
+
+test('machine prompts and task goals cannot become preferences and historical machine facts stay out of context',()=>{
+ const store=memory();store.activate('a');
+ const prompt=JSON.stringify({originalUserRequest:'Şunu yaz: "Kahveyi seviyorum."',observation:{elements:[]}});
+ assert.deepEqual(factsFrom(prompt),[]);
+ store.archiveConversation({id:'computer',title:'Umay bilgisayar görevi: Metni yaz'},[{id:'machine-user',role:'user',content:'Çayı seviyorum.'}]);
+ assert.equal(store.snapshot().nodes.filter(n=>n.kind==='preference').length,0);
+ store.putNode({kind:'preference',title:'Eski yanlış tercih',content:'Kahveyi seviyorum.',sourceMessage:'machine-user'});
+ store.archiveConversation({id:'chat',title:'Tercihler'},[{id:'human',role:'user',content:'Bitki çayını seviyorum.'}]);
+ assert.deepEqual(store.context('tercihler').profile.map(n=>n.content),['Bitki çayını seviyorum']);
+ assert.equal(store.snapshot().nodes.filter(n=>n.kind==='preference').length,2);store.close();
 });

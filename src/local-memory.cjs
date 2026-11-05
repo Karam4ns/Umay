@@ -5,7 +5,16 @@ const {createHash,randomUUID}=require('node:crypto');
 const fold=value=>String(value??'').normalize('NFKD').replace(/\p{M}/gu,'').replace(/ı/g,'i').toLowerCase();
 const bounded=(value,max=12000)=>String(value??'').slice(0,max);
 function redact(value){return bounded(value).replace(/\b(?:password|parola|şifre(?:m|si)?|api[_ -]?key|access[_ -]?token|secret)\s*[:=]\s*[^\s,;]+/gi,'[özel bilgi]');}
+function machineProtocol(text){
+ const source=String(text??'').trim().replace(/^```(?:json)?\s*|\s*```$/gi,'');
+ if(!source.startsWith('{'))return false;
+ let value;try{value=JSON.parse(source);}catch{return false;}
+ if(!value||typeof value!=='object'||Array.isArray(value))return false;
+ return !!(value.observation&&typeof value.observation==='object'&&('originalUserRequest' in value||'proposedGoal' in value))||['click','double_click','right_click','middle_click','move','drag','scroll','keys','type','wait','focus_window','hold','move_relative','observe','watch','done','ask','confirm'].includes(value.action);
+}
+function conversationalMessage(message){return message.conversation_source!=='computer'&&!/^umay bilgisayar gorevi\s*:/u.test(fold(message.conversation_title))&&!machineProtocol(message.content);}
 function factsFrom(text){
+ if(machineProtocol(text))return [];
  const value=redact(text).replace(/```[\s\S]*?```|"[^"\n]*"|“[^”]*”|«[^»]*»/g,'').replace(/^\s*>.*$/gm,''),facts=[];
  if(/çevir|tercüme|alıntı|örnek\s+(?:metin|cümle)|şu\s+(?:cümle|metin)|translate|quote/iu.test(value))return facts;
  const name=value.match(/^\s*(?:benim\s+)?adım\s+([^.!?\n,]{2,70})/iu);
@@ -51,6 +60,7 @@ class LocalMemory{
  archiveConversation(conversation,messages=[]){
   if(!conversation?.id)return;const db=this.require(),now=this.now();
   db.prepare("INSERT INTO conversations VALUES(?,?,?,0,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,updated_at=excluded.updated_at,remote_deleted=0").run(String(conversation.id),bounded(conversation.title||'Sohbet',200),conversation.localSource||'chat',conversation.createdAt||now,now);
+  const archived=db.prepare('SELECT title AS conversation_title,source AS conversation_source FROM conversations WHERE id=?').get(String(conversation.id));
   const conversationNode=this.putNode({kind:'conversation',title:bounded(conversation.title||'Sohbet',200),content:'Sohbet arşivi: '+String(conversation.id),key:'conversation:'+conversation.id});
   db.exec('BEGIN');try{
    for(const message of messages){
@@ -66,7 +76,7 @@ class LocalMemory{
     if(previous?.content===content)continue;
     db.prepare('INSERT INTO messages VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET content=excluded.content,status=excluded.status').run(id,String(conversation.id),role,content,message.status||'saved',message.createdAt||now);
     db.prepare('DELETE FROM message_search WHERE id=?').run(id);db.prepare('INSERT INTO message_search(id,content) VALUES(?,?)').run(id,fold(redact(content)));
-    if(role==='user')for(const fact of factsFrom(content)){const node=this.putNode({...fact,sourceMessage:id});this.link(node,conversationNode,'source');}
+    if(role==='user'&&conversationalMessage({...archived,content}))for(const fact of factsFrom(content)){const node=this.putNode({...fact,sourceMessage:id});this.link(node,conversationNode,'source');}
    }
    db.exec('COMMIT');
   }catch(error){db.exec('ROLLBACK');throw error;}
@@ -93,10 +103,13 @@ class LocalMemory{
  }
  link(source,target,relation='related'){this.require().prepare('INSERT OR IGNORE INTO links VALUES(?,?,?)').run(source,target,relation);}
  archiveNode(id){this.require().prepare('UPDATE nodes SET active=0,updated_at=? WHERE id=?').run(this.now(),String(id));this.log('memory','Hafıza kaydı arşivlendi',{details:{id}});}
- search(query='',limit=30){
+ search(query='',limit=30,{forContext=false}={}){
   const db=this.require(),words=fold(query).match(/[\p{L}\p{N}]{2,}/gu)||[],expression=words.slice(0,12).map(w=>'"'+w+'"*').join(' OR ');
   if(!expression)return [];
-  return db.prepare('SELECT m.*,c.title AS conversation_title FROM message_search s JOIN messages m ON m.id=s.id JOIN conversations c ON c.id=m.conversation_id WHERE message_search MATCH ? ORDER BY bm25(message_search) LIMIT ?').all(expression,Math.min(100,limit));
+  const count=Math.min(100,limit);if(forContext&&count<=0)return [];
+  const rows=db.prepare('SELECT m.*,c.title AS conversation_title,c.source AS conversation_source FROM message_search s JOIN messages m ON m.id=s.id JOIN conversations c ON c.id=m.conversation_id WHERE message_search MATCH ? ORDER BY bm25(message_search) LIMIT ?').iterate(expression,forContext?-1:count),result=[];
+  for(const row of rows){if(forContext&&!conversationalMessage(row))continue;const {conversation_source,...message}=row;result.push(message);if(forContext&&result.length>=count)break;}
+  return result;
  }
  snapshot({query='',kind='',limit=100}={}){
   const db=this.require(),filter=kind?' AND kind=?':'',params=kind?[kind,Math.min(200,limit)]:[Math.min(200,limit)];
@@ -108,11 +121,15 @@ class LocalMemory{
  }
  conversation(id){return this.require().prepare('SELECT * FROM messages WHERE conversation_id=? ORDER BY created_at,id').all(String(id));}
  context(query){
-  const db=this.require(),profile=db.prepare("SELECT kind,title,content,updated_at FROM nodes WHERE active=1 AND kind IN('profile','preference','decision') ORDER BY updated_at DESC LIMIT 18").all();
-  const messages=this.search(query,5).map(m=>({date:m.created_at,conversation:m.conversation_title,role:m.role,text:redact(m.content).slice(0,650)}));
+  const db=this.require();
+  // Older archives may already contain facts extracted from planner prompts.
+  // Keep their records visible in the memory UI; exclude their source here.
+  const sourcedNodes=db.prepare("SELECT n.*,m.content AS source_content,c.title AS conversation_title,c.source AS conversation_source FROM nodes n LEFT JOIN messages m ON m.id=n.source_message LEFT JOIN conversations c ON c.id=m.conversation_id WHERE n.active=1 AND n.kind IN('profile','preference','decision','note','device','remote') ORDER BY n.updated_at DESC").all().filter(n=>conversationalMessage({...n,content:n.source_content}));
+  const profile=sourcedNodes.filter(n=>['profile','preference','decision'].includes(n.kind)).slice(0,18).map(({kind,title,content,updated_at})=>({kind,title,content,updated_at}));
+  const messages=this.search(query,5,{forContext:true}).map(m=>({date:m.created_at,conversation:m.conversation_title,role:m.role,text:redact(m.content).slice(0,650)}));
   const operations=db.prepare('SELECT summary,status,created_at FROM operations ORDER BY id DESC LIMIT 5').all();
   const words=fold(query).match(/[\p{L}\p{N}]{3,}/gu)||[];
-  const notes=db.prepare("SELECT id,kind,title,content,source_message,updated_at FROM nodes WHERE active=1 AND kind IN('note','device','remote') ORDER BY updated_at DESC LIMIT 1000").all().map(n=>({...n,score:words.reduce((score,w)=>score+(fold(n.title+' '+n.content).includes(w)?1:0),0)})).filter(n=>n.score>0).sort((a,b)=>b.score-a.score).slice(0,8).map(({score,...n})=>({...n,content:n.content.slice(0,1200)}));
+  const notes=sourcedNodes.filter(n=>['note','device','remote'].includes(n.kind)).slice(0,1000).map(({id,kind,title,content,source_message,updated_at})=>({id,kind,title,content,source_message,updated_at,score:words.reduce((score,w)=>score+(fold(title+' '+content).includes(w)?1:0),0)})).filter(n=>n.score>0).sort((a,b)=>b.score-a.score).slice(0,8).map(({score,...n})=>({...n,content:n.content.slice(0,1200)}));
   return {profile,notes,messages,lastOperations:operations};
  }
  async savePrivate(input){

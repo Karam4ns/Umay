@@ -1,0 +1,58 @@
+'use strict';
+// Narrow, fail-closed overlay on the deployed execution module. Website replies
+// retain their existing processing; only an advertised desktop client opts in.
+function patchDesktopReply(source,{worker=true}={}){
+ const replace=(before,after)=>{if(source.split(before).length!==2)throw Error('Desktop reply anchor changed: '+before.slice(0,100));source=source.replace(before,after);};
+ replace("''::text AS \"draftContent\",id,",`CASE WHEN media_options->>'desktopSpeechDraft'='true' AND status='RUNNING' AND phase='generating' THEN draft_content ELSE '' END AS "draftContent",user_message_id AS "userMessageId",assistant_message_id AS "assistantMessageId",id,`);
+ if(!worker)return source;
+ replace('const desktop_context_1 = require("./desktop-context");','const desktop_context_1 = require("./desktop-context");\nconst desktop_reply_1 = require("./desktop-reply.cjs");');
+ replace('const documentContext = (0, desktop_context_1.deviceContext)(run.media_options) +\n                    codeResults', 'const umayDeviceContext = (0, desktop_context_1.deviceContext)(run.media_options);\n                const documentContext = codeResults');
+ replace('const attachmentMessage = conversation.at(-1);',`const attachmentMessage = conversation.at(-1);
+                if (umayDeviceContext && attachmentMessage) attachmentMessage.content = String(attachmentMessage.content) + umayDeviceContext;`);
+ // Every planner turn already carries goal, original authority, prior steps,
+ // feedback and the current observation. Older screenshots are stale evidence.
+ replace('(0, chat_memory_1.fitHistory)(messages, Math.max(0, capacity -','(0, chat_memory_1.fitHistory)(isDesktop ? messages.slice(-1) : messages, Math.max(0, capacity -');
+ replace('let structuredAnswer = false, reasoningEnabled',`const umayConversation = desktop_reply_1.enabled(run.media_options);
+                const umaySpeechDraft = umayConversation && socialQuestion && !memory.clarification && !knowledgePassages.length;
+                if (umaySpeechDraft) await this.db.connection.query("UPDATE chat_runs SET media_options=media_options||'{\\"desktopSpeechDraft\\":true}'::jsonb WHERE id=$1", [run.id]);
+                let desktopRepair = 0, desktopTools = true, draftWrite = Promise.resolve(), draftWrittenAt = 0;
+                let structuredAnswer = false, reasoningEnabled`);
+ replace('const publishDraft = (content) => {',`const publishDraft = (content) => {
+                    if (umaySpeechDraft) {
+                        const draft = desktop_reply_1.publicDraft(content);
+                        if (draft && performance.now() - draftWrittenAt > 100) {
+                            draftWrittenAt = performance.now();
+                            draftWrite = draftWrite.then(() => this.db.connection.query("UPDATE chat_runs SET draft_content=$2 WHERE id=$1 AND status='RUNNING' AND phase='generating'", [run.id, draft])).catch(() => {});
+                        }
+                    }`);
+ // Declarations are before inference/callback invocation; the callback closure
+ // is only called after umayConversation/umaySpeechDraft initialize above.
+ replace(': message),\n                        stream: streamingEnabled,',`: message).concat(umayConversation ? [{role:"system",content:desktop_reply_1.replyInstructions}] : []),
+                        stream: streamingEnabled,`);
+ replace('...(toolRecovery || textOnly ? { tool_choice: "none" } : {}),','...(toolRecovery || textOnly ? { tool_choice: "none" } : {}),\n                        ...(umayConversation && !socialQuestion && desktopTools ? desktop_reply_1.toolOptions : {}),');
+ replace('if (knownOptions?.effort === "low")\n                    reasoningEffort = "low";',`if (knownOptions?.effort === "low")
+                    reasoningEffort = "low";
+                if ((isDesktop || umayConversation && socialQuestion) && desktop_reply_1.noThoughtsAllowed(optionKey)) reasoningEffort = "none";`);
+ replace('catch (error) {\n                            if (error instanceof chat_provider_1.ChatProviderError &&',`catch (error) {
+                            if (reasoningEffort === "none" && error instanceof chat_provider_1.ChatProviderError && error.message === "PROVIDER_REJECTED" && [400,422].includes(error.status)) {desktop_reply_1.rejectNoThoughts(optionKey);reasoningEffort="minimal";optionRetries++;continue;}
+                            if (umayConversation && desktopTools && error instanceof chat_provider_1.ChatProviderError && ["tools","tool_choice"].includes(error.parameter || "")) {desktopTools=false;continue;}
+                            if (error instanceof chat_provider_1.ChatProviderError &&`);
+ // Some providers buffer an entire reasoning pass when json_object is forced.
+ // Start with the explicit contract plus strict parsing; use schema mode only
+ // for the single bounded repair, preserving native streaming on the fast path.
+ replace('...(structuredAnswer\n                            ? { response_format:', '...((structuredAnswer || umayConversation && desktopRepair > 0)\n                            ? { response_format:');
+ replace('// Clear previous tool/partial attempts before processing another round.','// Clear previous tool/partial attempts before processing another round.\n                    await draftWrite;');
+ replace('const text = (isDesktop || desktop_context_1.desktopChatTask(message?.content, run.media_options)) ?', 'const text = (isDesktop || umayConversation || desktop_context_1.desktopChatTask(message?.content, run.media_options)) ?');
+ replace('const message = result.choices?.[0]?.message;',`let message = result.choices?.[0]?.message;
+                    const desktopTool = umayConversation ? desktop_reply_1.toolTask(message) : null;
+                    if (desktopTool) {message={content:desktopTool};trace.stages.push({stage:"desktop_function_handoff",executed:false});}`);
+ replace('answer = text;\n                    {',`if (umayConversation && !profileAcknowledgement && !memory.clarification && !desktop_context_1.desktopChatTask(text, run.media_options) && desktop_reply_1.publicReply(text) === null) {
+                        if (desktopRepair++ >= 1) throw new chat_provider_1.ChatProviderError("INVALID_PROVIDER_RESPONSE");
+                        conversation.push({role:"assistant",content:text},{role:"system",content:"Your reply violated the app response contract. No task was started. Return the correct JSON object; ordinary chat uses umayChatReply and actual device operations use umayComputerTask. Do not claim inability or completed work."});
+                        continue;
+                    }
+                    answer = umayConversation ? (desktop_reply_1.publicReply(text) ?? text) : text;
+                    {`);
+ return source;
+}
+module.exports={patchDesktopReply};

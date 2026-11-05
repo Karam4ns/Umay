@@ -110,7 +110,7 @@ function Get-Observation {
      if($rectangle.Width -gt 0 -and $rectangle.Height -gt 0){
       $value='';$pattern=$null
       if($element.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern,[ref]$pattern)){$value=[string]$pattern.Current.Value;if($value.Length -gt 600){$value=$value.Substring(0,600)}}
-      $items.Add(@{id=$items.Count;name=$name;value=$value;type=$p.ControlType.ProgrammaticName;automationId=$p.AutomationId;bounds=@{x=$rectangle.X;y=$rectangle.Y;width=$rectangle.Width;height=$rectangle.Height}})
+      $items.Add(@{id=$items.Count;name=$name;value=$value;focused=[bool]$p.HasKeyboardFocus;type=$p.ControlType.ProgrammaticName;automationId=$p.AutomationId;bounds=@{x=$rectangle.X;y=$rectangle.Y;width=$rectangle.Width;height=$rectangle.Height}})
      }
     }
     if($depth -lt 8){$child=$walker.GetFirstChild($element);$count=0;while($null -ne $child -and $count -lt 100){$queue.Enqueue(@($child,$depth+1));$child=$walker.GetNextSibling($child);$count++}}

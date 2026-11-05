@@ -772,3 +772,7 @@ Kullanıcı ayrı bilgisayar sayfası istemediğini düzeltti. Sayfa ve mod seç
 ## [2026-11-05] Sesle genel bilgisayar kullanımı — 0.5.0
 
 Kullanıcının verdiği uygulama/site/kodlama/video/oyun örnekleri kapsam sınırı değildir. Genel ekran→karar→gerçek giriş→doğrulama döngüsü; yerel sesli duraklat/devam, uzun iş izleme, süreli basılı giriş ve göreli fare. Ayrı bilgisayar sayfası yok; mevcut sohbet ve roller sürer. Sıralı plan, arayüzler ve doğrulama ölçütleri: `Docs/full-computer-control.md`.
+
+## [2026-11-05] Gerçek sohbet ve ses sorunları — 0.5.1
+
+Gerçek kayıtlarla geçici STT iptali, eski yanıta bağlanma, teknik hafızanın sohbeti kirletmesi, cihaz bağlamının belge sayılması ve eski frontend yürütücüsünün yeni worker'larla yarışması giderilir. Konuşma/model rolleri korunur; görev devri gerçek işlev/JSON protokolüyle doğrulanır. Önce testle hata, sonra düzeltme, izole HTTP/DB, gerçek ses/Windows, canlı model, paket ve dağıtım denetimi sırası izlenir. Kapsam ve kanıtlar: `Docs/chat-voice-hotfix.md`.

@@ -10,6 +10,7 @@ app.commandLine.appendSwitch('use-file-for-fake-audio-capture',path.resolve('tes
 const deadline=setTimeout(()=>{console.error('FAIL conversation timeout');app.exit(1);},60000);
 require('../src/main.cjs');
 app.on('browser-window-created',(_e,window)=>{
+ window.webContents.setAudioMuted(true); // Exercise WebAudio without sounding into the user's active assistant microphone.
  window.on('show',()=>window.hide());window.webContents.setBackgroundThrottling(false);
  window.webContents.once('did-finish-load',async()=>{
  try{
@@ -36,7 +37,9 @@ app.on('browser-window-created',(_e,window)=>{
    if(firstAudioAt&&firstPlaybackAt)return resolve({listening,firstAudioMs:firstAudioAt-assistantAt,firstPlaybackMs:firstPlaybackAt-assistantAt,messages:document.getElementById('messages').children.length,status:document.getElementById('status').textContent});
    if(Date.now()>end)return reject(Error('Missing reply/audio: '+document.getElementById('status').textContent));setTimeout(poll,20);
   };poll();})`);
-  assert.ok(posted,JSON.stringify({result,routes}));assert.match(posted.content,/not.*defter/i);assert.equal(dispatches,1);assert.equal(cancels,0);assert.equal(result.messages,4);assert.equal(result.listening,true);assert.ok(result.firstAudioMs<2500,JSON.stringify(result));
+  assert.ok(posted,JSON.stringify({result,routes}));assert.match(posted.content,/not.*defter/i);assert.equal(dispatches,1);assert.equal(cancels,0);assert.ok(result.messages>=3);assert.equal(result.listening,true);assert.ok(result.firstAudioMs<2500,JSON.stringify(result));
+  await js(`new Promise((resolve,reject)=>{const end=Date.now()+15000;const poll=()=>{if([...document.querySelectorAll('.message.assistant')].some(n=>n.textContent==='Görev tamamlandı. Planın kaydedildi.'))return resolve();if(Date.now()>end)return reject(Error('Final task reply missing'));setTimeout(poll,30);};poll();})`);
+  assert.equal(await js("document.getElementById('messages').children.length"),4);
   console.log(JSON.stringify(result));console.log('PASS actual microphone -> Seda -> ordinary chat -> automatic computer dispatch -> final reply -> Pocket TTS, microphone remains open; no mode/page');
   await js('(async()=>{await liveRecognizer.close();releaseMicrophone();await stop();await window.umay.speech("status");})()');clearTimeout(deadline);app.quit();
  }catch(error){console.error(error);clearTimeout(deadline);app.exit(1);}
