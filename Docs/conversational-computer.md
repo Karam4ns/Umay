@@ -43,3 +43,7 @@ Yedek ve aday: `/root/umay-computer-1793872650`. Mevcut image'lar üzerinde sade
 `dist/Umay Setup 0.4.3.exe`:478606221 bayt; SHA256 `996af8adb3da7141ac9d96fb783f919d7d92e5e50798b80d634c4be2b0a748a4`. Çıktı `dist/chat-0.4.3` altında üretildi ve kurulum dosyası dist köküne kopyalandı. Doğrulama: `node tests/verify-computer-package.cjs dist/chat-0.4.3/win-unpacked/resources`. Önceki kullanıcı kararı gereği imzasız test paketi.
 
 Canlı dış modellerin doğal dil/işlem kalitesi her modelde aynı değildir; bu çalışma sağlayıcıyı değiştirmez. Mevcut site istek sınırları, görev adım/süre sınırları, F8 ve gerçek Windows UAC gerekliliği korunur. Standart kullanıcıdan UAC kabul/ret penceresi önceki oturumda doğrulanmadı; yönetici penceresi ve helper kapanışı0.4.2'de gerçek Windows'ta doğrulanmıştı.
+
+## 0.4.4 — gerçek giriş katmanı ve canlı model kabulü
+
+0.4.3 testleri gerçek frontend API girişinin güncellendiğini kanıtlamıyordu. 10203'teki servis API'yi frontend'e aktaran bir geçittir; frontend DTO'su eski kaldığı için cihaz bağlamı reddedilmiş, istemci sessiz uyumluluk denemesinde normal sohbete dönmüştür. Bu katman düzeltildi ve sessiz düşürme kaldırıldı. Canlı modelde gözlenen ekran kimliği/sonuç alanı eksikleri ve adlandırma tamamlanmadan başarı bildirimi için uyumluluk ve salt okunur sonuç doğrulaması eklendi. Ayrıntılar ve gerçek kabul kapsamı: [computer-ingress-fix.md](computer-ingress-fix.md).

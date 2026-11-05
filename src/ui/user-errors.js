@@ -1,6 +1,7 @@
 (function(root){
  const catalog=Object.create(null);
  function add(codes,title,message,enTitle,enMessage){for(const code of codes.split(' '))catalog[code]={title,message,enTitle,enMessage};}
+ add('DESKTOP_CAPABILITY_UNAVAILABLE','Cihaz bağlantısı kullanılamıyor','Sohbet sunucusu cihaz yeteneklerini kabul etmedi. İşlem başlatılmadı. Uygulamayı güncelleyip yeniden deneyin.','Device connection unavailable','The chat service did not accept device capabilities. No action was started. Update the app and try again.');
  add('INSUFFICIENT_TOKENS','Token limitiniz yetersiz','Bu mesajı yanıtlamak için kullanılabilir tokenınız yeterli değil. Hesabınızdaki token kullanımını ve bekleyen işlemleri kontrol edin.','Not enough available tokens','There are not enough available tokens for this message. Check your token usage and pending requests.');
  add('TOKEN_USAGE_RECONCILIATION_REQUIRED TOKEN_RECONCILIATION_REQUIRED','Token kullanımınız kontrol ediliyor','Önceki bir işlemin token kullanımı henüz kesinleşmedi. Bekleyen işlemlerinizi kontrol edin; sorun sürerse destekle iletişime geçin.','Token usage is being checked','Usage from a previous request is still pending. Check your pending requests or contact support if this continues.');
  add('SUBSCRIPTION_TOKEN_LIMIT','Kullanım limitinize ulaştınız','Aboneliğinizin kullanım sınırına ulaştınız. Bir süre sonra yeniden deneyin veya planınızın limitlerini kontrol edin.','Usage limit reached','Try again later or check the usage limits of your plan.');

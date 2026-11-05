@@ -403,3 +403,15 @@ Detaylar ve dış model/Windows/çoklu monitör test sınırları computer-model
 - [x] Gerçek Windows giriş/F8; paket içinden giriş ve sohbet/ayarlar/hafıza/konum/tema regresyonları.
 - [x] İzole HTTP/DB normal sohbet+handoff testleri;10203 chat ve2worker healthy; controller/ortam/port korundu.
 - [x] Windows0.4.3 installer ve38 paket dosyası/native/4 ses modülü bütünlüğü.
+
+## [2026-11-05] Sohbet komutlarının gerçek işlemlere dönüşmesi — 0.4.4
+
+- [x] Kullanıcının son klasör konuşması ve kurulu0.4.3 kaynakları incelendi; boş run cihaz alanları ve frontend DTO400 hatası doğrulandı.
+- [x] 10203 geçidinin yönlendirdiği gerçek frontend girişi düzeltildi; izole HTTP/DB RED→GREEN; port/ortam/mount/public varlık bütünlüğü ve4servis sağlığı doğrulandı.
+- [x] Cihaz yeteneklerinin sessizce kaldırılması engellendi; kullanıcıya açık uyarı.
+- [x] Eksik ekran kimliği, done/summary uyumluluğu, Windows kısayolları ve sınırlı geçersiz planner yanıtı tekrarı.
+- [x] Bağımsız ve açık Desktop klasörü isteğinde salt okunur dosya sistemi sonkoşulu; tamamlanmadan başarı yok; birleşik görevler kapsam dışı.
+- [x] 150 otomatik test; sohbet/soru/onay/izin/rol ve ayarlar/hafıza/tema regresyonları; gerçek STT→sohbet→görev→TTS akışı.
+- [x] Gerçek Alfa1.2/Windows testinde `dosya` klasörü oluştu. Kaynak ve son paket, kontrollü sağlayıcı + gerçek Windows klavye girişleriyle ayrı yeni klasörler oluşturup doğrulanmış görev tamamladı.
+- [x] 0.4.4 installer,39 kaynak dosyası/native/4 ses modülü bütünlüğü; bağımsız inceleme bulguları giderildi. Geçici test oturumu iptal edildi.
+- [ ] Son dış model tekrarının tam geçişi: `TOKEN_USAGE_RECONCILIATION_REQUIRED` yeni çağrıyı engelledi. Uyarı gösteriliyor; muhasebe kayıtları elle değiştirilmedi. Ayrıntılar: `Docs/computer-ingress-fix.md`.

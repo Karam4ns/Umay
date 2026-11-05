@@ -13,12 +13,36 @@ test('accessibility physical bounds are not multiplied by display DPI',async()=>
  const f=control();f.control.enable(true);const view=await f.control.observe();await f.control.perform({action:'click',elementId:0},view.id);assert.equal(f.calls.at(-1).params.x,250);assert.equal(f.calls.at(-1).params.y,120);
 });
 test('key validation allows useful combinations and rejects arbitrary native commands',()=>{assert.deepEqual(keyCodes(['CTRL','A']),[17,65]);assert.throws(()=>keyCodes(['RUN:rm']));assert.throws(()=>parseAction('{"action":"powershell"}'));});
+test('a planner completion summary is displayed without another model round trip when message is omitted',()=>{
+ assert.equal(parseAction('{"action":"done","summary":"Klasör oluşturuldu."}').message,'Klasör oluşturuldu.');
+ assert.throws(()=>parseAction('{"action":"done"}'),/eksik/);assert.equal(parseAction('{"action":"done","summary":"Özet","message":"Asıl sonuç"}').message,'Asıl sonuç');
+});
 function agent(actions){
  const f=control();f.control.enable(true);let step=0,posted,version=1,clock=1000;const logs=[];const memory={epoch:1,context:()=>({}),archiveConversation(){},log:(...args)=>logs.push(args)};
  const api=async(route,body)=>{if(route==='/site/chat/conversations')return {conversation:{id:'c',version}};if(route.endsWith('/messages')){posted=body;return {run:{id:'r'+step}};}if(route.includes('/runs/'))return {run:{status:'COMPLETED'}};return {conversation:{id:'c',version:++version},messages:[{role:'assistant',content:JSON.stringify(actions[step++])}]};};
  const planner=new ComputerAgent({control:f.control,api,memory,now:()=>clock,delay:async ms=>clock+=ms});return {...f,planner,memory,logs,getPosted:()=>posted};
 }
 const model={id:'model',source:'PERSONAL',categories:['vision']};
+test('an unverified completion must finish the pending rename before success and never retype blindly',async()=>{
+ const f=agent([{action:'type',text:'dosya'},{action:'done',message:'Oluşturuldu.'},{action:'keys',keys:['ENTER']},{action:'done',message:'Oluşturuldu.'}]);
+ f.planner.verifyCompletion=async()=>({verified:f.calls.some(c=>c.method==='keys'),message:'Klasör dosya sisteminde yok; adlandırmayı Enter ile onayla.'});
+ assert.equal((await f.planner.run('Masaüstüne dosya adında klasör oluştur',model)).status,'completed');assert.equal(f.calls.filter(c=>c.method==='text').length,1);assert.equal(f.calls.filter(c=>c.method==='keys').length,1);assert.equal(f.calls.filter(c=>c.method==='observe').length,3);
+});
+test('an independently verified single-step outcome completes without another model guess or unnecessary question',async()=>{
+ const f=agent([{action:'keys',keys:['ENTER']},{action:'ask',message:'Klasör zaten var, ne yapayım?'}]);f.planner.verifyCompletion=async()=>({verified:f.calls.some(c=>c.method==='keys'),message:'İstenen klasör doğrulandı.'});
+ const result=await f.planner.run('Masaüstüne dosya adında klasör oluştur',model);assert.equal(result.status,'completed');assert.equal(result.message,'İstenen klasör doğrulandı.');assert.equal(JSON.parse(f.getPosted().content).step,1);
+});
+test('a rejected planner response is re-observed and retried without replaying input or masking billing errors',async()=>{
+ const f=agent([{action:'type',text:'Yeni klasör'},{action:'done',message:'Tamamlandı.'}]),api=f.planner.api;let failed=false,version=1,failedDetail=false;
+ f.planner.api=async(route,body)=>{if(route.endsWith('/messages')){assert.equal(body.expectedVersion,version,'retry must refresh accepted conversation version');version++;}if(route.includes('/runs/')&&!failed){failed=true;failedDetail=true;return {run:{status:'FAILED',errorCode:'ANSWER_QUALITY_FAILED'}};}if(!body&&route==='/site/chat/conversations/c'&&failedDetail){failedDetail=false;return {conversation:{id:'c',version},messages:[]};}const result=await api(route,body);if(!body&&route==='/site/chat/conversations/c')result.conversation.version=version;return result;};
+ assert.equal((await f.planner.run('Görev',model)).status,'completed');assert.equal(f.calls.filter(c=>c.method==='text').length,1);assert.equal(f.calls.filter(c=>c.method==='observe').length,3);
+ const billing=agent([]);billing.planner.api=async(route,body)=>route.includes('/runs/')?{run:{status:'FAILED',errorCode:'INSUFFICIENT_TOKENS'}}:api(route,body);assert.equal((await billing.planner.run('Görev',model)).message,'INSUFFICIENT_TOKENS');assert.equal(billing.calls.filter(c=>c.method!=='observe').length,0);
+});
+test('an omitted coordinate display binds only to the single screenshot actually supplied to the vision model',async()=>{
+ const f=agent([{action:'right_click',x:250,y:100},{action:'done',message:'Tamamlandı.'}]);
+ const result=await f.planner.run('Masaüstünde klasör oluştur',model);assert.equal(result.status,'completed');assert.equal(f.calls.filter(c=>c.method==='click').length,1);assert.equal(f.calls.find(c=>c.method==='click').params.button,'right');
+ const text=agent([{action:'right_click',x:250,y:100},{action:'done',message:'Tamamlandı.'}]);assert.equal((await text.planner.run('Görev',{...model,categories:['chat']})).status,'failed');assert.equal(text.calls.filter(c=>c.method==='click').length,0);
+});
 test('computer task observes, performs exactly one action and verifies again before done',async()=>{
  const f=agent([{action:'type',text:'Merhaba',summary:'Metin yazılıyor'},{action:'done',message:'Metin ekranda doğrulandı.'}]);const result=await f.planner.run('Metin yaz',model);assert.equal(result.status,'completed');assert.deepEqual(f.calls.map(c=>c.method),['observe','text','observe']);assert.ok(f.getPosted().desktopImage);assert.equal(f.getPosted().desktopMode,'computer');assert.ok(f.logs.some(l=>l[0]==='computer-step'));
 });
@@ -101,4 +125,8 @@ test('a pending administrator permission is stopped and cannot be replaced by an
 test('chat planner receives original authorization intact and the inferred goal separately',async()=>{
  const f=agent([{action:'done',message:'Doğrulandı.'}]),request='Raporu aç. '+('Başka hiçbir işlem yapma. '.repeat(150));await f.planner.run('Raporu aç ve dosyaları sil',model,{conversationId:'chat',userRequest:request});
  const prompt=JSON.parse(f.getPosted().content);assert.equal(prompt.originalUserRequest,request);assert.equal(prompt.proposedGoal,'Raporu aç ve dosyaları sil');assert.equal(prompt.task,undefined);
+});
+test('planner receives Windows keyboard affordances so a folder request need not use uncertain menu coordinates',async()=>{
+ const f=agent([{action:'done',message:'Doğrulandı.'}]);await f.planner.run('Görev',model);
+ const prompt=JSON.parse(f.getPosted().content);assert.deepEqual(prompt.capabilities.windowsShortcuts.newFolderOnDesktopOrExplorer,['CTRL','SHIFT','N']);assert.deepEqual(prompt.capabilities.windowsShortcuts.showDesktop,['WIN','D']);
 });

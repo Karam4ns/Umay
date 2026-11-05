@@ -5,13 +5,14 @@ const {EnvironmentService}=require('./environment-service.cjs');
 const {NativeDesktop,ComputerControl}=require('./computer-control.cjs');
 const {ComputerAgent}=require('./computer-agent.cjs');
 const {chatComputerTask}=require('./chat-computer-task.cjs');
+const {verifyComputerCompletion}=require('./computer-completion.cjs');
 class DeviceServices{
  constructor({directory,api,encrypt,decrypt,screen,capture,notify,publish=()=>{},onComputerStart=()=>{},onComputerFinish=()=>{},excludedWindowHandles=()=>[],chooseRoots,saveFile,openSource=()=>{},defaultRoots=[],native=new NativeDesktop(),background=true}){
   Object.assign(this,{api,publish,chooseRoots,saveFile,openSource,defaultRoots,background});this.indexCancelled=false;this.indexing=null;this.bridgeSupported=null;
   this.memory=new LocalMemory(path.join(directory,'memory'),{encrypt,decrypt});
   this.environment=new EnvironmentService({memory:this.memory,locate:()=>native.request('location'),notify,publish});
   this.control=new ComputerControl({native,capture,screen,excludedWindowHandles});
-  this.agent=new ComputerAgent({control:this.control,api,memory:this.memory,publish:event=>{if(event.event==='computer-task'){const task=this.agent.task;if(task&&task.status!=='running')this.recordComputerLine(task,'assistant',task.message);}publish(event);},onStart:onComputerStart,onFinish:()=>{const status=this.agent.task?.status;if(!status||['completed','failed','stopped'].includes(status))void native.release?.();onComputerFinish();}});
+  this.agent=new ComputerAgent({control:this.control,api,memory:this.memory,verifyCompletion:task=>verifyComputerCompletion(task.origin?task.origin.userRequest:task.goal,{desktop:this.defaultRoots[0]}),publish:event=>{if(event.event==='computer-task'){const task=this.agent.task;if(task&&task.status!=='running')this.recordComputerLine(task,'assistant',task.message);}publish(event);},onStart:onComputerStart,onFinish:()=>{const status=this.agent.task?.status;if(!status||['completed','failed','stopped'].includes(status))void native.release?.();onComputerFinish();}});
  }
  recordComputerLine(task,role,content){
   const id=task?.origin?.conversationId;if(!id||!content||task.epoch!==this.memory.epoch||!this.memory.account)return;
@@ -50,14 +51,15 @@ class DeviceServices{
   if(!this.memory.account)return this.api(route,body);const epoch=this.memory.epoch,match=route.match(/^\/site\/chat\/conversations\/([^/]+)\/messages$/);let payload=body;
   if(match&&body){
    const context=await this.prepareContext(body.content);this.memory.check(epoch);this.memory.outgoing(match[1],body.requestId,body.content);
-   if(this.bridgeSupported!==false)payload={...body,desktopMode:'context',desktopContext:context};
+   payload={...body,desktopMode:'context',desktopContext:context};
   }
   let result;
   try{result=await this.api(route,payload);}
   catch(error){
-   if(match&&payload!==body&&error.message==='INVALID_REQUEST'){
-    this.memory.check(epoch);this.bridgeSupported=false;this.publish({event:'device-warning',message:'Yerel hafıza kaydı çalışıyor; modele cihaz bağlamı aktarmak için sunucu güncellemesi gerekiyor.'});result=await this.api(route,body);
-   }else{if(epoch===this.memory.epoch&&match&&body)this.memory.outgoing(match[1],body.requestId,body.content,'failed');if(error.message==='LOGIN_REQUIRED')this.activate(null);throw error;}
+   if(epoch===this.memory.epoch&&match&&body)this.memory.outgoing(match[1],body.requestId,body.content,'failed');
+   if(error.message==='LOGIN_REQUIRED')this.activate(null);
+   if(match&&payload!==body&&error.message==='INVALID_REQUEST')throw Error('DESKTOP_CAPABILITY_UNAVAILABLE');
+   throw error;
   }
   this.memory.check(epoch);
   if(match&&body){this.memory.outgoing(match[1],body.requestId,body.content,'submitted');if(payload!==body&&this.bridgeSupported!==false)this.bridgeSupported=true;this.memory.log('chat-send','Kullanıcı mesajı kaydedildi',{details:{conversationId:match[1]}});}

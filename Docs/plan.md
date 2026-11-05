@@ -764,3 +764,7 @@ Gereken görevde permission duraklaması, gerçek Windows runas/UAC, tek kullan�
 
 ## [2026-11-05] Sohbetten doğal bilgisayar görevi — 0.4.3
 Kullanıcı ayrı bilgisayar sayfası istemediğini düzeltti. Sayfa ve mod seçimi kaldırıldı; normal yazılı/sesli sohbet modeli aynı çağrıda gerektiğinde doğrulanmış görev devri yapar. Computer rolü, soru/izin/sonuç sohbet içinde; tekrar yürütme ve geçmiş/saat kayması korumaları. Ayrıntılar conversational-computer.md içinde.
+
+## [2026-11-05] Gerçek API girişi ve doğrulanmış sonuç — 0.4.4
+
+10203 geçidinin kullandığı frontend DTO/controller güncellendi; cihaz yeteneklerinin sessizce kaldırılması kaldırıldı. Canlı modelde görülen eksik ekran/sonuç alanları ve geçersiz yanıtlar toparlanır. Açık, bağımsız Desktop klasörü isteği gerçek dosya sistemi sonucuyla tamamlanır; birleşik görevlerin kapsamı daraltılmaz. Testler/kurulum ve son canlı tekrarın token muhasebesi engeli computer-ingress-fix.md dosyasında kayıtlıdır.

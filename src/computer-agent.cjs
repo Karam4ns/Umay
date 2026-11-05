@@ -5,12 +5,13 @@ function parseAction(text){
  const source=String(text||'').trim().replace(/^```(?:json)?\s*|\s*```$/gi,'');let value;
  try{value=JSON.parse(source);}catch{throw Error('Model bilgisayar işlemini geçerli biçimde yanıtlamadı. Başka bir model seçip yeniden deneyebilirsiniz.');}
  if(!value||typeof value!=='object'||Array.isArray(value)||!['done','ask','confirm','observe',...INPUT_ACTIONS].includes(value.action))throw Error('Model desteklenmeyen bir bilgisayar işlemi istedi.');
+ if(value.action==='done'&&!value.message&&typeof value.summary==='string'&&value.summary.trim())value.message=value.summary;
  if(['done','ask'].includes(value.action)&&(!value.message||typeof value.message!=='string'))throw Error('Modelin görev açıklaması eksik.');
  if(value.action==='confirm'&&(!value.nextAction||!INPUT_ACTIONS.has(value.nextAction.action)))throw Error('Onaylanacak işlem geçersiz.');return value;
 }
 function visionModel(model){return (model.categories||[]).some(c=>/^(vision|multimodal|image[-_ ]to[-_ ]text|görsel anlama)$/i.test(typeof c==='string'?c:c?.name||c?.slug||''));}
 class ComputerAgent{
- constructor({control,api,memory,publish=()=>{},onStart=()=>{},onFinish=()=>{},now=()=>Date.now(),delay=ms=>new Promise(r=>setTimeout(r,ms))}){Object.assign(this,{control,api,memory,publish,onStart,onFinish,now,delay});this.task=null;this.sequence=0;}
+ constructor({control,api,memory,publish=()=>{},onStart=()=>{},onFinish=()=>{},verifyCompletion=async()=>null,now=()=>Date.now(),delay=ms=>new Promise(r=>setTimeout(r,ms))}){Object.assign(this,{control,api,memory,publish,onStart,onFinish,verifyCompletion,now,delay});this.task=null;this.sequence=0;}
  state(){const task=this.task;return task?{id:task.id,status:task.status,goal:task.goal,origin:task.origin||null,step:task.steps.length,message:task.message||'',requiresInput:task.requiresInput||null}:null;}
  check(task){if(this.task!==task||task.sequence!==this.sequence||task.epoch!==this.memory.epoch||!this.control.enabled)throw Error('Bilgisayar görevi durduruldu.');}
  emit(){this.publish({event:'computer-task',task:this.state()});}
@@ -42,9 +43,10 @@ class ComputerAgent{
   task.recoveries++;task.feedback='Önceki işlem uygulanmadı: '+error.message+'. Güncel gözlemi incele; geçerli tek bir işlem seç. Başarı iddia etme.';
   task.message='Ekran değişti; yeniden inceleniyor…';this.emit();return true;
  }
+ complete(task,message){this.check(task);task.status='completed';task.message=message;this.memory.archiveConversation({id:task.id,title:task.goal.slice(0,100),localSource:'computer'},[{id:randomUUID(),role:'assistant',content:message}]);this.memory.log('computer-task',message,{details:{taskId:task.id,steps:task.steps.length}});this.emit();this.onFinish();return this.state();}
  async loop(task,start=false){
   try{
-   if(start){await this.onStart();this.check(task);this.emit();}
+   if(start){task.initialCompletion=await this.verifyCompletion(task);this.check(task);if(task.initialCompletion?.verified===true)return this.complete(task,task.initialCompletion.message);await this.onStart();this.check(task);this.emit();}
    if(!task.conversation){const created=await this.api('/site/chat/conversations',{source:task.model.source,modelId:task.model.id,title:'Umay bilgisayar görevi: '+task.goal.slice(0,110),requestId:randomUUID()});this.check(task);task.conversation=created.conversation;}
    while(task.steps.length<120&&this.now()-task.createdAt<30*60000){
     this.check(task);task.message='Ekran inceleniyor…';this.emit();
@@ -52,7 +54,7 @@ class ComputerAgent{
     const images=observed.screenshots;
     const selected=images.find(s=>s.displayId===task.selectedDisplay)||images.find(s=>observed.elements.some(e=>{const p=this.control.screen.screenToDipPoint?.({x:Math.round(e.bounds.x+e.bounds.width/2),y:Math.round(e.bounds.y+e.bounds.height/2)})||e.bounds;return this.control.screen.getDisplayNearestPoint?.(p)?.id==s.displayId;}))||images[0];
     task.inspectedDisplays??=new Set();if(selected&&visionModel(task.model))task.inspectedDisplays.add(selected.displayId);
-    const prompt={proposedGoal:task.goal,originalUserRequest:task.origin?task.origin.userRequest:task.goal,userAuthorization:task.userAuthorization?.slice(-6)||[],step:task.steps.length+1,previousSteps:task.steps.slice(-6),userFeedback:task.feedback||null,capabilities:{actions:[...INPUT_ACTIONS,'observe','done','ask','confirm'],scrollAxes:['vertical','horizontal'],windowAction:'focus_window with windowHandle from observation.windows',dragEnd:'endDisplayId is optional; inspect the destination monitor first'},observation:{id:observed.id,title:observed.title,windows:observed.windows||[],displayId:selected?.displayId,screenshotSize:selected?{width:selected.width,height:selected.height}:null,displays:observed.displays,elements:observed.elements.slice(0,100).map(e=>({...e,name:e.name.slice(0,160)}))},hasImage:visionModel(task.model)&&!!selected};
+    const prompt={proposedGoal:task.goal,originalUserRequest:task.origin?task.origin.userRequest:task.goal,userAuthorization:task.userAuthorization?.slice(-6)||[],step:task.steps.length+1,previousSteps:task.steps.slice(-6),userFeedback:task.feedback||null,capabilities:{actions:[...INPUT_ACTIONS,'observe','done','ask','confirm'],windowsShortcuts:{showDesktop:['WIN','D'],runDialog:['WIN','R'],addressBar:['CTRL','L'],newFolderOnDesktopOrExplorer:['CTRL','SHIFT','N'],rename:['F2']},scrollAxes:['vertical','horizontal'],windowAction:'focus_window with windowHandle from observation.windows',dragEnd:'endDisplayId is optional; inspect the destination monitor first'},observation:{id:observed.id,title:observed.title,windows:observed.windows||[],displayId:selected?.displayId,screenshotSize:selected?{width:selected.width,height:selected.height}:null,displays:observed.displays,elements:observed.elements.slice(0,100).map(e=>({...e,name:e.name.slice(0,160)}))},hasImage:visionModel(task.model)&&!!selected};
     task.feedback=null;
     while(JSON.stringify(prompt).length>11200&&prompt.observation.elements.length>5)prompt.observation.elements.pop();
     while(JSON.stringify(prompt).length>11700&&prompt.observation.windows.length>1)prompt.observation.windows.pop();
@@ -63,15 +65,20 @@ class ComputerAgent{
     const request={content:JSON.stringify(prompt),requestId:randomUUID(),expectedVersion:Number(task.conversation.version),kind:'CHAT',desktopMode:'computer',desktopContext:JSON.stringify({clock:new Date(this.now()).toISOString(),memory:this.memory.context(task.goal)}).slice(0,12000),...(prompt.hasImage?{desktopImage:selected.image}:{})};
     task.message='Modelin işlem yanıtı bekleniyor…';this.emit();const posted=await this.api('/site/chat/conversations/'+task.conversation.id+'/messages',request);task.lastRun=posted.run.id;task.messageTimes.push(this.now());
     if(task.sequence!==this.sequence){await this.api('/site/chat/runs/'+task.lastRun+'/cancel',{}).catch(()=>{});throw Error('Bilgisayar görevi durduruldu.');}this.check(task);
-    const deadline=this.now()+180000;
-    while(true){this.check(task);const {run}=await this.api('/site/chat/runs/'+task.lastRun);this.check(task);if(!['QUEUED','RUNNING'].includes(run.status)){if(!['COMPLETED','SUCCEEDED'].includes(run.status))throw Error(run.errorCode||'MODEL_UNAVAILABLE');break;}if(this.now()>deadline)throw Error('MODEL_TIMEOUT');await this.wait(task,300);}
-    task.lastRun=null;const detail=await this.api('/site/chat/conversations/'+task.conversation.id);this.check(task);task.conversation=detail.conversation;
+    const deadline=this.now()+180000;let retryPlanner=false;
+    while(true){this.check(task);const {run}=await this.api('/site/chat/runs/'+task.lastRun);this.check(task);if(!['QUEUED','RUNNING'].includes(run.status)){if(!['COMPLETED','SUCCEEDED'].includes(run.status)){const error=Error(run.errorCode||'MODEL_UNAVAILABLE');if(['ANSWER_QUALITY_FAILED','INVALID_PROVIDER_RESPONSE'].includes(run.errorCode)){error.code='PLANNER_INVALID';retryPlanner=this.recover(task,error);if(retryPlanner)break;}throw error;}break;}if(this.now()>deadline)throw Error('MODEL_TIMEOUT');await this.wait(task,300);}
+    task.lastRun=null;const detail=await this.api('/site/chat/conversations/'+task.conversation.id);this.check(task);task.conversation=detail.conversation;if(retryPlanner)continue;
     const response=[...detail.messages].reverse().find(m=>String(m.role).toLowerCase()==='assistant');let action;try{action=parseAction(response?.content);}catch(error){error.code='PLANNER_INVALID';if(this.recover(task,error))continue;throw error;}
     task.message=String(action.summary||'İşlem uygulanıyor…').slice(0,500);this.emit();
     if(action.action==='done'){
-     task.status='completed';task.message=action.message;this.memory.archiveConversation({id:task.id,title:task.goal.slice(0,100),localSource:'computer'},[{id:randomUUID(),role:'assistant',content:action.message}]);this.memory.log('computer-task',action.message,{details:{taskId:task.id,steps:task.steps.length}});this.emit();this.onFinish();return this.state();
+     const verified=await this.verifyCompletion(task);this.check(task);if(verified?.verified===false){const error=Object.assign(Error(verified.message),{code:'PLANNER_INVALID'});if(this.recover(task,error))continue;throw error;}
+     return this.complete(task,verified?.verified===true?verified.message:action.message);
     }
     if(['ask','confirm'].includes(action.action)){task.status=action.action==='ask'?'question':'confirmation';task.requiresInput=action.action==='confirm'?{summary:action.summary,nextAction:action.nextAction}:action.message;task.message=action.message||action.summary;this.emit();this.onFinish();return this.state();}
+    // Only one screenshot is sent in this model turn. Coordinates without an
+    // explicit monitor belong to that exact image, never another display. Keep
+    // explicit IDs, freshness, bounds and the text-only restriction intact.
+    if(prompt.hasImage&&action.displayId==null&&Number.isFinite(action.x)&&Number.isFinite(action.y)&&['click','double_click','right_click','middle_click','move','drag','scroll'].includes(action.action))action.displayId=selected.displayId;
     try{
     if(action.action==='observe'&&!observed.displays.some(d=>d.id===String(action.displayId)))throw Error('Model geçersiz bir ekran istedi.');
     if((['click','double_click','right_click','middle_click','move','drag'].includes(action.action)||action.action==='scroll'&&(action.x!==undefined||action.y!==undefined))&&(!Number.isInteger(action.elementId)||action.action==='drag')&&(!prompt.hasImage||String(action.displayId)!==selected?.displayId))throw Object.assign(Error('Koordinat işlemi için görsel destekli modelin ilgili ekranı önce incelemesi gerekiyor.'),{code:prompt.hasImage?'PLANNER_INVALID':'MODEL_VISION_REQUIRED'});
@@ -83,6 +90,7 @@ class ComputerAgent{
     if(task.repeated>3){task.status='question';task.message='Aynı işlem ekranda ilerleme olmadan tekrarlandı. Nasıl devam etmemi istersin?';task.requiresInput=task.message;this.emit();this.onFinish();return this.state();}
     this.check(task);try{await this.control.perform(action,observed.id);}catch(error){if(this.recover(task,error))continue;throw error;}this.check(task);task.recoveries=0;
     const record={action:action.action,summary:task.message,...(action.action==='type'?{characters:action.text.length}:{})};task.steps.push(record);this.memory.log('computer-step',task.message,{details:{taskId:task.id,step:task.steps.length,action:action.action,characters:record.characters}});await this.wait(task,250);
+    if(task.initialCompletion?.verified===false){const verified=await this.verifyCompletion(task);this.check(task);if(verified?.verified===true)return this.complete(task,verified.message);}
    }
    throw Error('Görev adım veya süre sınırına ulaştı. Son yapılanlar işlem günlüğüne kaydedildi.');
   }catch(error){

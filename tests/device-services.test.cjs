@@ -6,9 +6,9 @@ test('local context travels separately and archived chat survives site deletion'
  services.activate('alice');const body={content:'Kahveyi seviyorum.',requestId:'request'};await services.siteApi('/site/chat/conversations/a/messages',body);assert.equal(requests[0].body.content,body.content);assert.match(requests[0].body.desktopContext,/clock/);assert.equal(body.desktopContext,undefined);
  await services.siteApi('/site/chat/conversations/a');services.memory.markRemoteDeleted('a');assert.ok(services.memory.search('kahve').length);services.close();
 });
-test('context-unaware server receives one compatible retry without losing message',async()=>{
+test('context-unaware server cannot silently turn an action request into ordinary chat',async()=>{
  const calls=[];const service=fixture(async(route,body)=>{calls.push(body);if(body.desktopContext)throw Error('INVALID_REQUEST');return {run:{id:'run'}};});service.activate('a');
- await service.siteApi('/site/chat/conversations/c/messages',{content:'selam',requestId:'r'});assert.equal(calls.length,2);assert.equal(service.bridgeSupported,false);assert.equal(service.memory.conversation('c').length,1);service.close();
+ await assert.rejects(service.siteApi('/site/chat/conversations/c/messages',{content:'Masaüstüne klasör oluştur',requestId:'r'}),/DESKTOP_CAPABILITY_UNAVAILABLE/);assert.equal(calls.length,1);assert.equal(service.memory.conversation('c')[0].status,'failed');service.close();
 });
 test('logout during weather lookup never sends former user data to the next account',async()=>{
  let resolve;const calls=[];const service=fixture(async(...args)=>{calls.push(args);return {run:{id:'r'}};});service.activate('old');service.memory.putNode({kind:'profile',title:'Adı',content:'Old name'});service.environment.weather=()=>new Promise(r=>resolve=r);
