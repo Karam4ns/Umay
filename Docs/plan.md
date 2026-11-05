@@ -755,3 +755,6 @@ USGS Atom, AA ve OGM RSS. Yerel zamanlı kontrol/tekilleştirme ve Windows bildi
 Bilgisayar kontrolü: ekran/UIAutomation gözlemi, SendInput klavye/fare, seçili
 modelle tek eylemli gözlem döngüsü, durdurma çubuğu/F8, özel hesap parolaları hariç.
 Ayrıntılı kararlar ve test sınırları device-features.md içindedir.
+
+## [2026-11-05] Model rolleri ve bilgisayar kontrolünün genişletilmesi — 0.4.1
+Sohbet ve bilgisayar kontrolü için Ayarlar / Modeller sayfasında hesaba özel ayrı atamalar. Pencere listesi/odağı, hedefli yatay-dikey kaydırma, orta tık, monitörler arası sürükleme; hatalı işlemde sınırlı toparlanma, native kuyruk ve F8 durdurma. Ayrıntılar computer-model-roles.md ve computer-model-roles-verification.md dosyalarında.

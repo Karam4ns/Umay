@@ -8,6 +8,7 @@ using System;
 using System.Text;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Collections.Generic;
 public static class UmayInput {
  [StructLayout(LayoutKind.Sequential)] public struct Point {public int X;public int Y;}
  [StructLayout(LayoutKind.Sequential)] public struct Mouse {public int dx,dy;public uint data,flags,time;public UIntPtr extra;}
@@ -20,13 +21,23 @@ public static class UmayInput {
  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
  [DllImport("user32.dll",CharSet=CharSet.Unicode)] static extern int GetWindowText(IntPtr h,StringBuilder value,int length);
  [DllImport("user32.dll")] public static extern bool SetProcessDpiAwarenessContext(IntPtr context);
+ public delegate bool WindowEnum(IntPtr window,IntPtr parameter);
+ [DllImport("user32.dll")] static extern bool EnumWindows(WindowEnum callback,IntPtr parameter);
+ [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr window);
+ [DllImport("user32.dll")] static extern bool IsWindow(IntPtr window);
+ [DllImport("user32.dll")] static extern bool IsIconic(IntPtr window);
+ [DllImport("user32.dll")] static extern bool ShowWindowAsync(IntPtr window,int command);
+ [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr window);
+ public class WindowInfo {public long handle;public string title;public bool minimized;}
+ public static WindowInfo[] Windows(){var result=new List<WindowInfo>();EnumWindows((window,p)=>{if(IsWindowVisible(window)){var text=new StringBuilder(1024);GetWindowText(window,text,text.Capacity);if(text.Length>0)result.Add(new WindowInfo{handle=window.ToInt64(),title=text.ToString(),minimized=IsIconic(window)});}return result.Count<80;},IntPtr.Zero);return result.ToArray();}
+ public static void Focus(long handle){var window=new IntPtr(handle);if(!IsWindow(window)||!IsWindowVisible(window))throw new Exception("NATIVE_WINDOW_UNAVAILABLE");if(IsIconic(window))ShowWindowAsync(window,9);SetForegroundWindow(window);for(int i=0;i<12;i++){if(GetForegroundWindow()==window)return;Thread.Sleep(25);}throw new Exception("NATIVE_WINDOW_UNAVAILABLE");}
  public static string Title(){var text=new StringBuilder(1024);GetWindowText(GetForegroundWindow(),text,text.Capacity);return text.ToString();}
  static void Send(Input[] inputs){if(SendInput((uint)inputs.Length,inputs,Marshal.SizeOf(typeof(Input)))!=inputs.Length)throw new Exception("NATIVE_INPUT_DENIED");}
  static Input Key(ushort key,bool up){return new Input{type=1,u=new Union{keyboard=new Keyboard{vk=key,flags=up?2u:0u}}};}
  static Input Unicode(char character,bool up){return new Input{type=1,u=new Union{keyboard=new Keyboard{scan=character,flags=4u|(up?2u:0u)}}};}
  static Input Button(uint flag,uint data=0){return new Input{type=0,u=new Union{mouse=new Mouse{flags=flag,data=data}}};}
  public static void Click(int x,int y,string button,int count){SetCursorPos(x,y);uint down=button=="right"?8u:button=="middle"?32u:2u,up=down*2;for(int i=0;i<count;i++){Send(new[]{Button(down),Button(up)});if(count>1)Thread.Sleep(90);}}
- public static void Scroll(int amount){Send(new[]{Button(0x0800,unchecked((uint)(amount*120)))});}
+ public static void Scroll(int amount,bool horizontal){Send(new[]{Button(horizontal?0x1000u:0x0800u,unchecked((uint)(amount*120)))});}
  public static void Drag(int x,int y,int endX,int endY){SetCursorPos(x,y);Send(new[]{Button(2)});try{for(int i=1;i<=12;i++){SetCursorPos(x+(endX-x)*i/12,y+(endY-y)*i/12);Thread.Sleep(15);}}finally{Send(new[]{Button(4)});}}
  public static void Chord(ushort[] keys){int pressed=0;try{for(;pressed<keys.Length;pressed++)Send(new[]{Key(keys[pressed],false)});}finally{for(int i=pressed-1;i>=0;i--)Send(new[]{Key(keys[i],true)});}}
  public static void Text(string text){foreach(char ch in text){if(ch=='\r')continue;if(ch=='\n'){Chord(new ushort[]{13});}else if(ch=='\t'){Chord(new ushort[]{9});}else Send(new[]{Unicode(ch,false),Unicode(ch,true)});}}
@@ -34,7 +45,8 @@ public static class UmayInput {
 '@
 [void][UmayInput]::SetProcessDpiAwarenessContext([IntPtr](-4))
 function Get-Observation {
- $root=[System.Windows.Automation.AutomationElement]::FocusedElement
+ $handle=[UmayInput]::GetForegroundWindow().ToInt64()
+ $root=[System.Windows.Automation.AutomationElement]::FromHandle([IntPtr]$handle)
  $walker=[System.Windows.Automation.TreeWalker]::ControlViewWalker
  if($null -ne $root){while($null -ne $walker.GetParent($root) -and $walker.GetParent($root) -ne [System.Windows.Automation.AutomationElement]::RootElement){$root=$walker.GetParent($root)}}
  $items=New-Object System.Collections.Generic.List[object]
@@ -58,7 +70,8 @@ function Get-Observation {
   }
  }
  $point=New-Object UmayInput+Point;[void][UmayInput]::GetCursorPos([ref]$point)
- return @{title=[UmayInput]::Title();handle=[UmayInput]::GetForegroundWindow().ToInt64();elements=$items.ToArray();cursor=@{x=$point.X;y=$point.Y}}
+ if($handle -ne [UmayInput]::GetForegroundWindow().ToInt64()){throw 'NATIVE_FOCUS_CHANGED'}
+ return @{title=[UmayInput]::Title();handle=$handle;windows=[UmayInput]::Windows();elements=$items.ToArray();cursor=@{x=$point.X;y=$point.Y}}
 }
 while($null -ne ($line=[Console]::ReadLine())){
  $request=$null
@@ -70,7 +83,8 @@ while($null -ne ($line=[Console]::ReadLine())){
    'click' {[UmayInput]::Click([int]$p.x,[int]$p.y,[string]$p.button,[int]$p.count)}
    'move' {[void][UmayInput]::SetCursorPos([int]$p.x,[int]$p.y)}
    'drag' {[UmayInput]::Drag([int]$p.x,[int]$p.y,[int]$p.endX,[int]$p.endY)}
-   'scroll' {[UmayInput]::Scroll([int]$p.amount)}
+   'scroll' {if($null -ne $p.x -and $null -ne $p.y){[void][UmayInput]::SetCursorPos([int]$p.x,[int]$p.y)};[UmayInput]::Scroll([int]$p.amount,($p.axis -eq 'horizontal'))}
+   'focus' {[UmayInput]::Focus([long]$p.handle)}
    'keys' {[UmayInput]::Chord([uint16[]]$p.keys)}
    'text' {[UmayInput]::Text([string]$p.text)}
    'location' {

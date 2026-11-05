@@ -369,3 +369,16 @@ sıcak TTS ilk parça 110ms, 26 ses parçası PASS.
 - [x] 10203 chat ve2 worker healthy; ortam/port ve3 modül hash eşitliği.
 - [x] Windows0.4.0 kurulum/runtime/native yardımcı bütünlüğü; paketli gerçek giriş testi.
 - [x] GitHub main:38 kaynak/doküman dosyası yerel Git blob SHA ile birebir doğrulandı.
+
+## [2026-11-05] Model rolleri ve Windows kontrolü — 0.4.1
+- [x] Mevcut 103 testle başlangıç kontrolü; yeni davranışlarda RED → GREEN.
+- [x] Ayarlar / Modeller; iki model rolü, hesap ayrımı ve kalıcılık.
+- [x] İki görev girişinde computer rolü; sohbet seçicisinde kaynak+kimlik eşlemesi.
+- [x] Pencere odağı, hedefte yatay/dikey kaydırma, orta tık ve iki monitör koordinatları.
+- [x] Sınırlı toparlanma, kısmi yazı koruması, native kuyruk ve durdurma temizliği.
+- [x] Gerçek Windows iki geçici pencerede giriş, görev/gözlem döngüsü ve F8.
+- [x] Bağımsız inceleme bulgularının testle düzeltilmesi; 119 uygulama /60 ses testi.
+- [x] Gerçek mikrofon-STT-sohbet-TTS, mevcut masaüstü UI ve model rolü regresyonu.
+- [x] Sunucu aday HTTP/DB testleri; planlayıcı overlay dağıtımı, chat10203 ve2worker healthy; ortam/port/eski modül hash kontrolü.
+- [x] Windows0.4.1 installer; 33 paket dosyası, unpacked native yardımcı,4 ses modülü ve paket içi gerçek giriş/UI kontrolleri.
+Detaylar ve dış model/Windows/çoklu monitör test sınırları computer-model-roles-verification.md içinde.

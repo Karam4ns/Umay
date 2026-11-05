@@ -7,7 +7,7 @@ require('../src/main.cjs');
 app.on('browser-window-created',(_event,window)=>{
  window.webContents.once('did-finish-load',async()=>{
   try{
-   for(const name of ['api','speech','login','logout'])ipcMain.removeHandler(name);
+   for(const name of ['api','speech','login','logout','model-roles'])ipcMain.removeHandler(name);
    ipcMain.handle('api',(_e,route)=>{
     if(route==='/site/auth/me'){if(!signedIn)throw Error('Oturum doğrulaması gerekli.');return {id:'fixture',firstName:'Deniz',lastName:'Yılmaz',email:'deniz@example.com'};}
     if(route==='/site/chat/models')return {models:[{id:'fixture-model',name:'Test modeli',source:'site'}]};
@@ -17,6 +17,7 @@ app.on('browser-window-created',(_event,window)=>{
     if(route==='/site/user-memory')return {summary:'Görsel test hesabı.',notes:[]};
     return {conversation:{id:'11111111-1111-4111-8111-111111111111',version:1},messages:[{role:'assistant',content:'Merhaba Deniz, seni dinliyorum.'}]};
    });
+   ipcMain.handle('model-roles',()=>({roles:{chat:null,computer:null},models:[]}));
    ipcMain.handle('speech',(_e,method)=>method==='status'?{stt:{installed:false,resident:false},tts:{installed:false,resident:false}}:method==='voices'?[]:true);
    ipcMain.handle('login',(_e,entry)=>{entries.push(entry);return {started:true};});
    ipcMain.handle('logout',()=>{signedIn=false;return {revoked:true};});

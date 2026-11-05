@@ -14,6 +14,7 @@ app.on('browser-window-created',(_e,window)=>{
  window.webContents.once('did-finish-load',async()=>{
  try{
   const conversation={id:'11111111-1111-4111-8111-111111111111',version:1},runId='22222222-2222-4222-8222-222222222222';let posted=null,polls=0,cancels=0;
+  ipcMain.removeHandler('model-roles');ipcMain.handle('model-roles',()=>({roles:{chat:null,computer:null},models:[]}));
   const routes=[];ipcMain.removeHandler('api');ipcMain.handle('api',(_event,route,body)=>{
    routes.push({route,post:body!==undefined});
    if(route==='/site/auth/me')return {id:'fixture',firstName:'Test',email:'test@example.com'};

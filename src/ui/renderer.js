@@ -16,7 +16,7 @@ async function refresh(){
  window.umayShell?.account(user);status(`Bağlı hesap: ${user.email||user.firstName||user.id}`);
  const result=await api.api('/site/chat/models');if(epoch!==sessionEpoch)return;models=result.models||[];$('models').replaceChildren();
  for(const m of models){const o=document.createElement('option');o.value=m.id;o.textContent=m.name;o.dataset.source=m.source;$('models').append(o);}
- window.umayDevice?.modelsChanged();
+ window.umayDevice?.modelsChanged();await window.umayModelRoles?.load();if(epoch!==sessionEpoch)return;
  const history=await api.api('/site/chat/conversations');if(epoch!==sessionEpoch)return;$('history').replaceChildren();
  window.umayShell?.history((history.conversations||[]).length);
  for(const c of history.conversations||[]){const b=document.createElement('button');b.textContent=c.title;b.onclick=safe(async()=>{const historyEpoch=sessionEpoch;const historyTicket=++ticket;await stop(false);if(historyEpoch!==sessionEpoch||historyTicket!==ticket)return;const detail=await api.api('/site/chat/conversations/'+c.id);if(historyEpoch!==sessionEpoch||historyTicket!==ticket)return;conversation=detail.conversation;$('messages').replaceChildren();for(const m of detail.messages)message(m.role,m.content,false);});$('history').append(b);}
@@ -44,7 +44,7 @@ function submitMessage(text,current){
  // that write (and cancel its stale run) before the next turn writes to the chat.
  const submission=pendingSubmission.then(async()=>{
   if(current!==ticket)return null;
-  if(!conversation){const m=models.find(x=>x.id===$('models').value);if(!m)throw Error('Önce giriş yapıp bir model seçin.');
+  if(!conversation){const option=$('models').selectedOptions[0],m=models.find(x=>x.id===option?.value&&x.source===option?.dataset.source);if(!m)throw Error('Önce Ayarlar / Modeller sayfasından erişilebilir bir sohbet modeli seçin.');
    const created=await api.api('/site/chat/conversations',{source:m.source,modelId:m.id,title:text.slice(0,140),requestId:crypto.randomUUID()});
    if(current!==ticket)return;conversation=created.conversation;
   }
@@ -57,9 +57,9 @@ function submitMessage(text,current){
 async function send(text,fromVoice=false){
  if(!text.trim())return;
  if(window.umayDevice?.computerMode()){
-  const current=++ticket;await stop(false,fromVoice);if(current!==ticket)return;const model=models.find(m=>m.id===$('models').value);if(!model)throw Error('Önce bir model seçin.');
+  const current=++ticket;await stop(false,fromVoice);if(current!==ticket)return;
   message('user',text);await api.busy(true);responseActive=true;
-  try{const result=await window.umayDevice.runComputer(text,model);if(current!==ticket||!result)return;
+  try{const result=await window.umayDevice.runComputer(text);if(current!==ticket||!result)return;
    if(result.status==='completed'){message('assistant',result.message);if($('speak').checked)await api.speech('speak',{text:result.message,voice});}
    else if(result.status==='failed'){const info=window.UmayErrors.isKnown(result.message)?errorText(result.message):result.message;message('error',info,false);status(info);}
   }finally{if(current===ticket){responseActive=false;if(!sources.length)await api.busy(false);}}
@@ -187,7 +187,7 @@ $('send').onsubmit=e=>{e.preventDefault();const text=$('input').value;$('input')
 $('stop').onclick=safe(stop);$('login').onclick=safe(async()=>{await api.login(window.umayShell?.entry()||'login');window.umayShell?.waiting();status('Varsayılan tarayıcı açıldı. Veriüssü girişi ardından hesabını Umay’a bağla.');});$('refresh').onclick=safe(refresh);
 $('logout').onclick=safe(async()=>{await clearAccount();const result=await api.logout();status(result.revoked?'Çıkış yapıldı.':'Yerel çıkış yapıldı; sunucu iptali doğrulanamadı.');});
 $('new').onclick=safe(async()=>{await stop();conversation=null;$('messages').replaceChildren();window.umayShell?.reset();});
-$('models').onchange=safe(async()=>{await stop();conversation=null;$('messages').replaceChildren();window.umayShell?.reset();status('Seçilen modelle yeni sohbet açılacak.');});
+$('models').onchange=safe(async()=>{const option=$('models').selectedOptions[0],model=models.find(m=>m.id===option?.value&&m.source===option?.dataset.source);await window.umayModelRoles?.selectChat(model);await stop();conversation=null;$('messages').replaceChildren();window.umayShell?.reset();status('Seçilen modelle yeni sohbet açılacak.');});
 $('hardware').onclick=safe(async()=>{$('devices').textContent=JSON.stringify(await api.speech('hardware'),null,2);});
 $('cancel-install').onclick=safe(()=>api.speech('cancel'));
 $('clone').onclick=safe(async()=>{await stop();await api.busy(true);$('clone').disabled=true;try{const result=await api.clone();if(result){voice=result.voice;localStorage.setItem('voice-profile',result.id);await packages();$('voices').value=result.id;const warning=(result.quality?.warnings||[]).join(' ');const text='Ses profilin hazır ve seçildi: '+result.name+'. Önizle ile dinleyebilirsin.'+(warning?' '+warning:'');$('clone-quality').textContent=text;status(text);}}finally{$('clone').disabled=false;await api.busy(false);}});

@@ -5,11 +5,11 @@ const {EnvironmentService}=require('./environment-service.cjs');
 const {NativeDesktop,ComputerControl}=require('./computer-control.cjs');
 const {ComputerAgent}=require('./computer-agent.cjs');
 class DeviceServices{
- constructor({directory,api,encrypt,decrypt,screen,capture,notify,publish=()=>{},onComputerStart=()=>{},onComputerFinish=()=>{},chooseRoots,saveFile,openSource=()=>{},defaultRoots=[],native=new NativeDesktop(),background=true}){
+ constructor({directory,api,encrypt,decrypt,screen,capture,notify,publish=()=>{},onComputerStart=()=>{},onComputerFinish=()=>{},excludedWindowHandles=()=>[],chooseRoots,saveFile,openSource=()=>{},defaultRoots=[],native=new NativeDesktop(),background=true}){
   Object.assign(this,{api,publish,chooseRoots,saveFile,openSource,defaultRoots,background});this.indexCancelled=false;this.indexing=null;this.bridgeSupported=null;
   this.memory=new LocalMemory(path.join(directory,'memory'),{encrypt,decrypt});
   this.environment=new EnvironmentService({memory:this.memory,locate:()=>native.request('location'),notify,publish});
-  this.control=new ComputerControl({native,capture,screen});
+  this.control=new ComputerControl({native,capture,screen,excludedWindowHandles});
   this.agent=new ComputerAgent({control:this.control,api,memory:this.memory,publish,onStart:onComputerStart,onFinish:onComputerFinish});
  }
  activate(account){
@@ -92,12 +92,35 @@ class DeviceServices{
    default:throw Error('Konum/bildirim işlemi geçersiz.');
   }
  }
+ async modelRoles(method,input={}){
+  this.memory.require();const epoch=this.memory.epoch,result=await this.api('/site/chat/models');this.memory.check(epoch);
+  const models=result.models||[],roles={chat:null,computer:null,...this.memory.setting('modelRoles',{})};
+  const find=value=>value&&models.find(m=>m.id===value.id&&m.source===value.source);
+  if(method==='state')return {roles,models};
+  if(method==='save'){
+   for(const role of ['chat','computer'])if(Object.hasOwn(input,role)){
+    const value=input[role];if(value!==null&&!find(value))throw Error('Seçilen modele erişilemiyor. Modelleri yenileyip tekrar seçin.');
+    roles[role]=value?{id:value.id,source:value.source}:null;
+   }
+   this.memory.setSetting('modelRoles',roles);this.memory.log('model-roles','Sohbet ve bilgisayar model rolleri güncellendi');return {roles,models};
+  }
+  if(method==='resolve'){
+   if(!['chat','computer'].includes(input.role))throw Error('Model rolü geçersiz.');
+   const assigned=roles[input.role],selected=find(assigned||input.model);
+   if(assigned&&!selected)throw Error((input.role==='computer'?'Bilgisayar kontrolüne':'Sohbete')+' atanan modele erişilemiyor. Ayarlar / Modeller sayfasından yeniden atayın.');
+   if(selected)return selected;
+   if(input.model)throw Error('Seçilen modele erişilemiyor.');
+   const fallback=input.role==='computer'?models.find(m=>require('./computer-agent.cjs').visionModel(m))||models[0]:models[0];
+   if(!fallback)throw Error('Kullanılabilir model bulunamadı. Veriüssü hesabınıza model ekleyin.');return fallback;
+  }
+  throw Error('Model rolü işlemi geçersiz.');
+ }
  async computer(method,input={}){
   this.memory.require();switch(method){
    case 'state':return {enabled:this.control.enabled,task:this.agent.state()};
    case 'enable':if(!input.enabled)await this.agent.stop();this.memory.log('computer-permission',input.enabled?'Bilgisayar kontrolü açıldı':'Bilgisayar kontrolü kapatıldı');return {enabled:this.control.enable(input.enabled)};
    case 'preview':return this.control.observe({image:true});
-   case 'run':{const epoch=this.memory.epoch,sequence=this.agent.sequence,result=await this.api('/site/chat/models');this.memory.check(epoch);if(sequence!==this.agent.sequence)throw Error('Bilgisayar görevi durduruldu.');const model=(result.models||[]).find(m=>m.id===input.modelId&&m.source===input.source);if(!model)throw Error('Seçilen modele erişilemiyor.');return this.agent.run(input.goal,model);}
+   case 'run':{const sequence=this.agent.sequence,model=await this.modelRoles('resolve',{role:'computer',...(input.modelId?{model:{id:input.modelId,source:input.source}}:{})});if(sequence!==this.agent.sequence)throw Error('Bilgisayar görevi durduruldu.');return this.agent.run(input.goal,model);}
    case 'stop':return this.agent.stop();
    case 'resume':return this.agent.resume(input.id,input);
    default:throw Error('Bilgisayar kontrol işlemi geçersiz.');

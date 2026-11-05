@@ -18,3 +18,31 @@ test('central history sync follows all cursor pages and captures central memory 
  const calls=[];const service=fixture(async route=>{calls.push(route);if(route==='/site/chat/conversations')return {conversations:[{id:'c',title:'Sohbet'}]};if(route==='/site/user-memory')return {summary:'Merkezi bilgi'};const old=route.includes('before');return {conversation:{id:'c',title:'Sohbet'},messages:[{id:old?'old':'new',role:'assistant',content:old?'Eski mesaj':'Yeni mesaj'}],hasMoreMessages:!old,nextBeforeId:old?null:'new'};});
  service.activate('a');await service.syncHistory(service.memory.epoch);assert.equal(service.memory.conversation('c').length,2);assert.ok(calls.includes('/site/chat/conversations/c?before=new'));assert.ok(service.memory.snapshot().nodes.some(n=>n.kind==='remote'));service.close();
 });
+const roleModels=[{id:'same',source:'PERSONAL',name:'Sohbet',categories:['chat']},{id:'same',source:'SUBSCRIPTION',name:'Gören model',categories:['vision']}];
+test('model roles persist per account and distinguish sources with equal model ids',async()=>{
+ const service=fixture(async()=>({models:roleModels}));service.activate('alice');
+ await service.modelRoles('save',{chat:{id:'same',source:'PERSONAL'},computer:{id:'same',source:'SUBSCRIPTION'}});
+ assert.equal((await service.modelRoles('resolve',{role:'computer'})).source,'SUBSCRIPTION');
+ service.activate('bob');assert.equal((await service.modelRoles('state')).roles.computer,null);
+ service.activate('alice');assert.equal((await service.modelRoles('state')).roles.chat.source,'PERSONAL');
+ service.close();
+});
+test('removed role assignment fails clearly rather than silently spending on another model',async()=>{
+ let available=roleModels;const service=fixture(async()=>({models:available}));service.activate('alice');
+ await service.modelRoles('save',{computer:{id:'same',source:'SUBSCRIPTION'}});available=roleModels.slice(0,1);
+ await assert.rejects(service.modelRoles('resolve',{role:'computer'}),/atanan.*erişilemiyor/i);
+ await assert.rejects(service.modelRoles('save',{chat:{id:'no',source:'PERSONAL'}}),/erişilemiyor/i);service.close();
+});
+test('computer entry always uses assigned role and account change cancels pending role save',async()=>{
+ const service=fixture(async()=>({models:roleModels}));service.activate('alice');
+ await service.modelRoles('save',{computer:{id:'same',source:'SUBSCRIPTION'}});service.agent.run=async(_goal,model)=>model;
+ assert.equal((await service.computer('run',{goal:'Görev',modelId:'same',source:'PERSONAL'})).source,'SUBSCRIPTION');
+ let finish;service.api=()=>new Promise(r=>finish=r);const saving=service.modelRoles('save',{chat:{id:'same',source:'PERSONAL'}});
+ service.activate('bob');finish({models:roleModels});await assert.rejects(saving,/Hesap değişti/);assert.equal(service.memory.setting('modelRoles'),null);service.close();
+});
+test('account switch and repeated logout clean up computer controls after native input drains',async()=>{
+ const service=fixture(async()=>({models:roleModels}));service.activate('alice');await new Promise(r=>setImmediate(r));
+ let release,finished=0;const drained=new Promise(r=>release=r);service.control.stop=()=>drained;service.agent.onFinish=()=>finished++;
+ service.agent.task={id:'task',status:'running',sequence:service.agent.sequence,epoch:service.memory.epoch,steps:[]};
+ service.activate('bob');service.activate(null);assert.equal(finished,0);release();await new Promise(r=>setImmediate(r));assert.equal(finished,1);service.close();
+});

@@ -65,10 +65,12 @@ app.whenReady().then(()=>{
   chooseRoots:async()=>{const selected=await dialog.showOpenDialog(win,{title:'Dosya hafızasına klasör ekle',properties:['openDirectory','multiSelections']});return selected.canceled?null:selected.filePaths;},
   saveFile:async()=>{const selected=await dialog.showSaveDialog(win,{title:'Hafızayı Markdown olarak dışa aktar',defaultPath:'Umay Hafızası.md',filters:[{name:'Markdown',extensions:['md']}]});return selected.canceled?null:selected.filePath;},
   capture:async displays=>{const sources=await desktopCapturer.getSources({types:['screen'],thumbnailSize:{width:1600,height:1000}});return sources.map(source=>{const display=displays.find(d=>String(d.id)===source.display_id);if(!display)return null;const image=source.thumbnail,size=image.getSize();return {displayId:String(display.id),name:source.name,width:size.width,height:size.height,image:'data:image/jpeg;base64,'+image.toJPEG(65).toString('base64')};}).filter(Boolean);},
+  excludedWindowHandles:()=>computerBar&&!computerBar.isDestroyed()?[Number(computerBar.getNativeWindowHandle().readBigUInt64LE())]:[],
   onComputerStart:()=>{
+   if(!globalShortcut.register('F8',()=>void deviceServices.agent.stop()))throw Error('F8 durdurma tuşu başka bir uygulama tarafından kullanılıyor. Tuşu serbest bırakıp tekrar deneyin.');
    computerRunning=true;
    if(!computerBar||computerBar.isDestroyed()){const area=screen.getPrimaryDisplay().workArea;computerBar=new BrowserWindow({width:360,height:64,x:area.x+12,y:area.y+area.height-80,frame:false,resizable:false,alwaysOnTop:true,skipTaskbar:true,show:false,webPreferences:{preload:path.join(__dirname,'computer-bar-preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});computerBar.removeMenu();computerBar.loadFile(path.join(__dirname,'ui','computer-bar.html'));computerBar.webContents.on('will-navigate',e=>e.preventDefault());computerBar.webContents.setWindowOpenHandler(()=>({action:'deny'}));computerBar.once('ready-to-show',()=>computerBar.showInactive());}else computerBar.showInactive();
-   globalShortcut.register('F8',()=>void deviceServices.agent.stop());if(win&&!win.isDestroyed())win.minimize();
+   if(win&&!win.isDestroyed())win.minimize();
   },
   onComputerFinish:()=>{computerRunning=false;globalShortcut.unregister('F8');if(computerBar&&!computerBar.isDestroyed())computerBar.hide();const task=deviceServices?.agent.state();if(win&&!win.isDestroyed()&&['question','confirmation','failed','stopped'].includes(task?.status)){win.show();win.focus();}else if(task?.status==='completed')notify({title:'Umay — Görev tamamlandı',body:task.message.slice(0,200)});},
  });
@@ -95,6 +97,7 @@ app.whenReady().then(()=>{
  handle('local-memory',(method,input)=>deviceServices.local(method,input));
  handle('environment',(method,input)=>deviceServices.environmentAction(method,input));
  handle('computer',(method,input)=>deviceServices.computer(method,input));
+ handle('model-roles',(method,input)=>deviceServices.modelRoles(method,input));
  handle('system-status',()=>systemStatus(app.getPath('userData'),require('../package.json').version));
  handle('window-action',action=>windowAction(win,action));
  handle('cancel-login',()=>{++authEpoch;browserAuth.cancel();return true;});

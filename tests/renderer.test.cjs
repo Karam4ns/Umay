@@ -107,6 +107,7 @@ test('overlapping sends only post the newest question after cancellation resolve
     }
   });
   app.node('models').value='model';
+  app.node('models').selectedOptions=[{value:'model',dataset:{source:'site'}}];
   app.run("models=[{id:'model',source:'site'}]");
   const first=app.run("send('first question')");
   const second=app.run("send('second question')");
