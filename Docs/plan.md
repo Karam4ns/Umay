@@ -758,3 +758,6 @@ Ayrıntılı kararlar ve test sınırları device-features.md içindedir.
 
 ## [2026-11-05] Model rolleri ve bilgisayar kontrolünün genişletilmesi — 0.4.1
 Sohbet ve bilgisayar kontrolü için Ayarlar / Modeller sayfasında hesaba özel ayrı atamalar. Pencere listesi/odağı, hedefli yatay-dikey kaydırma, orta tık, monitörler arası sürükleme; hatalı işlemde sınırlı toparlanma, native kuyruk ve F8 durdurma. Ayrıntılar computer-model-roles.md ve computer-model-roles-verification.md dosyalarında.
+
+## [2026-11-05] Kullanıcı onaylı yönetici kontrolü — 0.4.2
+Gereken görevde permission duraklaması, gerçek Windows runas/UAC, tek kullanımlı yerel pipe ve bağımsız Windows token doğrulaması. Yönetici yardımcısı görev/hesap/durdurma yaşam döngüsüne bağlıdır. Ayrıntılar ve bekleyen gerçek yönetici pencere testi computer-elevation.md içinde.

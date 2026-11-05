@@ -15,22 +15,23 @@ class ComputerAgent{
  check(task){if(this.task!==task||task.sequence!==this.sequence||task.epoch!==this.memory.epoch||!this.control.enabled)throw Error('Bilgisayar görevi durduruldu.');}
  emit(){this.publish({event:'computer-task',task:this.state()});}
  async run(goal,model){
-  if(this.task&&['running','confirmation','question'].includes(this.task.status))throw Error('Önce etkin bilgisayar görevini bitirin veya durdurun.');
+  if(this.task&&['running','confirmation','question','permission'].includes(this.task.status))throw Error('Önce etkin bilgisayar görevini bitirin veya durdurun.');
   if(!this.control.enabled)throw Error('Ayarlar bölümünden bilgisayar kontrolünü açın.');
   if(typeof goal!=='string'||!goal.trim()||goal.length>12000||!model?.id||!['PERSONAL','SUBSCRIPTION'].includes(model.source))throw Error('Görev veya seçilen model geçersiz.');
   const task=this.task={id:randomUUID(),sequence:++this.sequence,epoch:this.memory.epoch,goal:goal.trim(),model,steps:[],status:'running',createdAt:this.now(),recoveries:0,messageTimes:[],lastRun:null,selectedDisplay:null};
   this.memory.archiveConversation({id:task.id,title:goal.slice(0,100),localSource:'computer'},[{id:randomUUID(),role:'user',content:goal}]);
   this.memory.log('computer-task',goal,{status:'running',details:{taskId:task.id}});return this.loop(task,true);
  }
- async resume(id,{approved=false,answer=''}={}){
-  const task=this.task;if(!task||task.id!==id||!['confirmation','question'].includes(task.status))throw Error('Devam ettirilecek görev bulunamadı.');this.check(task);
+ async resume(id,{approved=false,answer='',elevated=false}={}){
+  const task=this.task;if(!task||task.id!==id||!['confirmation','question','permission'].includes(task.status))throw Error('Devam ettirilecek görev bulunamadı.');this.check(task);
+  if(task.status==='permission'&&!elevated)throw Error('Önce gerçek Windows yönetici onayını tamamlayın.');
   if(task.status==='confirmation'&&!approved){await this.stop();return this.state();}
-  task.feedback=task.status==='confirmation'?'Kullanıcı şu belirli işlemi onayladı: '+JSON.stringify(task.requiresInput):'Kullanıcının ek açıklaması: '+String(answer).slice(0,4000);
+  task.feedback=task.status==='permission'?'Kullanıcı mevcut görev için Windows yönetici onayını verdi. Güncel gözlemi inceleyerek devam et; önceki işlemi körlemesine tekrarlama.':task.status==='confirmation'?'Kullanıcı şu belirli işlemi onayladı: '+JSON.stringify(task.requiresInput):'Kullanıcının ek açıklaması: '+String(answer).slice(0,4000);
   task.requiresInput=null;task.status='running';task.recoveries=0;task.lastFingerprint=null;task.repeated=0;return this.loop(task,true);
  }
  async stop(){
   const task=this.task,sequence=++this.sequence,drained=this.control.stop();
-  if(task&&['running','confirmation','question'].includes(task.status)){task.status='stopped';task.message='Görev durduruldu.';this.emit();if(task.epoch===this.memory.epoch)this.memory.log('computer-task',task.message,{status:'cancelled',details:{taskId:task.id}});}
+  if(task&&['running','confirmation','question','permission'].includes(task.status)){task.status='stopped';task.message='Görev durduruldu.';this.emit();if(task.epoch===this.memory.epoch)this.memory.log('computer-task',task.message,{status:'cancelled',details:{taskId:task.id}});}
   await drained;if(sequence===this.sequence)this.onFinish();if(task?.lastRun)await this.api('/site/chat/runs/'+task.lastRun+'/cancel',{}).catch(()=>{});return this.state();
  }
  async wait(task,milliseconds){const end=this.now()+milliseconds;while(this.now()<end){this.check(task);await this.delay(Math.min(200,end-this.now()));}this.check(task);}
@@ -83,6 +84,7 @@ class ComputerAgent{
    }
    throw Error('Görev adım veya süre sınırına ulaştı. Son yapılanlar işlem günlüğüne kaydedildi.');
   }catch(error){
+   if(task.sequence===this.sequence&&task.epoch===this.memory.epoch&&['NATIVE_ELEVATION_REQUIRED','NATIVE_INPUT_DENIED'].includes(error.code)){task.status='permission';task.message='Bu işlem için Windows yönetici izni gerekiyor. Onayladıktan sonra aynı göreve devam edeceğim.';task.requiresInput={reason:error.message};this.emit();this.onFinish();return this.state();}
    if(task.sequence===this.sequence&&task.epoch===this.memory.epoch){task.status='failed';task.message=String(error.message);this.memory.log('computer-task',task.message,{status:'failed',details:{taskId:task.id}});this.emit();}
    if(task.lastRun)await this.api('/site/chat/runs/'+task.lastRun+'/cancel',{}).catch(()=>{});if(this.task===task&&task.sequence===this.sequence)this.onFinish();return this.state();
   }

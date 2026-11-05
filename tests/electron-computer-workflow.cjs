@@ -1,3 +1,4 @@
+const {ComputerShortcut}=require('../src/computer-shortcut.cjs');
 // Real OS inputs are restricted to these two disposable windows. The planner
 // provider is deterministic; this does not certify arbitrary external models.
 const {app,BrowserWindow,screen,desktopCapturer,globalShortcut}=require('electron');
@@ -39,11 +40,11 @@ app.whenReady().then(async()=>{
   const agent=new ComputerAgent({control,api,memory:{epoch:1,context:()=>({}),archiveConversation(){},log(){}}});
   assert.equal((await agent.run('Test penceresine metin yaz ve doğrula',{id:'fixture',source:'PERSONAL',categories:['vision']})).status,'completed');await until("edit.value==='Sonuç doğrulandı.'");
   // F8 travels through actual Windows SendInput and Electron globalShortcut.
-  assert.equal(globalShortcut.register('F8',()=>void agent.stop()),true);let postedRun,release;
+  const shortcut=new ComputerShortcut(globalShortcut,()=>void agent.stop());shortcut.start();shortcut.finish({status:'permission'});assert.equal(globalShortcut.isRegistered('F8'),true);shortcut.start();let postedRun,release;
   agent.api=async(route)=>{if(route==='/site/chat/conversations')return {conversation:{id:'cancel',version:0}};if(route.endsWith('/messages')){postedRun=true;return new Promise(r=>release=r);}return {};};
   const running=agent.run('Durdurma testi',{id:'fixture',source:'PERSONAL',categories:['vision']});while(!postedRun)await new Promise(r=>setTimeout(r,10));
   view=await control.observe();await control.perform({action:'keys',keys:['F8']},view.id).catch(error=>{if(error.code!=='NATIVE_CANCELLED')throw error;});
-  const deadline=Date.now()+3000;while(agent.state().status!=='stopped'){if(Date.now()>deadline)throw Error('F8 did not stop task');await new Promise(r=>setTimeout(r,20));}release({run:{id:'cancelled'}});await running;
+  const deadline=Date.now()+3000;while(agent.state().status!=='stopped'){if(Date.now()>deadline)throw Error('F8 did not stop task');await new Promise(r=>setTimeout(r,20));}release({run:{id:'cancelled'}});await running;shortcut.finish(agent.state());assert.equal(globalShortcut.isRegistered('F8'),false);
   console.log('PASS real Windows hover/right/middle/double click, vertical/horizontal scroll, drag, two-window focus, planner/input/verification workflow, physical F8 stop');
   globalShortcut.unregisterAll();control.close();windows.forEach(w=>w.destroy());clearTimeout(timeout);app.quit();
  }catch(error){console.error(error);console.error(control?.native.lastError||'');globalShortcut.unregisterAll();control?.close();clearTimeout(timeout);app.exit(1);}

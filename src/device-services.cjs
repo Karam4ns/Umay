@@ -10,7 +10,7 @@ class DeviceServices{
   this.memory=new LocalMemory(path.join(directory,'memory'),{encrypt,decrypt});
   this.environment=new EnvironmentService({memory:this.memory,locate:()=>native.request('location'),notify,publish});
   this.control=new ComputerControl({native,capture,screen,excludedWindowHandles});
-  this.agent=new ComputerAgent({control:this.control,api,memory:this.memory,publish,onStart:onComputerStart,onFinish:onComputerFinish});
+  this.agent=new ComputerAgent({control:this.control,api,memory:this.memory,publish,onStart:onComputerStart,onFinish:()=>{const status=this.agent.task?.status;if(!status||['completed','failed','stopped'].includes(status))void native.release?.();onComputerFinish();}});
  }
  activate(account){
   if(String(account??'')===String(this.memory.account??''))return;
@@ -117,10 +117,11 @@ class DeviceServices{
  }
  async computer(method,input={}){
   this.memory.require();switch(method){
-   case 'state':return {enabled:this.control.enabled,task:this.agent.state()};
+   case 'state':return {enabled:this.control.enabled,task:this.agent.state(),access:this.control.native.state?.()||{administrator:false,pending:false}};
    case 'enable':if(!input.enabled)await this.agent.stop();this.memory.log('computer-permission',input.enabled?'Bilgisayar kontrolü açıldı':'Bilgisayar kontrolü kapatıldı');return {enabled:this.control.enable(input.enabled)};
    case 'preview':return this.control.observe({image:true});
    case 'run':{const sequence=this.agent.sequence,model=await this.modelRoles('resolve',{role:'computer',...(input.modelId?{model:{id:input.modelId,source:input.source}}:{})});if(sequence!==this.agent.sequence)throw Error('Bilgisayar görevi durduruldu.');return this.agent.run(input.goal,model);}
+   case 'elevate':{const task=this.agent.task;if(!task||task.id!==input.id||task.status!=='permission')throw Error('Yönetici izni bekleyen etkin görev bulunamadı.');this.agent.check(task);if(!this.control.native.elevate)throw Error('Windows yönetici izni bu ortamda kullanılamıyor.');await this.control.native.elevate();this.memory.check(task.epoch);this.agent.check(task);this.memory.log('computer-elevation','Kullanıcı Windows yönetici onayını verdi',{details:{taskId:task.id}});return this.agent.resume(task.id,{approved:true,elevated:true});}
    case 'stop':return this.agent.stop();
    case 'resume':return this.agent.resume(input.id,input);
    default:throw Error('Bilgisayar kontrol işlemi geçersiz.');

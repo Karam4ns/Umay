@@ -46,3 +46,10 @@ test('account switch and repeated logout clean up computer controls after native
  service.agent.task={id:'task',status:'running',sequence:service.agent.sequence,epoch:service.memory.epoch,steps:[]};
  service.activate('bob');service.activate(null);assert.equal(finished,0);release();await new Promise(r=>setImmediate(r));assert.equal(finished,1);service.close();
 });
+test('administrator grant requires a paused task and is invalidated by account change',async()=>{
+ const service=fixture(async()=>({models:roleModels}));service.activate('alice');let grants=0,finish;
+ service.control.native.elevate=async()=>{grants++;return new Promise(r=>finish=r);};
+ await assert.rejects(service.computer('elevate',{id:'unknown'}),/izni|izin/i);assert.equal(grants,0);
+ service.control.enable(true);service.agent.task={id:'task',status:'permission',sequence:service.agent.sequence,epoch:service.memory.epoch,steps:[]};
+ const granting=service.computer('elevate',{id:'task'});await new Promise(r=>setImmediate(r));service.activate('bob');finish({administrator:true});await assert.rejects(granting,/Hesap değişti|durduruldu/);assert.equal(service.agent.task,null);service.close();
+});

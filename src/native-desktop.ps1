@@ -1,7 +1,12 @@
+param([System.IO.TextReader]$RequestReader=$null,[System.IO.TextWriter]$ResponseWriter=$null,[bool]$RequireAdministrator=$false)
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 [Console]::InputEncoding = New-Object System.Text.UTF8Encoding($false)
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
+if($null -eq $RequestReader){$RequestReader=[Console]::In};if($null -eq $ResponseWriter){$ResponseWriter=[Console]::Out}
+$principal=New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+$administrator=$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if($RequireAdministrator -and -not $administrator){throw 'NATIVE_ELEVATION_REQUIRED'}
 Add-Type -AssemblyName UIAutomationClient,UIAutomationTypes,WindowsBase
 Add-Type -TypeDefinition @'
 using System;
@@ -31,21 +36,30 @@ public static class UmayInput {
  public class WindowInfo {public long handle;public string title;public bool minimized;}
  public static WindowInfo[] Windows(){var result=new List<WindowInfo>();EnumWindows((window,p)=>{if(IsWindowVisible(window)){var text=new StringBuilder(1024);GetWindowText(window,text,text.Capacity);if(text.Length>0)result.Add(new WindowInfo{handle=window.ToInt64(),title=text.ToString(),minimized=IsIconic(window)});}return result.Count<80;},IntPtr.Zero);return result.ToArray();}
  public static void Focus(long handle){var window=new IntPtr(handle);if(!IsWindow(window)||!IsWindowVisible(window))throw new Exception("NATIVE_WINDOW_UNAVAILABLE");if(IsIconic(window))ShowWindowAsync(window,9);SetForegroundWindow(window);for(int i=0;i<12;i++){if(GetForegroundWindow()==window)return;Thread.Sleep(25);}throw new Exception("NATIVE_WINDOW_UNAVAILABLE");}
+ [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr window,out uint processId);
+ [DllImport("kernel32.dll")] static extern IntPtr OpenProcess(uint access,bool inherit,uint processId);
+ [DllImport("advapi32.dll")] static extern bool OpenProcessToken(IntPtr process,uint access,out IntPtr token);
+ [DllImport("advapi32.dll")] static extern bool GetTokenInformation(IntPtr token,int type,out uint information,int length,out int returned);
+ [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
+ public static bool? ElevatedWindow(IntPtr window){uint processId;GetWindowThreadProcessId(window,out processId);if(processId==0)return null;IntPtr process=OpenProcess(0x1000,false,processId),token=IntPtr.Zero;try{if(process==IntPtr.Zero||!OpenProcessToken(process,8,out token))return null;uint elevated;int length;if(!GetTokenInformation(token,20,out elevated,4,out length))return null;return elevated!=0;}finally{if(token!=IntPtr.Zero)CloseHandle(token);if(process!=IntPtr.Zero)CloseHandle(process);}}
  public static string Title(){var text=new StringBuilder(1024);GetWindowText(GetForegroundWindow(),text,text.Capacity);return text.ToString();}
- static void Send(Input[] inputs){if(SendInput((uint)inputs.Length,inputs,Marshal.SizeOf(typeof(Input)))!=inputs.Length)throw new Exception("NATIVE_INPUT_DENIED");}
+ static void Send(Input[] inputs){uint sent=SendInput((uint)inputs.Length,inputs,Marshal.SizeOf(typeof(Input)));if(sent!=inputs.Length)throw new Exception(sent>0?"NATIVE_PARTIAL_INPUT":"NATIVE_INPUT_DENIED");}
  static Input Key(ushort key,bool up){return new Input{type=1,u=new Union{keyboard=new Keyboard{vk=key,flags=up?2u:0u}}};}
  static Input Unicode(char character,bool up){return new Input{type=1,u=new Union{keyboard=new Keyboard{scan=character,flags=4u|(up?2u:0u)}}};}
  static Input Button(uint flag,uint data=0){return new Input{type=0,u=new Union{mouse=new Mouse{flags=flag,data=data}}};}
- public static void Click(int x,int y,string button,int count){SetCursorPos(x,y);uint down=button=="right"?8u:button=="middle"?32u:2u,up=down*2;for(int i=0;i<count;i++){Send(new[]{Button(down),Button(up)});if(count>1)Thread.Sleep(90);}}
+ public static void Click(int x,int y,string button,int count){SetCursorPos(x,y);uint down=button=="right"?8u:button=="middle"?32u:2u,up=down*2;for(int i=0;i<count;i++){try{Send(new[]{Button(down),Button(up)});}catch(Exception error){try{Send(new[]{Button(up)});}catch{}throw new Exception(i>0||error.Message=="NATIVE_PARTIAL_INPUT"?"NATIVE_PARTIAL_INPUT":error.Message);}if(count>1)Thread.Sleep(90);}}
  public static void Scroll(int amount,bool horizontal){Send(new[]{Button(horizontal?0x1000u:0x0800u,unchecked((uint)(amount*120)))});}
- public static void Drag(int x,int y,int endX,int endY){SetCursorPos(x,y);Send(new[]{Button(2)});try{for(int i=1;i<=12;i++){SetCursorPos(x+(endX-x)*i/12,y+(endY-y)*i/12);Thread.Sleep(15);}}finally{Send(new[]{Button(4)});}}
- public static void Chord(ushort[] keys){int pressed=0;try{for(;pressed<keys.Length;pressed++)Send(new[]{Key(keys[pressed],false)});}finally{for(int i=pressed-1;i>=0;i--)Send(new[]{Key(keys[i],true)});}}
- public static void Text(string text){foreach(char ch in text){if(ch=='\r')continue;if(ch=='\n'){Chord(new ushort[]{13});}else if(ch=='\t'){Chord(new ushort[]{9});}else Send(new[]{Unicode(ch,false),Unicode(ch,true)});}}
+ public static void Drag(int x,int y,int endX,int endY){SetCursorPos(x,y);Send(new[]{Button(2)});try{for(int i=1;i<=12;i++){SetCursorPos(x+(endX-x)*i/12,y+(endY-y)*i/12);Thread.Sleep(15);}}finally{try{Send(new[]{Button(4)});}catch{throw new Exception("NATIVE_PARTIAL_INPUT");}}}
+ public static void Chord(ushort[] keys){int pressed=0;Exception failure=null;try{for(;pressed<keys.Length;pressed++)Send(new[]{Key(keys[pressed],false)});}catch(Exception error){failure=error;}finally{for(int i=pressed-1;i>=0;i--){try{Send(new[]{Key(keys[i],true)});}catch(Exception error){if(failure==null)failure=error;}}}if(failure!=null)throw new Exception(pressed>0||failure.Message=="NATIVE_PARTIAL_INPUT"?"NATIVE_PARTIAL_INPUT":failure.Message);}
+ public static void Text(string text){int written=0;foreach(char ch in text){if(ch=='\r')continue;try{if(ch=='\n'){Chord(new ushort[]{13});}else if(ch=='\t'){Chord(new ushort[]{9});}else Send(new[]{Unicode(ch,false),Unicode(ch,true)});written++;}catch(Exception error){if(error.Message=="NATIVE_PARTIAL_INPUT"){try{Send(new[]{Unicode(ch,true)});}catch{}}throw new Exception(written>0||error.Message=="NATIVE_PARTIAL_INPUT"?"NATIVE_PARTIAL_INPUT":error.Message);}}}
 }
 '@
 [void][UmayInput]::SetProcessDpiAwarenessContext([IntPtr](-4))
 function Get-Observation {
  $handle=[UmayInput]::GetForegroundWindow().ToInt64()
+ if($handle -eq 0){throw 'NATIVE_DESKTOP_LOCKED'}
+ $targetElevated=[UmayInput]::ElevatedWindow([IntPtr]$handle)
+ if($targetElevated -eq $true -and -not $administrator){return @{title=[UmayInput]::Title();handle=$handle;administrator=$false;requiresElevation=$true;elements=@();windows=@()}}
  $root=[System.Windows.Automation.AutomationElement]::FromHandle([IntPtr]$handle)
  $walker=[System.Windows.Automation.TreeWalker]::ControlViewWalker
  if($null -ne $root){while($null -ne $walker.GetParent($root) -and $walker.GetParent($root) -ne [System.Windows.Automation.AutomationElement]::RootElement){$root=$walker.GetParent($root)}}
@@ -71,14 +85,18 @@ function Get-Observation {
  }
  $point=New-Object UmayInput+Point;[void][UmayInput]::GetCursorPos([ref]$point)
  if($handle -ne [UmayInput]::GetForegroundWindow().ToInt64()){throw 'NATIVE_FOCUS_CHANGED'}
- return @{title=[UmayInput]::Title();handle=$handle;windows=[UmayInput]::Windows();elements=$items.ToArray();cursor=@{x=$point.X;y=$point.Y}}
+ return @{title=[UmayInput]::Title();handle=$handle;administrator=$administrator;requiresElevation=$false;windows=[UmayInput]::Windows();elements=$items.ToArray();cursor=@{x=$point.X;y=$point.Y}}
 }
-while($null -ne ($line=[Console]::ReadLine())){
+while($true){
+ if($RequireAdministrator){$read=$RequestReader.ReadLineAsync();if(-not $read.Wait(240000)){break};$line=$read.Result}else{$line=$RequestReader.ReadLine()}
+ if($null -eq $line){break}
  $request=$null
  try{
   $request=ConvertFrom-Json $line;$p=$request.params;$result=$true
   if($request.method -in @('click','move','drag','scroll','keys','text') -and $null -ne $p.expectedHandle -and [long]$p.expectedHandle -ne [UmayInput]::GetForegroundWindow().ToInt64()){throw 'NATIVE_FOCUS_CHANGED'}
+  if($request.method -in @('click','move','drag','scroll','keys','text','focus') -and -not $administrator -and [UmayInput]::ElevatedWindow([UmayInput]::GetForegroundWindow()) -eq $true){throw 'NATIVE_ELEVATION_REQUIRED'}
   switch($request.method){
+   'privileges' {$result=@{administrator=$administrator;pid=$PID}}
    'observe' {$result=Get-Observation}
    'click' {[UmayInput]::Click([int]$p.x,[int]$p.y,[string]$p.button,[int]$p.count)}
    'move' {[void][UmayInput]::SetCursorPos([int]$p.x,[int]$p.y)}
@@ -94,8 +112,12 @@ while($null -ne ($line=[Console]::ReadLine())){
    }
    default {throw 'Bilinmeyen bilgisayar işlemi.'}
   }
-  [Console]::WriteLine((ConvertTo-Json -Compress -Depth 8 @{id=$request.id;result=$result}))
+   $ResponseWriter.WriteLine((ConvertTo-Json -Compress -Depth 8 @{id=$request.id;result=$result}))
  }catch{
-  [Console]::WriteLine((ConvertTo-Json -Compress -Depth 4 @{id=$request.id;error=[string]$_.Exception.Message}))
+  $nativeError=$_.Exception
+  while($null -ne $nativeError.InnerException){$nativeError=$nativeError.InnerException}
+  $errorMessage=[string]$nativeError.Message
+  if($errorMessage -cnotmatch '^NATIVE_[A-Z_]+$'){$errorMessage=[string]$_.Exception.Message}
+  $ResponseWriter.WriteLine((ConvertTo-Json -Compress -Depth 4 @{id=$request.id;error=$errorMessage}))
  }
 }

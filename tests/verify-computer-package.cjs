@@ -1,5 +1,5 @@
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),{createHash}=require('node:crypto'),asar=require('@electron/asar');
-const root=path.join(__dirname,'..'),resources=path.join(root,'dist/win-unpacked/resources'),archive=path.join(resources,'app.asar');
+const root=path.join(__dirname,'..'),resources=process.argv[2]?path.resolve(process.argv[2]):path.join(root,'dist/win-unpacked/resources'),archive=path.join(resources,'app.asar');
 const hash=value=>createHash('sha256').update(value).digest('hex');
 let count=0;
 function verify(directory){for(const item of fs.readdirSync(directory,{withFileTypes:true})){const file=path.join(directory,item.name);if(item.isDirectory())verify(file);else {const relative=path.relative(root,file);assert.equal(hash(asar.extractFile(archive,relative)),hash(fs.readFileSync(file)),relative+' package mismatch');count++;}}}

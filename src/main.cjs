@@ -1,5 +1,7 @@
 const {app,BrowserWindow,ipcMain,session,dialog,shell,screen,desktopCapturer,safeStorage,Notification,globalShortcut}=require('electron');
 const {DeviceServices}=require('./device-services.cjs');
+const {DesktopAccess}=require('./desktop-access.cjs');
+const {ComputerShortcut}=require('./computer-shortcut.cjs');
 const {systemStatus,windowAction}=require('./desktop.cjs');
 const path=require('node:path');const fs=require('node:fs');const {spawn}=require('node:child_process');
 const {randomUUID}=require('node:crypto');const readline=require('node:readline');
@@ -58,7 +60,8 @@ app.whenReady().then(()=>{
  site=session.fromPartition('persist:veriussu');
  if(process.platform==='win32')app.setAppUserModelId('com.veriussu.umay');
  const notify=({title,body,url})=>{if(!Notification.isSupported())return;const note=new Notification({title,body});note.on('click',()=>{if(win&&!win.isDestroyed()){win.show();win.focus();}if(url&&/^https:\/\//.test(url))void shell.openExternal(url);});note.show();};
- deviceServices=new DeviceServices({directory:app.getPath('userData'),api:rawApi,screen,publish,notify,openSource:url=>shell.openExternal(url),
+ const computerShortcut=new ComputerShortcut(globalShortcut,()=>void deviceServices.agent.stop());
+ deviceServices=new DeviceServices({native:new DesktopAccess({publish:state=>publish({event:'computer-access',state})}),directory:app.getPath('userData'),api:rawApi,screen,publish,notify,openSource:url=>shell.openExternal(url),
   encrypt:async text=>{if(!await safeStorage.isAsyncEncryptionAvailable())throw Error('Windows güvenli saklama kullanılamıyor.');return safeStorage.encryptStringAsync(text);},
   decrypt:async encrypted=>(await safeStorage.decryptStringAsync(encrypted)).result,
   defaultRoots:['desktop','documents','downloads'].map(key=>app.getPath(key)),
@@ -67,12 +70,12 @@ app.whenReady().then(()=>{
   capture:async displays=>{const sources=await desktopCapturer.getSources({types:['screen'],thumbnailSize:{width:1600,height:1000}});return sources.map(source=>{const display=displays.find(d=>String(d.id)===source.display_id);if(!display)return null;const image=source.thumbnail,size=image.getSize();return {displayId:String(display.id),name:source.name,width:size.width,height:size.height,image:'data:image/jpeg;base64,'+image.toJPEG(65).toString('base64')};}).filter(Boolean);},
   excludedWindowHandles:()=>computerBar&&!computerBar.isDestroyed()?[Number(computerBar.getNativeWindowHandle().readBigUInt64LE())]:[],
   onComputerStart:()=>{
-   if(!globalShortcut.register('F8',()=>void deviceServices.agent.stop()))throw Error('F8 durdurma tuşu başka bir uygulama tarafından kullanılıyor. Tuşu serbest bırakıp tekrar deneyin.');
+   computerShortcut.start();
    computerRunning=true;
    if(!computerBar||computerBar.isDestroyed()){const area=screen.getPrimaryDisplay().workArea;computerBar=new BrowserWindow({width:360,height:64,x:area.x+12,y:area.y+area.height-80,frame:false,resizable:false,alwaysOnTop:true,skipTaskbar:true,show:false,webPreferences:{preload:path.join(__dirname,'computer-bar-preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});computerBar.removeMenu();computerBar.loadFile(path.join(__dirname,'ui','computer-bar.html'));computerBar.webContents.on('will-navigate',e=>e.preventDefault());computerBar.webContents.setWindowOpenHandler(()=>({action:'deny'}));computerBar.once('ready-to-show',()=>computerBar.showInactive());}else computerBar.showInactive();
    if(win&&!win.isDestroyed())win.minimize();
   },
-  onComputerFinish:()=>{computerRunning=false;globalShortcut.unregister('F8');if(computerBar&&!computerBar.isDestroyed())computerBar.hide();const task=deviceServices?.agent.state();if(win&&!win.isDestroyed()&&['question','confirmation','failed','stopped'].includes(task?.status)){win.show();win.focus();}else if(task?.status==='completed')notify({title:'Umay — Görev tamamlandı',body:task.message.slice(0,200)});},
+  onComputerFinish:()=>{computerRunning=false;computerShortcut.finish(deviceServices?.agent.state());if(computerBar&&!computerBar.isDestroyed())computerBar.hide();const task=deviceServices?.agent.state();if(win&&!win.isDestroyed()&&['question','confirmation','failed','stopped','permission'].includes(task?.status)){win.show();win.focus();}else if(task?.status==='completed')notify({title:'Umay — Görev tamamlandı',body:task.message.slice(0,200)});},
  });
  ipcMain.handle('computer-emergency-stop',event=>{if(event.sender!==computerBar?.webContents)throw Error('Güvenilmeyen pencere.');return deviceServices.agent.stop();});
 

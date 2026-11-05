@@ -15,7 +15,7 @@ class NativeDesktop{
   readline.createInterface({input:child.stdout}).on('line',line=>{
    if(child!==this.child)return;let data;try{data=JSON.parse(line);}catch{return;}const entry=this.active;if(!entry||entry.id!==data.id)return;
    this.active=null;clearTimeout(entry.timer);entry.resolveDrain?.();
-   const errors={NATIVE_INPUT_DENIED:'Windows bu pencereye giriş yapılmasına izin vermedi.',NATIVE_FOCUS_CHANGED:'Etkin pencere değişti. Ekran yeniden incelenecek.',NATIVE_WINDOW_UNAVAILABLE:'Seçilen pencere kapandı veya Windows odaklanmaya izin vermedi.',LOCATION_UNAVAILABLE:'Cihaz konumu alınamadı. Windows konum hizmetini açın veya şehir seçin.'};
+   const errors={NATIVE_PARTIAL_INPUT:'İşlemin bir bölümü uygulanmış olabilir. Tekrarlamayı önlemek için görev durduruldu; ekranı kontrol edin.',NATIVE_ELEVATION_REQUIRED:'Bu pencere için Windows yönetici izni gerekiyor.',NATIVE_DESKTOP_LOCKED:'Windows kilit veya güvenli onay ekranında. Bilgisayarın kilidini açıp Windows onayını kendiniz tamamlayın.',NATIVE_INPUT_DENIED:'Windows bu pencereye giriş yapılmasına izin vermedi.',NATIVE_FOCUS_CHANGED:'Etkin pencere değişti. Ekran yeniden incelenecek.',NATIVE_WINDOW_UNAVAILABLE:'Seçilen pencere kapandı veya Windows odaklanmaya izin vermedi.',LOCATION_UNAVAILABLE:'Cihaz konumu alınamadı. Windows konum hizmetini açın veya şehir seçin.'};
    if(!entry.cancelled)data.error?entry.reject(Object.assign(Error(errors[data.error]||data.error),{code:data.error})):entry.resolve(data.result);
    if(this.closing)this.shutdown(child,Error('Windows kontrol bağlantısı kapandı.'));else this.pump();
   });
@@ -50,7 +50,7 @@ class ComputerControl{
  enable(value){this.enabled=!!value;if(!value)this.observation=null;return this.enabled;}
  async observe({image=true}={}){
   if(!this.enabled)throw Error('Önce bilgisayar kontrolünü açın.');const sequence=++this.sequence;
-  const native=await this.native.request('observe'),displays=this.screen.getAllDisplays();
+  const native=await this.native.request('observe');if(native.requiresElevation&&!native.administrator)throw Object.assign(Error('Bu pencere için Windows yönetici izni gerekiyor.'),{code:'NATIVE_ELEVATION_REQUIRED'});const displays=this.screen.getAllDisplays();
   const shots=image?await this.capture(displays):[];
   if(!this.enabled||sequence!==this.sequence)throw Error('Bilgisayar görevi durduruldu.');
   const observation={id:randomUUID(),createdAt:this.now(),title:native.title,handle:native.handle,windows:(native.windows||[]).filter(w=>!this.excludedWindowHandles().includes(w.handle)),elements:native.elements||[],cursor:native.cursor,displays:displays.map(d=>({id:String(d.id),bounds:d.bounds,scaleFactor:d.scaleFactor})),screenshots:shots};this.observation=observation;return observation;

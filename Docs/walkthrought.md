@@ -382,3 +382,13 @@ sıcak TTS ilk parça 110ms, 26 ses parçası PASS.
 - [x] Sunucu aday HTTP/DB testleri; planlayıcı overlay dağıtımı, chat10203 ve2worker healthy; ortam/port/eski modül hash kontrolü.
 - [x] Windows0.4.1 installer; 33 paket dosyası, unpacked native yardımcı,4 ses modülü ve paket içi gerçek giriş/UI kontrolleri.
 Detaylar ve dış model/Windows/çoklu monitör test sınırları computer-model-roles-verification.md içinde.
+
+## [2026-11-05] Windows yönetici izni — 0.4.2
+- [x] İzin gereksiniminde görev duraklama ve açık kullanıcı düğmesi.
+- [x] Runas/UAC başlatıcı, pipe oturum anahtarı ve gerçek Windows yetki probe.
+- [x] Ret/iptal/geç grant/hesap değişimi ve yardımcı kapanışı.
+- [x] F8 bekleyen görevlerde korunur; kısmi giriş terminal hata olur.
+- [x] Bağımsız inceleme ve3 önemli bulguya testli düzeltme.
+- [x] 129 uygulama /60 ses testi; gerçek Windows pipe/protokol ve normal masaüstü giriş/UI testleri.
+- [x] 0.4.2 installer ve paket içi giriş/arayüz/bütünlük kontrolleri.
+- [ ] Gerçek yönetici WinForms penceresi testi: kullanıcı test onayı bekleniyor. Mevcut Codex oturumu zaten yönetici; gerçek standart kullanıcı UAC istemi bu ortamda doğrulanmadı.

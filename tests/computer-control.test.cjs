@@ -87,3 +87,14 @@ test('the actual Umay stop-bar handle is excluded from planner window targets',a
  const f=control();f.control.excludedWindowHandles=()=>[2];f.control.native.request=async()=>({handle:1,elements:[],windows:[{handle:2,title:'Umay bilgisayar görevi'},{handle:3,title:'Editor'}]});f.control.enable(true);
  const view=await f.control.observe();assert.deepEqual(view.windows.map(w=>w.handle),[3]);await assert.rejects(f.control.perform({action:'focus_window',windowHandle:2},view.id),/pencere/);
 });
+test('administrator input pauses for explicit permission and resumes only after a verified grant',async()=>{
+ const f=agent([{action:'click',elementId:0},{action:'done',message:'Doğrulandı'}]);const original=f.control.perform.bind(f.control);let first=true;
+ f.control.perform=async(...args)=>{if(first){first=false;throw Object.assign(Error('Yönetici izni gerekli'),{code:'NATIVE_ELEVATION_REQUIRED'});}return original(...args);};
+ const result=await f.planner.run('Yönetici penceresinde çalış',model);assert.equal(result.status,'permission');assert.equal(f.calls.filter(c=>c.method==='click').length,0);
+ await assert.rejects(f.planner.resume(result.id,{approved:true}),/Windows yönetici/);
+ assert.equal((await f.planner.resume(result.id,{approved:true,elevated:true})).status,'completed');assert.equal(f.calls.filter(c=>c.method==='observe').length,2);
+});
+test('a pending administrator permission is stopped and cannot be replaced by another task',async()=>{
+ const f=agent([]);f.control.observe=async()=>{throw Object.assign(Error('Yönetici izni gerekli'),{code:'NATIVE_ELEVATION_REQUIRED'});};
+ const result=await f.planner.run('Görev',model);assert.equal(result.status,'permission');await assert.rejects(f.planner.run('Başka görev',model),/etkin/);await f.planner.stop();assert.equal(f.planner.state().status,'stopped');
+});
