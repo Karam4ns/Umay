@@ -3,6 +3,7 @@ let pendingRunCancel=Promise.resolve(),pendingSubmission=Promise.resolve();
 let conversation=null,runId=null,ticket=0,models=[],voice='',audioContext,playHead=0,sources=[],listening=false,stream,capture,accountId=null,sessionEpoch=0,responseActive=false;
 let pre=[],frames=[],voiced=0,silence=0,recording=false,transcribing=false,noise=.0005;
 let captureModule, microphoneSource, microphoneGain, inputFrames=0, microphoneEpoch=0,inputContext,liveRecognizer=null,liveDraft='',voiceEdited=false,echoGuardUntil=0,playbackSuppressed=false,gateFrames=[];
+let computerControlTimer=null;
 const status=text=>{$('status').textContent=text;window.umayShell?.status(text);};
 const playbackEcho=new window.PlaybackEcho();
 const safe=fn=>async(...args)=>{try{return await fn(...args);}catch(e){const text=e.message.replace(/^Error invoking remote method '[^']+': (?:Error: )?/,'');status(window.UmayErrors.isKnown(text)?errorText(text):text);}};
@@ -56,6 +57,12 @@ function submitMessage(text,current){
 }
 async function send(text,fromVoice=false){
  if(!text.trim())return;
+ clearTimeout(computerControlTimer);computerControlTimer=null;
+ const localCommand=window.ComputerCommands?.computerCommand(text);
+ if(localCommand&&window.umayComputerChat?.canControl?.(localCommand)){
+  const current=++ticket,operation=window.umayComputerChat.control(localCommand,text);await stop(false,fromVoice,true);message('user',text);
+  const result=await operation;if(result&&current===ticket)await finishComputerReply(result,current);return;
+ }
  if(window.umayComputerChat?.pending()){
   const current=++ticket;await stop(false,fromVoice,true);if(current!==ticket)return;
   message('user',text);await api.busy(true);responseActive=true;
@@ -110,15 +117,21 @@ function createLiveRecognizer(){
  return new window.LiveTranscriber({speech:(method,params)=>api.speech(method,params),
   onPartial:text=>{
    if(!listening||playbackSuppressed)return;
+   clearTimeout(computerControlTimer);computerControlTimer=null;
+   const command=window.ComputerCommands?.computerCommand(text),computerActive=window.umayComputerChat?.running();
+   if(['pause','stop'].includes(command)&&window.umayComputerChat?.canControl?.(command))computerControlTimer=setTimeout(()=>{
+    computerControlTimer=null;if(!listening||!window.umayComputerChat?.canControl?.(command))return;void (async()=>{const current=++ticket,operation=window.umayComputerChat.control(command,text);await stop(false,true,true);const result=await operation;if(result&&current===ticket)status(result.message);})().catch(error=>status(error.message));
+   },150);
    // Raw microphone energy is not a new turn. Interrupt a pending response only
    // after the recognizer has actual words; playback has its stricter local gate.
-   if(responseActive&&text.trim())void stop(true,true,!!window.umayComputerChat?.pending()).catch(error=>status(error.message));
+   if(responseActive&&text.trim()&&!computerActive)void stop(true,true,!!window.umayComputerChat?.pending()).catch(error=>status(error.message));
    if($('input').value!==liveDraft&&$('input').value.trim())voiceEdited=true;
    if(!voiceEdited){$('input').value=text;liveDraft=text;}
    $('live-caption').hidden=!text;$('live-text').textContent=text;$('voice-status').textContent='Seni dinliyorum…';
   },
   onFinal:text=>{
    if(!listening||playbackSuppressed)return;recording=false;voiced=0;silence=0;
+   clearTimeout(computerControlTimer);computerControlTimer=null;
    const own=!voiceEdited&&(!$('input').value||$('input').value===liveDraft);
    if(own){$('input').value='';if(text)void safe(()=>send(text,true))();}
    else if(text)status('Konuşma metni hazır. Düzenlediğin mesajı Gönder ile iletebilirsin.');
@@ -141,13 +154,14 @@ async function onFrame(frame){
  if(!recording&&voiced>=5){
   recording=true;playbackSuppressed=false;$('voice-status').textContent='Seni dinliyorum…';
   if(gated){for(const part of gateFrames)liveRecognizer?.accept(part);gateFrames=[];replayed=true;}
-  if(sources.length)void stop(true,true,!!window.umayComputerChat?.pending()).catch(error=>status(error.message));
+  if(sources.length)void stop(true,true,!!window.umayComputerChat?.running()).catch(error=>status(error.message));
  }
  if(!gated||recording){if(!replayed)liveRecognizer?.accept(frame);}else liveRecognizer?.accept(new Float32Array(frame.length));
  if(!gated)gateFrames=[];
  if(silence>=30){recording=false;voiced=0;}
 }
 function releaseMicrophone(){
+ clearTimeout(computerControlTimer);computerControlTimer=null;
  ++microphoneEpoch;listening=false;stream?.getTracks().forEach(t=>t.stop());stream=null;const previousLive=liveRecognizer;liveRecognizer=null;if(previousLive)void previousLive.close();clearVoiceDraft();gateFrames=[];playbackSuppressed=false;void inputContext?.suspend?.().catch(()=>{});
  window.umayShell?.listening(false);
  if(capture)capture.port.onmessage=null;capture?.disconnect();capture=null;

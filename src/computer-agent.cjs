@@ -11,7 +11,7 @@ function parseAction(text){
 }
 function visionModel(model){return (model.categories||[]).some(c=>/^(vision|multimodal|image[-_ ]to[-_ ]text|görsel anlama)$/i.test(typeof c==='string'?c:c?.name||c?.slug||''));}
 class ComputerAgent{
- constructor({control,api,memory,publish=()=>{},onStart=()=>{},onFinish=()=>{},verifyCompletion=async()=>null,now=()=>Date.now(),delay=ms=>new Promise(r=>setTimeout(r,ms))}){Object.assign(this,{control,api,memory,publish,onStart,onFinish,verifyCompletion,now,delay});this.task=null;this.sequence=0;}
+ constructor({control,api,memory,publish=()=>{},onStart=()=>{},onFinish=()=>{},verifyCompletion=async()=>null,onObservation=()=>{},sessionContext=()=>null,now=()=>Date.now(),delay=ms=>new Promise(r=>setTimeout(r,ms))}){Object.assign(this,{control,api,memory,publish,onStart,onFinish,verifyCompletion,onObservation,sessionContext,now,delay});this.task=null;this.sequence=0;}
  state(){const task=this.task;return task?{id:task.id,status:task.status,goal:task.goal,origin:task.origin||null,step:task.steps.length,message:task.message||'',requiresInput:task.requiresInput||null}:null;}
  check(task){if(this.task!==task||task.sequence!==this.sequence||task.epoch!==this.memory.epoch||!this.control.enabled)throw Error('Bilgisayar görevi durduruldu.');}
  emit(){this.publish({event:'computer-task',task:this.state()});}
@@ -22,7 +22,25 @@ class ComputerAgent{
   if(origin&&(typeof origin.userRequest!=='string'||!origin.userRequest.trim()))throw Error('Asıl kullanıcı isteği doğrulanamadı.');
   const task=this.task={id:randomUUID(),sequence:++this.sequence,epoch:this.memory.epoch,goal:goal.trim(),model,origin,steps:[],status:'running',createdAt:this.now(),recoveries:0,messageTimes:[],lastRun:null,selectedDisplay:null};
   this.memory.archiveConversation({id:task.id,title:goal.slice(0,100),localSource:'computer'},[{id:randomUUID(),role:'user',content:goal}]);
-  this.memory.log('computer-task',goal,{status:'running',details:{taskId:task.id}});return this.loop(task,true);
+  this.memory.log('computer-task',goal,{status:'running',details:{taskId:task.id}});return task.work=this.loop(task,true);
+ }
+ async pause(){
+  const task=this.task;if(!task||!['running','question','confirmation','permission'].includes(task.status))return this.state();
+  const sequence=++this.sequence,drained=this.control.stop();task.pausedStatus=task.status;task.status='paused';task.message='Durdum. Devam et dediğinde güncel ekranla sürdüreceğim.';this.emit();this.memory.log('computer-task',task.message,{status:'paused',details:{taskId:task.id}});
+  if(task.lastRun)void this.api('/site/chat/runs/'+task.lastRun+'/cancel',{}).catch(()=>{});
+  await drained;if(this.task===task&&sequence===this.sequence)this.onFinish();return this.state();
+ }
+ async resumePaused(){
+  const previous=this.task;if(!previous||previous.status!=='paused')throw Error('Devam ettirilecek duraklatılmış görev bulunamadı.');
+  if(previous.epoch!==this.memory.epoch||!this.control.enabled)throw Error('Görev bu hesapta devam ettirilemez.');
+  const task=this.task={...previous,sequence:++this.sequence,status:previous.pausedStatus||'running',steps:[...previous.steps],messageTimes:[...previous.messageTimes],userAuthorization:[...(previous.userAuthorization||[])],lastRun:null,recoveries:0,repeated:0,lastFingerprint:null,work:null};
+  if(task.status!=='running'){this.emit();this.onFinish();return this.state();}
+  task.message='Güncel ekranla devam ediyorum…';task.feedback='Kullanıcı duraklatılan aynı göreve devam edilmesini istedi. Güncel ekranı incele; tamamlanan işlemleri tekrar etme.';this.emit();
+  return task.work=(async()=>{
+   await previous.work?.catch(()=>{});if(this.task!==task||task.sequence!==this.sequence||task.epoch!==this.memory.epoch)return null;
+   if(task.conversation){const detail=await this.api('/site/chat/conversations/'+task.conversation.id);this.check(task);task.conversation=detail.conversation;}
+   return this.loop(task,true);
+  })();
  }
  async resume(id,{approved=false,answer='',elevated=false}={}){
   const task=this.task;if(!task||task.id!==id||!['confirmation','question','permission'].includes(task.status))throw Error('Devam ettirilecek görev bulunamadı.');this.check(task);
@@ -30,11 +48,11 @@ class ComputerAgent{
   if(task.status==='confirmation'&&!approved){await this.stop();return this.state();}
   task.feedback=task.status==='permission'?'Kullanıcı mevcut görev için Windows yönetici onayını verdi. Güncel gözlemi inceleyerek devam et; önceki işlemi körlemesine tekrarlama.':task.status==='confirmation'?'Kullanıcı şu belirli işlemi onayladı: '+JSON.stringify(task.requiresInput):'Kullanıcının ek açıklaması: '+String(answer).slice(0,4000);
   task.userAuthorization??=[];task.userAuthorization.push({kind:task.status,answer:task.status==='question'?String(answer).slice(0,4000):null,approved:task.status==='permission'?elevated:approved,scope:task.status==='confirmation'?task.requiresInput:null});
-  task.requiresInput=null;task.status='running';task.recoveries=0;task.lastFingerprint=null;task.repeated=0;return this.loop(task,true);
+  task.requiresInput=null;task.status='running';task.recoveries=0;task.lastFingerprint=null;task.repeated=0;return task.work=this.loop(task,true);
  }
  async stop(){
   const task=this.task,sequence=++this.sequence,drained=this.control.stop();
-  if(task&&['running','confirmation','question','permission'].includes(task.status)){task.status='stopped';task.message='Görev durduruldu.';this.emit();if(task.epoch===this.memory.epoch)this.memory.log('computer-task',task.message,{status:'cancelled',details:{taskId:task.id}});}
+  if(task&&['running','paused','confirmation','question','permission'].includes(task.status)){task.status='stopped';task.message='Görev durduruldu.';this.emit();if(task.epoch===this.memory.epoch)this.memory.log('computer-task',task.message,{status:'cancelled',details:{taskId:task.id}});}
   await drained;if(sequence===this.sequence)this.onFinish();if(task?.lastRun)await this.api('/site/chat/runs/'+task.lastRun+'/cancel',{}).catch(()=>{});return this.state();
  }
  async wait(task,milliseconds){const end=this.now()+milliseconds;while(this.now()<end){this.check(task);await this.delay(Math.min(200,end-this.now()));}this.check(task);}
@@ -50,11 +68,11 @@ class ComputerAgent{
    if(!task.conversation){const created=await this.api('/site/chat/conversations',{source:task.model.source,modelId:task.model.id,title:'Umay bilgisayar görevi: '+task.goal.slice(0,110),requestId:randomUUID()});this.check(task);task.conversation=created.conversation;}
    while(task.steps.length<120&&this.now()-task.createdAt<30*60000){
     this.check(task);task.message='Ekran inceleniyor…';this.emit();
-    let observed;try{observed=await this.control.observe({image:true});}catch(error){if(this.recover(task,error))continue;throw error;}this.check(task);
+    let observed;try{observed=await this.control.observe({image:true});}catch(error){if(this.recover(task,error))continue;throw error;}this.check(task);this.onObservation(task,observed);
     const images=observed.screenshots;
     const selected=images.find(s=>s.displayId===task.selectedDisplay)||images.find(s=>observed.elements.some(e=>{const p=this.control.screen.screenToDipPoint?.({x:Math.round(e.bounds.x+e.bounds.width/2),y:Math.round(e.bounds.y+e.bounds.height/2)})||e.bounds;return this.control.screen.getDisplayNearestPoint?.(p)?.id==s.displayId;}))||images[0];
     task.inspectedDisplays??=new Set();if(selected&&visionModel(task.model))task.inspectedDisplays.add(selected.displayId);
-    const prompt={proposedGoal:task.goal,originalUserRequest:task.origin?task.origin.userRequest:task.goal,userAuthorization:task.userAuthorization?.slice(-6)||[],step:task.steps.length+1,previousSteps:task.steps.slice(-6),userFeedback:task.feedback||null,capabilities:{actions:[...INPUT_ACTIONS,'observe','done','ask','confirm'],windowsShortcuts:{showDesktop:['WIN','D'],runDialog:['WIN','R'],addressBar:['CTRL','L'],newFolderOnDesktopOrExplorer:['CTRL','SHIFT','N'],rename:['F2']},scrollAxes:['vertical','horizontal'],windowAction:'focus_window with windowHandle from observation.windows',dragEnd:'endDisplayId is optional; inspect the destination monitor first'},observation:{id:observed.id,title:observed.title,windows:observed.windows||[],displayId:selected?.displayId,screenshotSize:selected?{width:selected.width,height:selected.height}:null,displays:observed.displays,elements:observed.elements.slice(0,100).map(e=>({...e,name:e.name.slice(0,160)}))},hasImage:visionModel(task.model)&&!!selected};
+    const prompt={session:this.sessionContext(),proposedGoal:task.goal,originalUserRequest:task.origin?task.origin.userRequest:task.goal,userAuthorization:task.userAuthorization?.slice(-6)||[],step:task.steps.length+1,previousSteps:task.steps.slice(-6),userFeedback:task.feedback||null,capabilities:{actions:[...INPUT_ACTIONS,'observe','done','ask','confirm'],windowsShortcuts:{showDesktop:['WIN','D'],runDialog:['WIN','R'],addressBar:['CTRL','L'],newFolderOnDesktopOrExplorer:['CTRL','SHIFT','N'],rename:['F2']},scrollAxes:['vertical','horizontal'],windowAction:'focus_window with windowHandle from observation.windows',dragEnd:'endDisplayId is optional; inspect the destination monitor first'},observation:{id:observed.id,title:observed.title,windows:observed.windows||[],displayId:selected?.displayId,screenshotSize:selected?{width:selected.width,height:selected.height}:null,displays:observed.displays,elements:observed.elements.slice(0,100).map(e=>({...e,name:e.name.slice(0,160)}))},hasImage:visionModel(task.model)&&!!selected};
     task.feedback=null;
     while(JSON.stringify(prompt).length>11200&&prompt.observation.elements.length>5)prompt.observation.elements.pop();
     while(JSON.stringify(prompt).length>11700&&prompt.observation.windows.length>1)prompt.observation.windows.pop();

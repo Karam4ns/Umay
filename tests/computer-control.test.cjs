@@ -23,6 +23,23 @@ function agent(actions){
  const planner=new ComputerAgent({control:f.control,api,memory,now:()=>clock,delay:async ms=>clock+=ms});return {...f,planner,memory,logs,getPosted:()=>posted};
 }
 const model={id:'model',source:'PERSONAL',categories:['vision']};
+test('pause stops locally before a late model POST, then resume refreshes version and cannot execute the old response',async()=>{
+ const f=agent([]);let deliver,posted=0,version=1;const cancelled=[];
+ f.planner.api=async(route,body)=>{
+  if(route==='/site/chat/conversations')return {conversation:{id:'c',version}};
+  if(route.endsWith('/messages')){assert.equal(body.expectedVersion,version);version++;posted++;if(posted===1)return new Promise(r=>deliver=()=>r({run:{id:'old'}}));return {run:{id:'new'+posted}};}
+  if(route.endsWith('/cancel')){cancelled.push(route);return {};}
+  if(route.includes('/runs/'))return {run:{status:'COMPLETED'}};
+  return {conversation:{id:'c',version},messages:posted>1?[{role:'assistant',content:JSON.stringify(posted===2?{action:'type',text:'Yeni talimat'}:{action:'done',message:'Bitti.'})}]:[]};
+ };
+ const running=f.planner.run('Kullanıcının işi',model);while(!deliver)await new Promise(r=>setImmediate(r));
+ assert.equal((await f.planner.pause()).status,'paused');assert.equal(f.calls.filter(x=>x.method==='text').length,0);
+ const resumed=f.planner.resumePaused();await new Promise(r=>setImmediate(r));assert.equal(posted,1);deliver();await running;
+ assert.equal((await resumed).status,'completed');assert.equal(f.calls.filter(x=>x.method==='text').length,1);assert.ok(cancelled.some(x=>x.includes('old')));
+});
+test('pausing a permission/confirmation never silently approves it on continue',async()=>{
+ const f=agent([{action:'confirm',summary:'Dosyayı yayımla',nextAction:{action:'click',elementId:0}}]);const task=await f.planner.run('Dosyayı hazırla',model);assert.equal(task.status,'confirmation');await f.planner.pause();assert.equal((await f.planner.resumePaused()).status,'confirmation');assert.equal(f.calls.filter(x=>x.method==='click').length,0);
+});
 test('an unverified completion must finish the pending rename before success and never retype blindly',async()=>{
  const f=agent([{action:'type',text:'dosya'},{action:'done',message:'Oluşturuldu.'},{action:'keys',keys:['ENTER']},{action:'done',message:'Oluşturuldu.'}]);
  f.planner.verifyCompletion=async()=>({verified:f.calls.some(c=>c.method==='keys'),message:'Klasör dosya sisteminde yok; adlandırmayı Enter ile onayla.'});

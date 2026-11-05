@@ -6,13 +6,15 @@ const {NativeDesktop,ComputerControl}=require('./computer-control.cjs');
 const {ComputerAgent}=require('./computer-agent.cjs');
 const {chatComputerTask}=require('./chat-computer-task.cjs');
 const {verifyComputerCompletion}=require('./computer-completion.cjs');
+const {ComputerSession}=require('./computer-session.cjs');
 class DeviceServices{
  constructor({directory,api,encrypt,decrypt,screen,capture,notify,publish=()=>{},onComputerStart=()=>{},onComputerFinish=()=>{},excludedWindowHandles=()=>[],chooseRoots,saveFile,openSource=()=>{},defaultRoots=[],native=new NativeDesktop(),background=true}){
   Object.assign(this,{api,publish,chooseRoots,saveFile,openSource,defaultRoots,background});this.indexCancelled=false;this.indexing=null;this.bridgeSupported=null;
   this.memory=new LocalMemory(path.join(directory,'memory'),{encrypt,decrypt});
   this.environment=new EnvironmentService({memory:this.memory,locate:()=>native.request('location'),notify,publish});
   this.control=new ComputerControl({native,capture,screen,excludedWindowHandles});
-  this.agent=new ComputerAgent({control:this.control,api,memory:this.memory,verifyCompletion:task=>verifyComputerCompletion(task.origin?task.origin.userRequest:task.goal,{desktop:this.defaultRoots[0]}),publish:event=>{if(event.event==='computer-task'){const task=this.agent.task;if(task&&task.status!=='running')this.recordComputerLine(task,'assistant',task.message);}publish(event);},onStart:onComputerStart,onFinish:()=>{const status=this.agent.task?.status;if(!status||['completed','failed','stopped'].includes(status))void native.release?.();onComputerFinish();}});
+  this.computerSession=new ComputerSession();
+  this.agent=new ComputerAgent({control:this.control,api,memory:this.memory,onObservation:(_task,view)=>this.computerSession.observe(view),sessionContext:()=>this.computerSession.context(true),verifyCompletion:task=>verifyComputerCompletion(task.origin?task.origin.userRequest:task.goal,{desktop:this.defaultRoots[0]}),publish:event=>{if(event.event==='computer-task'){const task=this.agent.task;this.computerSession.update(task);if(task&&task.status!=='running')this.recordComputerLine(task,'assistant',task.message);}publish(event);},onStart:onComputerStart,onFinish:()=>{const status=this.agent.task?.status;if(!status||['completed','failed','stopped'].includes(status))void native.release?.();onComputerFinish();}});
  }
  recordComputerLine(task,role,content){
   const id=task?.origin?.conversationId;if(!id||!content||task.epoch!==this.memory.epoch||!this.memory.account)return;
@@ -24,7 +26,7 @@ class DeviceServices{
  }
  activate(account){
   if(String(account??'')===String(this.memory.account??''))return;
-  this.indexCancelled=true;void this.agent.stop();this.agent.task=null;this.control.enable(false);this.environment.stop();this.environment.cache.clear();this.environment.sourceState.clear();this.memory.activate(account);this.bridgeSupported=null;
+  this.indexCancelled=true;void this.agent.stop();this.agent.task=null;this.control.enable(false);this.environment.stop();this.environment.cache.clear();this.environment.sourceState.clear();this.memory.activate(account);this.computerSession.reset();this.bridgeSupported=null;
   if(account&&this.background){this.environment.start();const epoch=this.memory.epoch;if(!this.memory.setting('location'))void this.environment.detectLocation().then(()=>{if(epoch===this.memory.epoch)this.publish({event:'environment-updated',state:this.environment.state()});}).catch(()=>{});void this.syncHistory(epoch).catch(()=>{});if(!this.memory.setting('indexInitialized',false))void Promise.resolve(this.indexing).catch(()=>{}).then(()=>{this.memory.check(epoch);return this.index(this.defaultRoots);}).then(result=>{if(!result.cancelled&&epoch===this.memory.epoch)this.memory.setSetting('indexInitialized',true);}).catch(error=>{if(epoch===this.memory.epoch)this.publish({event:'device-warning',message:error.message});});}
  }
  async syncHistory(epoch){
@@ -38,14 +40,16 @@ class DeviceServices{
   try{const remote=await this.api('/site/user-memory');this.memory.check(epoch);const text=JSON.stringify(remote);if(text!=='{}'&&text.length>2)this.memory.putNode({kind:'remote',key:'veriussu.memory',title:'Veriüssü hafızası',content:text.slice(0,10000),tags:['Veriüssü']});}catch(error){if(epoch!==this.memory.epoch)throw error;}
  }
  async prepareContext(query){
+  const epoch=this.memory.epoch;
   const context={capabilities:{computerControl:true,protocol:'umay-computer-task-v1'},memory:this.memory.context(query),environment:this.environment.context(query)};
+  if(this.control.enabled){try{const foreground=await this.control.native.request('foreground');this.memory.check(epoch);this.computerSession.observe(foreground);}catch(error){if(epoch!==this.memory.epoch)throw error;}context.computer=this.computerSession.context();}
   if(/hava|sıcaklık|yağmur|kar yağ|şemsiye|rüzgâr|rüzgar/i.test(query)){
    try{context.environment.weather=await this.environment.weather();}catch(error){context.environment.weather={available:false,message:error.message};}
   }
   if(/dosya|klasör|yolu|nerede|\.pdf|\.docx|\.xlsx/i.test(query)){
    const filename=query.match(/[\p{L}\p{N}_() -]+\.[a-z0-9]{1,8}\b/iu)?.[0]?.trim();context.files=this.memory.findFiles(filename||query.split(/\s+/).filter(w=>w.length>3)[0]||'').slice(0,8);
   }
-  let text=JSON.stringify(context);while(text.length>11500&&context.memory.messages.length){context.memory.messages.pop();text=JSON.stringify(context);}while(text.length>11500&&context.memory.profile.length){context.memory.profile.pop();text=JSON.stringify(context);}if(text.length>12000)text=JSON.stringify({capabilities:context.capabilities,environment:context.environment.clock,memory:{profile:[],messages:[],operations:context.memory.operations?.slice(0,3)||[]},truncated:true});return text;
+  let text=JSON.stringify(context);while(text.length>11500&&context.memory.messages.length){context.memory.messages.pop();text=JSON.stringify(context);}while(text.length>11500&&context.memory.profile.length){context.memory.profile.pop();text=JSON.stringify(context);}if(text.length>12000)text=JSON.stringify({capabilities:context.capabilities,...(context.computer?{computer:context.computer}:{}),environment:context.environment.clock,memory:{profile:[],messages:[],operations:context.memory.operations?.slice(0,3)||[]},truncated:true});return text;
  }
  async siteApi(route,body){
   if(!this.memory.account)return this.api(route,body);const epoch=this.memory.epoch,match=route.match(/^\/site\/chat\/conversations\/([^/]+)\/messages$/);let payload=body;
@@ -135,6 +139,8 @@ class DeviceServices{
  async computer(method,input={}){
   this.memory.require();switch(method){
    case 'state':return {enabled:this.control.enabled,task:this.agent.state(),access:this.control.native.state?.()||{administrator:false,pending:false}};
+   case 'pause':if(this.agent.task&&input.userReply)this.recordComputerLine(this.agent.task,'user',input.userReply);return this.agent.pause();
+   case 'continue':if(this.agent.task&&input.userReply)this.recordComputerLine(this.agent.task,'user',input.userReply);return this.agent.resumePaused();
    case 'enable':if(!input.enabled)await this.agent.stop();this.memory.log('computer-permission',input.enabled?'Bilgisayar kontrolü açıldı':'Bilgisayar kontrolü kapatıldı');return {enabled:this.control.enable(input.enabled)};
    case 'preview':return this.control.observe({image:true});
    case 'run':{const sequence=this.agent.sequence,model=await this.modelRoles('resolve',{role:'computer',...(input.modelId?{model:{id:input.modelId,source:input.source}}:{})});if(sequence!==this.agent.sequence)throw Error('Bilgisayar görevi durduruldu.');return this.agent.run(input.goal,model);}

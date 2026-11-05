@@ -1,6 +1,11 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),os=require('node:os');
 const {DeviceServices}=require('../src/device-services.cjs');
 function fixture(api){return new DeviceServices({directory:fs.mkdtempSync(path.join(os.tmpdir(),'umay-devices-test-')),api,screen:{},capture:async()=>[],native:{request:async()=>({}),close(){}},background:false});}
+test('a delayed foreground summary cannot cross an account switch',async()=>{
+ const service=fixture(async()=>({}));service.activate('old');service.control.enable(true);let finish;
+ service.control.native.request=async()=>new Promise(resolve=>finish=resolve);const pending=service.prepareContext('Sıradaki bölüme geç');service.activate('new');finish({handle:1,title:'Previous user app'});
+ await assert.rejects(pending,/Hesap değişti/);assert.equal(service.computerSession.context().foreground,null);service.close();
+});
 test('local context travels separately and archived chat survives site deletion',async()=>{
  const requests=[];const services=fixture(async(route,body)=>{requests.push({route,body});if(route.endsWith('/messages'))return {run:{id:'run'}};return {conversation:{id:'a',title:'Merhaba'},messages:[{id:'server-user',role:'user',content:'Kahveyi seviyorum.'},{id:'assistant',role:'assistant',content:'Hatırladım.'}]};});
  services.activate('alice');const body={content:'Kahveyi seviyorum.',requestId:'request'};await services.siteApi('/site/chat/conversations/a/messages',body);assert.equal(requests[0].body.content,body.content);assert.match(requests[0].body.desktopContext,/clock/);assert.equal(body.desktopContext,undefined);

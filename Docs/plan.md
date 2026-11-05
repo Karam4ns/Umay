@@ -768,3 +768,7 @@ Kullanıcı ayrı bilgisayar sayfası istemediğini düzeltti. Sayfa ve mod seç
 ## [2026-11-05] Gerçek API girişi ve doğrulanmış sonuç — 0.4.4
 
 10203 geçidinin kullandığı frontend DTO/controller güncellendi; cihaz yeteneklerinin sessizce kaldırılması kaldırıldı. Canlı modelde görülen eksik ekran/sonuç alanları ve geçersiz yanıtlar toparlanır. Açık, bağımsız Desktop klasörü isteği gerçek dosya sistemi sonucuyla tamamlanır; birleşik görevlerin kapsamı daraltılmaz. Testler/kurulum ve son canlı tekrarın token muhasebesi engeli computer-ingress-fix.md dosyasında kayıtlıdır.
+
+## [2026-11-05] Sesle genel bilgisayar kullanımı — 0.5.0
+
+Kullanıcının verdiği uygulama/site/kodlama/video/oyun örnekleri kapsam sınırı değildir. Genel ekran→karar→gerçek giriş→doğrulama döngüsü; yerel sesli duraklat/devam, uzun iş izleme, süreli basılı giriş ve göreli fare. Ayrı bilgisayar sayfası yok; mevcut sohbet ve roller sürer. Sıralı plan, arayüzler ve doğrulama ölçütleri: `Docs/full-computer-control.md`.

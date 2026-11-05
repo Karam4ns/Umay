@@ -97,6 +97,7 @@ while($true){
   if($request.method -in @('click','move','drag','scroll','keys','text','focus') -and -not $administrator -and [UmayInput]::ElevatedWindow([UmayInput]::GetForegroundWindow()) -eq $true){throw 'NATIVE_ELEVATION_REQUIRED'}
   switch($request.method){
    'privileges' {$result=@{administrator=$administrator;pid=$PID}}
+   'foreground' {$result=@{handle=[UmayInput]::GetForegroundWindow().ToInt64();title=[UmayInput]::Title();windows=[UmayInput]::Windows()}}
    'observe' {$result=Get-Observation}
    'click' {[UmayInput]::Click([int]$p.x,[int]$p.y,[string]$p.button,[int]$p.count)}
    'move' {[void][UmayInput]::SetCursorPos([int]$p.x,[int]$p.y)}

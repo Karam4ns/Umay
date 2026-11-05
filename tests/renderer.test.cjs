@@ -22,11 +22,11 @@ function renderer(overrides={}){
     ...overrides
   };
   const context=vm.createContext({
-    window:{umay:bridge,LiveTranscriber,PlaybackEcho:require('../src/ui/playback-echo.js').PlaybackEcho,UmayErrors:require('../src/ui/user-errors.js')},
+    window:{umay:bridge,LiveTranscriber,ComputerCommands:require('../src/ui/computer-commands.js'),PlaybackEcho:require('../src/ui/playback-echo.js').PlaybackEcho,UmayErrors:require('../src/ui/user-errors.js')},
     document:{getElementById:node,querySelectorAll:()=>[],createElement:element,body:element()},
     localStorage:{getItem:key=>saved.get(key)||null,setItem:(key,value)=>saved.set(key,value),removeItem:key=>saved.delete(key)},crypto:{randomUUID},
     Option:function(text,value){return {textContent:text,value};},
-    atob,btoa,Uint8Array,Int16Array,Float32Array,setTimeout,
+    atob,btoa,Uint8Array,Int16Array,Float32Array,setTimeout,clearTimeout,
     AudioContext:overrides.AudioContext,navigator:overrides.navigator,AudioWorkletNode:overrides.AudioWorkletNode
   });
   vm.runInContext(source,context,{filename:'renderer.js'});
@@ -404,4 +404,24 @@ test('token denial during message submission is shown in chat without its techni
  const app=renderer({api:async(route)=>{if(route==='/site/auth/me')throw Error('No account');if(route.endsWith('/messages'))throw Error('INSUFFICIENT_TOKENS');}});
  await new Promise(r=>setImmediate(r));app.run('conversation={id:"chat",version:1}');await app.run("send('Soru')");
  assert.equal(app.node('messages').children.length,2);const text=app.node('messages').children[1].textContent;assert.match(text,/Token limitiniz yetersiz/);assert.doesNotMatch(text,/INSUFFICIENT_TOKENS/);
+});
+
+
+test('dur and devam et use local task control and never wait for a chat model',async()=>{
+ const calls=[];const app=renderer({computer:async(method)=>{calls.push(method);return {status:method==='pause'?'paused':'completed',message:'Durdum.'};}});await new Promise(r=>setImmediate(r));
+ app.run("window.umayComputerChat={running:()=>true,pending:()=>null,canControl:()=>true,control:(cmd)=>api.computer(cmd==='resume'?'continue':cmd),paint(){}};conversation={id:'chat',version:1};listening=true");
+ await app.run("send('Umay dur',true)");assert.deepEqual(calls,['pause']);assert.equal(app.run('listening'),true);
+ await app.run("send('devam et',true)");assert.deepEqual(calls,['pause','continue']);
+});
+
+test('a stable partial dur stops native work before STT finalization without closing the microphone',async()=>{
+ const calls=[];const app=renderer({computer:async(method)=>{calls.push(method);return {status:'paused',message:'Durdum.'};}});await new Promise(r=>setImmediate(r));
+ app.run("window.umayComputerChat={running:()=>true,pending:()=>null,canControl:()=>true,control:()=>api.computer('pause'),paint(){}};listening=true;responseActive=true;liveRecognizer=createLiveRecognizer()");await app.run("liveRecognizer.start('stream')");
+ app.emit({event:'transcript',streamId:'stream',generation:0,utterance:0,text:'dur',final:false});await new Promise(r=>setTimeout(r,210));assert.deepEqual(calls,['pause']);assert.equal(app.run('listening'),true);
+});
+
+test('a corrected partial durma cancels the local stop debounce during active computer work',async()=>{
+ const calls=[];const app=renderer({computer:async method=>{calls.push(method);return {status:'paused'};}});await new Promise(r=>setImmediate(r));
+ app.run("window.umayComputerChat={running:()=>true,pending:()=>null,canControl:()=>true,control:()=>api.computer('pause')};listening=true;responseActive=true;liveRecognizer=createLiveRecognizer()");await app.run("liveRecognizer.start('stream')");
+ app.emit({event:'transcript',streamId:'stream',generation:0,utterance:0,text:'dur',final:false});app.emit({event:'transcript',streamId:'stream',generation:0,utterance:0,text:'durma',final:false});await new Promise(r=>setTimeout(r,210));assert.deepEqual(calls,[]);
 });

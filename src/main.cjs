@@ -89,7 +89,7 @@ app.whenReady().then(()=>{
  session.defaultSession.setPermissionRequestHandler((contents,permission,callback)=>callback(contents===win?.webContents&&permission==='media'));
  const area=screen.getPrimaryDisplay().workAreaSize;
  const iconPath=path.join(__dirname,'ui','assets','umay.png');
- win=new BrowserWindow({icon:fs.existsSync(iconPath)?iconPath:undefined,width:Math.min(1500,area.width-20),height:Math.min(920,area.height-20),minWidth:Math.min(960,area.width-20),minHeight:Math.min(680,area.height-20),frame:false,backgroundColor:'#030d14',show:false,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+ win=new BrowserWindow({icon:fs.existsSync(iconPath)?iconPath:undefined,width:Math.min(1500,area.width-20),height:Math.min(920,area.height-20),minWidth:Math.min(960,area.width-20),minHeight:Math.min(680,area.height-20),frame:false,backgroundColor:'#030d14',show:false,webPreferences:{backgroundThrottling:false,preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
  win.removeMenu();win.loadFile(path.join(__dirname,'ui','index.html'));win.once('ready-to-show',()=>win.show());win.on('closed',()=>app.quit());
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-navigate',e=>e.preventDefault());
  const handle=(name,fn)=>ipcMain.handle(name,async(e,...args)=>{
