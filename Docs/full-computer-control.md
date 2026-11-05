@@ -40,7 +40,7 @@ Uygulama açma/kurma/kaldırma, Codex/Cursor/Cline/OpenCode/Claude gibi araçlar
 
 - [x] Yerel komut doğrulama, STT kısmi dur, pause/resume nesil/geç POST/sürüm testleri RED.
 - [x] Yalnızca gerçek kontrol komutunu modelden önce yakala; görev durumunu/mikrofonu koru; penceresi küçülünce ses yakalama zamanlamasını yavaşlatma.
-- [ ] Son bütünleşik ses/UI regresyonları (Task6); ilgili72 unit testi GREEN.
+- [x] Son bütünleşik ses/UI regresyonları (Task6) geçti; son tam unit paketi171/171.
 
 ## Task2 — genel uygulama/oturum bağlamı
 
@@ -48,9 +48,9 @@ Uygulama açma/kurma/kaldırma, Codex/Cursor/Cline/OpenCode/Claude gibi araçlar
 
 **Interfaces:** `ComputerSession.context()`, `update(task, observation)`; `desktopContext.computer` içinde son gerçek görev/durum ve sınırlı foreground/window özeti. Hesap epoch'uyla temizlenir; ekran içeriği yetkilendirme değildir.
 
-- [ ] «Sıradaki bölüme geç» bağlamı, eski hesap ve büyük bağlam testlerini RED yap.
-- [ ] Son görev/uygulama bağlamını yeni sohbet devrine taşı; aktif pencereleri genel gözlemle tanı, isim bazlı uygulama komut listesi oluşturma.
-- [ ] GREEN; kullanıcı metni aynen ve ayrı aktarılmalı; toplam bağlam12000 sınırı korunmalı.
+- [x] «Sıradaki bölüme geç» bağlamı, eski hesap ve büyük bağlam testlerini RED yap.
+- [x] Son görev/uygulama bağlamını yeni sohbet devrine taşı; aktif pencereleri genel gözlemle tanı, isim bazlı uygulama komut listesi oluşturma.
+- [x] GREEN; kullanıcı metni aynen ve ayrı aktarılmalı; toplam bağlam12000 sınırı korunmalı.
 
 ## Task3 — uzun süren işi yerelde izleme
 
@@ -58,9 +58,9 @@ Uygulama açma/kurma/kaldırma, Codex/Cursor/Cline/OpenCode/Claude gibi araçlar
 
 **Interfaces:** planner `watch` eylemi: `{windowHandle, milliseconds<=600000, intervalMs>=500, contains?|absent?|changed?}`; izleme sonucu yalnızca sonraki gözlem/planner için veridir.
 
-- [ ] Değişim/metin/zaman aşımı/dur/hesap değişimi testlerini RED yap.
-- [ ] Salt okunur hedef pencere gözlemi ve iptal edilebilir yerel takip; bekleme sırasında model çağrısı yapma; izlemeyi aktif süreye sayma.
-- [ ] GREEN; izleme pencereyi odaklamamalı, input için yeni foreground gözlemi gerekmeli.
+- [x] Değişim/metin/zaman aşımı/dur/hesap değişimi testlerini RED yap.
+- [x] Salt okunur hedef pencere gözlemi ve iptal edilebilir yerel takip; bekleme sırasında model çağrısı yapma; izlemeyi aktif süreye sayma.
+- [x] GREEN; izleme pencereyi odaklamamalı, input için yeni foreground gözlemi gerekmeli.
 
 ## Task4 — süreli basılı giriş ve göreli fare
 
@@ -68,24 +68,24 @@ Uygulama açma/kurma/kaldırma, Codex/Cursor/Cline/OpenCode/Claude gibi araçlar
 
 **Interfaces:** `hold` `{keys?,button?,milliseconds:1..2000}`; `move_relative` `{dx,dy}`. Native girişin dur işareti, JS kuyruğundan bağımsız okunur.
 
-- [ ] Sınır/odak/iptal/kısmi giriş/key-up garantisi testlerini RED yap.
-- [ ] Kontrollü süreli giriş, mouse button/keyboard birlikte basma ve göreli hareket; iptalde finally ile bırakma.
-- [ ] GREEN; gerçek Windows'ta yalnızca testin kendi penceresinde basılı giriş ve sesli durdurma testi.
+- [x] Sınır/odak/iptal/kısmi giriş/key-up garantisi testlerini RED yap.
+- [x] Kontrollü süreli giriş, mouse button/keyboard birlikte basma ve göreli hareket; iptalde finally ile bırakma.
+- [x] GREEN; gerçek Windows'ta yalnızca testin kendi penceresinde basılı giriş ve sesli durdurma testi.
 
 ## Task5 — model sözleşmesi ve dar sunucu güncellemesi
 
 **Files:** `server/desktop-context.ts`, yeni helper-only aday/aktivasyon betiği, `tests/server-desktop-context.cjs`.
 
-- [ ] Yeni eylem sözleşmesi ve sıradan sohbetin değişmemesi testleri RED.
-- [ ] Genel uygulama/kurulum/kod/video/oyun görevi planlama, watch/hold/relative ve gerçek kullanıcı yetkisi kuralları; özel uygulama isimleri için sabit yönlendirme yok.
-- [ ] Adayı immutable image ID ile izole test et; yalnızca gerekli worker/helper modüllerini yedekli güncelle. Ortam/port/public varlıklar korunur.
+- [x] Yeni eylem sözleşmesi ve sıradan sohbetin değişmemesi testleri RED.
+- [x] Genel uygulama/kurulum/kod/video/oyun görevi planlama, watch/hold/relative ve gerçek kullanıcı yetkisi kuralları; özel uygulama isimleri için sabit yönlendirme yok.
+- [x] Adayı immutable image ID ile izole test et; yalnızca gerekli worker/helper modüllerini yedekli güncelle. Ortam/port/public varlıklar korunur.
 
 ## Task6 — bütünleşik doğrulama ve paket
 
-- [ ] Genel test penceresi: kodlama işi ilerlemesi, site/video sonraki bölüm, uygulama başlatma ve iptal; ekran üzerindeki sahte talimat kullanıcı onayı sayılmamalı.
-- [ ] Gerçek mikrofon→STT yerel dur→native key-up; model yanıtı bekleyen durumda da dur; F8 alternatifi.
-- [ ] Unit/Electron/native/ses regresyonları, bağımsız bütün dal incelemesi,0.5.0 installer ve paket bütünlüğü.
-- [ ] Sonuçları `Docs/walkthrought.md` ve bu dosyanın yürütme kaydına ekle; gerçek dış model/kullanıcı token engeli varsa ayrıca belirt.
+- [x] Genel test penceresi: kodlama işi ilerlemesi, site/video sonraki bölüm, uygulama başlatma ve iptal; ekran üzerindeki sahte talimat kullanıcı onayı sayılmamalı.
+- [x] Gerçek mikrofon→STT yerel dur→native key-up; model yanıtı bekleyen durumda da dur; F8 alternatifi.
+- [x] Unit/Electron/native/ses regresyonları, bağımsız bütün dal incelemesi,0.5.0 installer ve paket bütünlüğü.
+- [x] Sonuçlar `Docs/walkthrought.md` ve doğrulama raporuna eklendi; gerçek dış-model/token engeli ayrıca açık bırakıldı.
 
 ## Yürütme kaydı
 
@@ -93,3 +93,9 @@ Uygulama açma/kurma/kaldırma, Codex/Cursor/Cline/OpenCode/Claude gibi araçlar
 - Resmî kaynaklar: [Windows SendInput](https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-sendinput), [Electron WebPreferences](https://github.com/electron/electron/blob/main/docs/api/structures/web-preferences.md). Eşit/yüksek yetki ve arka plan zamanlaması kararlarının dayanağı.
 
 - Task1: yerel dur komutu,150ms düzeltilmiş kısmi transcript debounce, pause/continue nesil izolasyonu ve geç POST sürümü:72 ilgili test GREEN. Task2: son görev/uygulama bağlamı, kompakt planner görünümü ve hesap epoch koruması eklendi.
+
+- Task3–6 tamamlandı: yerel pencere/PID takibi, iptal edilebilir basılı giriş, göreli fare, helper-only sunucu güncellemesi, gerçek Windows ve sesli durdurma,171 unit +60 konuşma regresyonu ve0.5.0 paket doğrulandı. Ayrıntılı kapsam/ölçümler: `Docs/full-computer-control-verification.md`.
+- Ruling: Yerel durdurmada kabul edilmiş model akışı muhasebesi için terminale kadar okunur — erken upstream iptali kullanım sayısını kaybettirip token mutabakatını kilitleyebiliyor; eski yanıtın giriş yapmasına nesil kontrolü izin vermez. Mevcut eski bilinmeyen kullanım kayıtları elle değiştirilmez.
+- Ruling: Windows normal odak kısıtı gözlenen kendi test penceresinde yeniden üretildi; aynı masaüstündeki input thread'leri kısa süreli bağlanıp sonunda ayrılır. Gerçek pencere odağı yeniden doğrulanır; bu yöntem korumalı masaüstü veya yetki sınırını geçmez.
+- Bağımsız inceleme:4 önemli/2 küçük bulgu RED→GREEN; son kontrolde açık engelleyici bulgu yok.
+- Açık doğrulama: mevcut hesap token mutabakatı nedeniyle son gerçek dış-model tam kabulü; bütün uygulama/oyunların tek tek performans sertifikası veya fiziksel mikrofon ortamı testi değildir.

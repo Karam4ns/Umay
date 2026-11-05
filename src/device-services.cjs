@@ -140,7 +140,7 @@ class DeviceServices{
   this.memory.require();switch(method){
    case 'state':return {enabled:this.control.enabled,task:this.agent.state(),access:this.control.native.state?.()||{administrator:false,pending:false}};
    case 'pause':if(this.agent.task&&input.userReply)this.recordComputerLine(this.agent.task,'user',input.userReply);return this.agent.pause();
-   case 'continue':if(this.agent.task&&input.userReply)this.recordComputerLine(this.agent.task,'user',input.userReply);return this.agent.resumePaused();
+   case 'continue':if(input.id&&input.id!==this.agent.task?.id)throw Error('Devam ettirilecek görev değişti.');if(this.agent.task&&input.userReply)this.recordComputerLine(this.agent.task,'user',input.userReply);return this.agent.resumePaused();
    case 'enable':if(!input.enabled)await this.agent.stop();this.memory.log('computer-permission',input.enabled?'Bilgisayar kontrolü açıldı':'Bilgisayar kontrolü kapatıldı');return {enabled:this.control.enable(input.enabled)};
    case 'preview':return this.control.observe({image:true});
    case 'run':{const sequence=this.agent.sequence,model=await this.modelRoles('resolve',{role:'computer',...(input.modelId?{model:{id:input.modelId,source:input.source}}:{})});if(sequence!==this.agent.sequence)throw Error('Bilgisayar görevi durduruldu.');return this.agent.run(input.goal,model);}

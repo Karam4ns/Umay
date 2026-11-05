@@ -1,17 +1,18 @@
 'use strict';
 const {randomUUID,createHash}=require('node:crypto');
-const INPUT_ACTIONS=new Set(['click','double_click','right_click','middle_click','move','drag','scroll','keys','type','wait','focus_window']);
+const {watchWindow}=require('./computer-watch.cjs');
+const INPUT_ACTIONS=new Set(['click','double_click','right_click','middle_click','move','drag','scroll','keys','type','wait','focus_window','hold','move_relative']);
 function parseAction(text){
  const source=String(text||'').trim().replace(/^```(?:json)?\s*|\s*```$/gi,'');let value;
  try{value=JSON.parse(source);}catch{throw Error('Model bilgisayar işlemini geçerli biçimde yanıtlamadı. Başka bir model seçip yeniden deneyebilirsiniz.');}
- if(!value||typeof value!=='object'||Array.isArray(value)||!['done','ask','confirm','observe',...INPUT_ACTIONS].includes(value.action))throw Error('Model desteklenmeyen bir bilgisayar işlemi istedi.');
+ if(!value||typeof value!=='object'||Array.isArray(value)||!['done','ask','confirm','observe','watch',...INPUT_ACTIONS].includes(value.action))throw Error('Model desteklenmeyen bir bilgisayar işlemi istedi.');
  if(value.action==='done'&&!value.message&&typeof value.summary==='string'&&value.summary.trim())value.message=value.summary;
  if(['done','ask'].includes(value.action)&&(!value.message||typeof value.message!=='string'))throw Error('Modelin görev açıklaması eksik.');
  if(value.action==='confirm'&&(!value.nextAction||!INPUT_ACTIONS.has(value.nextAction.action)))throw Error('Onaylanacak işlem geçersiz.');return value;
 }
 function visionModel(model){return (model.categories||[]).some(c=>/^(vision|multimodal|image[-_ ]to[-_ ]text|görsel anlama)$/i.test(typeof c==='string'?c:c?.name||c?.slug||''));}
 class ComputerAgent{
- constructor({control,api,memory,publish=()=>{},onStart=()=>{},onFinish=()=>{},verifyCompletion=async()=>null,onObservation=()=>{},sessionContext=()=>null,now=()=>Date.now(),delay=ms=>new Promise(r=>setTimeout(r,ms))}){Object.assign(this,{control,api,memory,publish,onStart,onFinish,verifyCompletion,onObservation,sessionContext,now,delay});this.task=null;this.sequence=0;}
+ constructor({control,api,memory,publish=()=>{},onStart=()=>{},onFinish=()=>{},verifyCompletion=async()=>null,onObservation=()=>{},sessionContext=()=>null,now=()=>Date.now(),delay=ms=>new Promise(r=>setTimeout(r,ms))}){Object.assign(this,{control,api,memory,publish,onStart,onFinish,verifyCompletion,onObservation,sessionContext,now,delay});this.task=null;this.sequence=0;this.inputDrain=Promise.resolve();}
  state(){const task=this.task;return task?{id:task.id,status:task.status,goal:task.goal,origin:task.origin||null,step:task.steps.length,message:task.message||'',requiresInput:task.requiresInput||null}:null;}
  check(task){if(this.task!==task||task.sequence!==this.sequence||task.epoch!==this.memory.epoch||!this.control.enabled)throw Error('Bilgisayar görevi durduruldu.');}
  emit(){this.publish({event:'computer-task',task:this.state()});}
@@ -24,23 +25,18 @@ class ComputerAgent{
   this.memory.archiveConversation({id:task.id,title:goal.slice(0,100),localSource:'computer'},[{id:randomUUID(),role:'user',content:goal}]);
   this.memory.log('computer-task',goal,{status:'running',details:{taskId:task.id}});return task.work=this.loop(task,true);
  }
+ drainInput(){const current=this.control.stop();this.inputDrain=Promise.all([this.inputDrain,current]).then(()=>{});return this.inputDrain;}
  async pause(){
   const task=this.task;if(!task||!['running','question','confirmation','permission'].includes(task.status))return this.state();
-  const sequence=++this.sequence,drained=this.control.stop();task.pausedStatus=task.status;task.status='paused';task.message='Durdum. Devam et dediğinde güncel ekranla sürdüreceğim.';this.emit();this.memory.log('computer-task',task.message,{status:'paused',details:{taskId:task.id}});
-  if(task.lastRun)void this.api('/site/chat/runs/'+task.lastRun+'/cancel',{}).catch(()=>{});
+  const sequence=++this.sequence,drained=this.drainInput();task.pauseStartedAt=this.now();task.pausedStatus=task.status;task.pausedMessage=task.message;task.status='paused';task.message='Durdum. Devam et dediğinde güncel ekranla sürdüreceğim.';this.emit();this.memory.log('computer-task',task.message,{status:'paused',details:{taskId:task.id}});
   await drained;if(this.task===task&&sequence===this.sequence)this.onFinish();return this.state();
  }
  async resumePaused(){
   const previous=this.task;if(!previous||previous.status!=='paused')throw Error('Devam ettirilecek duraklatılmış görev bulunamadı.');
   if(previous.epoch!==this.memory.epoch||!this.control.enabled)throw Error('Görev bu hesapta devam ettirilemez.');
-  const task=this.task={...previous,sequence:++this.sequence,status:previous.pausedStatus||'running',steps:[...previous.steps],messageTimes:[...previous.messageTimes],userAuthorization:[...(previous.userAuthorization||[])],lastRun:null,recoveries:0,repeated:0,lastFingerprint:null,work:null};
-  if(task.status!=='running'){this.emit();this.onFinish();return this.state();}
+  const task=this.task={...previous,sequence:++this.sequence,status:'running',steps:[...previous.steps],messageTimes:[...previous.messageTimes],userAuthorization:[...(previous.userAuthorization||[])],lastRun:null,recoveries:0,repeated:0,lastFingerprint:null,work:null};
   task.message='Güncel ekranla devam ediyorum…';task.feedback='Kullanıcı duraklatılan aynı göreve devam edilmesini istedi. Güncel ekranı incele; tamamlanan işlemleri tekrar etme.';this.emit();
-  return task.work=(async()=>{
-   await previous.work?.catch(()=>{});if(this.task!==task||task.sequence!==this.sequence||task.epoch!==this.memory.epoch)return null;
-   if(task.conversation){const detail=await this.api('/site/chat/conversations/'+task.conversation.id);this.check(task);task.conversation=detail.conversation;}
-   return this.loop(task,true);
-  })();
+  return task.work=this.loop(task,true,{resumeFrom:previous,refreshConversation:previous.pausedStatus==='running',restoreWaiting:previous.pausedStatus!=='running'?previous.pausedStatus:null});
  }
  async resume(id,{approved=false,answer='',elevated=false}={}){
   const task=this.task;if(!task||task.id!==id||!['confirmation','question','permission'].includes(task.status))throw Error('Devam ettirilecek görev bulunamadı.');this.check(task);
@@ -51,9 +47,9 @@ class ComputerAgent{
   task.requiresInput=null;task.status='running';task.recoveries=0;task.lastFingerprint=null;task.repeated=0;return task.work=this.loop(task,true);
  }
  async stop(){
-  const task=this.task,sequence=++this.sequence,drained=this.control.stop();
+  const task=this.task,sequence=++this.sequence,drained=this.drainInput();
   if(task&&['running','paused','confirmation','question','permission'].includes(task.status)){task.status='stopped';task.message='Görev durduruldu.';this.emit();if(task.epoch===this.memory.epoch)this.memory.log('computer-task',task.message,{status:'cancelled',details:{taskId:task.id}});}
-  await drained;if(sequence===this.sequence)this.onFinish();if(task?.lastRun)await this.api('/site/chat/runs/'+task.lastRun+'/cancel',{}).catch(()=>{});return this.state();
+  await drained;if(sequence===this.sequence)this.onFinish();return this.state();
  }
  async wait(task,milliseconds){const end=this.now()+milliseconds;while(this.now()<end){this.check(task);await this.delay(Math.min(200,end-this.now()));}this.check(task);}
  recover(task,error){
@@ -62,17 +58,21 @@ class ComputerAgent{
   task.message='Ekran değişti; yeniden inceleniyor…';this.emit();return true;
  }
  complete(task,message){this.check(task);task.status='completed';task.message=message;this.memory.archiveConversation({id:task.id,title:task.goal.slice(0,100),localSource:'computer'},[{id:randomUUID(),role:'assistant',content:message}]);this.memory.log('computer-task',message,{details:{taskId:task.id,steps:task.steps.length}});this.emit();this.onFinish();return this.state();}
- async loop(task,start=false){
+ async loop(task,start=false,{resumeFrom,refreshConversation=false,restoreWaiting}={}){
   try{
+   await this.inputDrain;if(resumeFrom?.work)await resumeFrom.work.catch(()=>{});this.check(task);
+   if(resumeFrom){task.idleMilliseconds=(resumeFrom.idleMilliseconds||0)+Math.max(0,this.now()-(resumeFrom.pauseStartedAt??this.now()));delete task.pauseStartedAt;}
+   if(restoreWaiting){task.status=restoreWaiting;task.message=resumeFrom.pausedMessage||resumeFrom.requiresInput?.summary||resumeFrom.requiresInput;this.emit();this.onFinish();return this.state();}
+   if(refreshConversation&&task.conversation){const detail=await this.api('/site/chat/conversations/'+task.conversation.id);this.check(task);task.conversation=detail.conversation;}
    if(start){task.initialCompletion=await this.verifyCompletion(task);this.check(task);if(task.initialCompletion?.verified===true)return this.complete(task,task.initialCompletion.message);await this.onStart();this.check(task);this.emit();}
    if(!task.conversation){const created=await this.api('/site/chat/conversations',{source:task.model.source,modelId:task.model.id,title:'Umay bilgisayar görevi: '+task.goal.slice(0,110),requestId:randomUUID()});this.check(task);task.conversation=created.conversation;}
-   while(task.steps.length<120&&this.now()-task.createdAt<30*60000){
+   while(task.steps.length<120&&this.now()-task.createdAt-(task.idleMilliseconds||0)<30*60000){
     this.check(task);task.message='Ekran inceleniyor…';this.emit();
     let observed;try{observed=await this.control.observe({image:true});}catch(error){if(this.recover(task,error))continue;throw error;}this.check(task);this.onObservation(task,observed);
     const images=observed.screenshots;
     const selected=images.find(s=>s.displayId===task.selectedDisplay)||images.find(s=>observed.elements.some(e=>{const p=this.control.screen.screenToDipPoint?.({x:Math.round(e.bounds.x+e.bounds.width/2),y:Math.round(e.bounds.y+e.bounds.height/2)})||e.bounds;return this.control.screen.getDisplayNearestPoint?.(p)?.id==s.displayId;}))||images[0];
     task.inspectedDisplays??=new Set();if(selected&&visionModel(task.model))task.inspectedDisplays.add(selected.displayId);
-    const prompt={session:this.sessionContext(),proposedGoal:task.goal,originalUserRequest:task.origin?task.origin.userRequest:task.goal,userAuthorization:task.userAuthorization?.slice(-6)||[],step:task.steps.length+1,previousSteps:task.steps.slice(-6),userFeedback:task.feedback||null,capabilities:{actions:[...INPUT_ACTIONS,'observe','done','ask','confirm'],windowsShortcuts:{showDesktop:['WIN','D'],runDialog:['WIN','R'],addressBar:['CTRL','L'],newFolderOnDesktopOrExplorer:['CTRL','SHIFT','N'],rename:['F2']},scrollAxes:['vertical','horizontal'],windowAction:'focus_window with windowHandle from observation.windows',dragEnd:'endDisplayId is optional; inspect the destination monitor first'},observation:{id:observed.id,title:observed.title,windows:observed.windows||[],displayId:selected?.displayId,screenshotSize:selected?{width:selected.width,height:selected.height}:null,displays:observed.displays,elements:observed.elements.slice(0,100).map(e=>({...e,name:e.name.slice(0,160)}))},hasImage:visionModel(task.model)&&!!selected};
+    const prompt={session:this.sessionContext(),proposedGoal:task.goal,originalUserRequest:task.origin?task.origin.userRequest:task.goal,userAuthorization:task.userAuthorization?.slice(-6)||[],step:task.steps.length+1,previousSteps:task.steps.slice(-6),userFeedback:task.feedback||null,capabilities:{actions:[...INPUT_ACTIONS,'observe','watch','done','ask','confirm'],holdLimits:{maxMilliseconds:2000},watchLimits:{maxMilliseconds:600000,minIntervalMs:500,maxIntervalMs:5000},relativeMouseLimit:2000,windowsShortcuts:{showDesktop:['WIN','D'],runDialog:['WIN','R'],addressBar:['CTRL','L'],newFolderOnDesktopOrExplorer:['CTRL','SHIFT','N'],rename:['F2']},scrollAxes:['vertical','horizontal'],windowAction:'focus_window with windowHandle from observation.windows',dragEnd:'endDisplayId is optional; inspect the destination monitor first'},observation:{id:observed.id,title:observed.title,cursorPhysical:observed.cursor,windows:observed.windows||[],displayId:selected?.displayId,screenshotSize:selected?{width:selected.width,height:selected.height}:null,displays:observed.displays,elements:observed.elements.slice(0,100).map(e=>({...e,name:e.name.slice(0,160)}))},hasImage:visionModel(task.model)&&!!selected};
     task.feedback=null;
     while(JSON.stringify(prompt).length>11200&&prompt.observation.elements.length>5)prompt.observation.elements.pop();
     while(JSON.stringify(prompt).length>11700&&prompt.observation.windows.length>1)prompt.observation.windows.pop();
@@ -82,12 +82,21 @@ class ComputerAgent{
     task.messageTimes=task.messageTimes.filter(t=>this.now()-t<61000);if(task.messageTimes.length>=10)await this.wait(task,61000-(this.now()-task.messageTimes[0]));
     const request={content:JSON.stringify(prompt),requestId:randomUUID(),expectedVersion:Number(task.conversation.version),kind:'CHAT',desktopMode:'computer',desktopContext:JSON.stringify({clock:new Date(this.now()).toISOString(),memory:this.memory.context(task.goal)}).slice(0,12000),...(prompt.hasImage?{desktopImage:selected.image}:{})};
     task.message='Modelin işlem yanıtı bekleniyor…';this.emit();const posted=await this.api('/site/chat/conversations/'+task.conversation.id+'/messages',request);task.lastRun=posted.run.id;task.messageTimes.push(this.now());
-    if(task.sequence!==this.sequence){await this.api('/site/chat/runs/'+task.lastRun+'/cancel',{}).catch(()=>{});throw Error('Bilgisayar görevi durduruldu.');}this.check(task);
-    const deadline=this.now()+180000;let retryPlanner=false;
-    while(true){this.check(task);const {run}=await this.api('/site/chat/runs/'+task.lastRun);this.check(task);if(!['QUEUED','RUNNING'].includes(run.status)){if(!['COMPLETED','SUCCEEDED'].includes(run.status)){const error=Error(run.errorCode||'MODEL_UNAVAILABLE');if(['ANSWER_QUALITY_FAILED','INVALID_PROVIDER_RESPONSE'].includes(run.errorCode)){error.code='PLANNER_INVALID';retryPlanner=this.recover(task,error);if(retryPlanner)break;}throw error;}break;}if(this.now()>deadline)throw Error('MODEL_TIMEOUT');await this.wait(task,300);}
-    task.lastRun=null;const detail=await this.api('/site/chat/conversations/'+task.conversation.id);this.check(task);task.conversation=detail.conversation;if(retryPlanner)continue;
+    // Local stop quarantines this generation immediately. Let an already
+    // accepted provider request finish its usage accounting instead of aborting
+    // its stream (which can strand reserved tokens). Never parse a stale result.
+    const deadline=this.now()+180000;let terminal,retryPlanner=false;
+    while(true){const {run}=await this.api('/site/chat/runs/'+task.lastRun);if(!['QUEUED','RUNNING'].includes(run.status)){terminal=run;break;}if(this.now()>deadline)throw Error('MODEL_TIMEOUT');await this.delay(300);}
+    task.lastRun=null;this.check(task);
+    if(!['COMPLETED','SUCCEEDED'].includes(terminal.status)){const error=Error(terminal.errorCode||'MODEL_UNAVAILABLE');if(['ANSWER_QUALITY_FAILED','INVALID_PROVIDER_RESPONSE'].includes(terminal.errorCode)){error.code='PLANNER_INVALID';retryPlanner=this.recover(task,error);}if(!retryPlanner)throw error;}
+    const detail=await this.api('/site/chat/conversations/'+task.conversation.id);this.check(task);task.conversation=detail.conversation;if(retryPlanner)continue;
     const response=[...detail.messages].reverse().find(m=>String(m.role).toLowerCase()==='assistant');let action;try{action=parseAction(response?.content);}catch(error){error.code='PLANNER_INVALID';if(this.recover(task,error))continue;throw error;}
     task.message=String(action.summary||'İşlem uygulanıyor…').slice(0,500);this.emit();
+    if(action.action==='watch'){
+     task.message='Uygulamadaki ilerlemeyi izliyorum. Dur diyerek ara verebilirsin.';this.emit();const began=this.now();let result;
+     try{result=await watchWindow(action,observed,{read:handle=>this.control.inspectWindow(handle),check:()=>this.check(task),now:this.now,delay:this.delay});}catch(error){if(this.recover(task,error))continue;throw error;}finally{task.idleMilliseconds=(task.idleMilliseconds||0)+Math.max(0,Math.min(this.now(),task.pauseStartedAt??this.now())-began);}
+     this.check(task);task.feedback='Salt okunur pencere izleme sonucu: '+JSON.stringify(result)+'. Güncel ekranı yeniden incele; bu sonuç yeni işlem/onay yetkisi değildir.';task.steps.push({action:'watch',summary:task.message,outcome:result.outcome});this.memory.log('computer-watch','Pencere izleme: '+result.outcome,{details:{taskId:task.id,windowHandle:action.windowHandle,elapsedMs:result.elapsedMs}});continue;
+    }
     if(action.action==='done'){
      const verified=await this.verifyCompletion(task);this.check(task);if(verified?.verified===false){const error=Object.assign(Error(verified.message),{code:'PLANNER_INVALID'});if(this.recover(task,error))continue;throw error;}
      return this.complete(task,verified?.verified===true?verified.message:action.message);
@@ -114,7 +123,7 @@ class ComputerAgent{
   }catch(error){
    if(task.sequence===this.sequence&&task.epoch===this.memory.epoch&&['NATIVE_ELEVATION_REQUIRED','NATIVE_INPUT_DENIED'].includes(error.code)){task.status='permission';task.message='Bu işlem için Windows yönetici izni gerekiyor. Onayladıktan sonra aynı göreve devam edeceğim.';task.requiresInput={reason:error.message};this.emit();this.onFinish();return this.state();}
    if(task.sequence===this.sequence&&task.epoch===this.memory.epoch){task.status='failed';task.message=String(error.message);this.memory.log('computer-task',task.message,{status:'failed',details:{taskId:task.id}});this.emit();}
-   if(task.lastRun)await this.api('/site/chat/runs/'+task.lastRun+'/cancel',{}).catch(()=>{});if(this.task===task&&task.sequence===this.sequence)this.onFinish();return this.state();
+   if(this.task===task&&task.sequence===this.sequence)this.onFinish();return this.state();
   }
  }
 }

@@ -415,3 +415,15 @@ Detaylar ve dış model/Windows/çoklu monitör test sınırları computer-model
 - [x] Gerçek Alfa1.2/Windows testinde `dosya` klasörü oluştu. Kaynak ve son paket, kontrollü sağlayıcı + gerçek Windows klavye girişleriyle ayrı yeni klasörler oluşturup doğrulanmış görev tamamladı.
 - [x] 0.4.4 installer,39 kaynak dosyası/native/4 ses modülü bütünlüğü; bağımsız inceleme bulguları giderildi. Geçici test oturumu iptal edildi.
 - [ ] Son dış model tekrarının tam geçişi: `TOKEN_USAGE_RECONCILIATION_REQUIRED` yeni çağrıyı engelledi. Uyarı gösteriliyor; muhasebe kayıtları elle değiştirilmedi. Ayrıntılar: `Docs/computer-ingress-fix.md`.
+
+## [2026-11-05] Sesle genel bilgisayar kullanımı — 0.5.0
+
+- [x] Uygulama adlarından bağımsız genel kontrol; mevcut normal sohbet ve ayrı model rolleri korunuyor.
+- [x] Yerel sesli duraklat/devam/iptal, geç yanıt izolasyonu, native drain, onay kapsamının korunması, küçültülmüş pencerede mikrofon ve F8.
+- [x] Son gerçek görev/uygulama bağlamı; PID/HWND bağlı salt okunur uzun iş takibi.
+- [x] Süreli basılı tuş/fare, göreli fare; durdurma/zaman aşımında bırakma ve helper yeniden başlatma.
+- [x] Gerçek kendi Windows test pencerelerinde iş takibi→sonraki bölüm, kaynak/paket girişleri; gerçek capture→Seda→yerel dur→keyup174ms, mikrofon açık.
+- [x] 171 otomatik test,60 konuşma testi, mevcut sohbet/rol/izin/hafıza/tema/ses regresyonları;42 kaynak dosyalı0.5.0 paket bütünlüğü.
+- [x] Immutable helper-only worker adayında izole HTTP/DB RED→GREEN; iki worker/front/10203 healthy, diğer modüller/varlıklar/ortam/port/mount korunuyor.
+- [x] Bağımsız incelemedeki4 önemli/2 küçük bulgu giderildi; son inceleme temiz.
+- [ ] Son dış-model kabulü: eski Alfa1.2 kullanım-mutabakatı kayıtları engelliyor. Kayıtlar/bakiye elle değiştirilmedi. Kapsam ve rapor: `Docs/full-computer-control-verification.md`.

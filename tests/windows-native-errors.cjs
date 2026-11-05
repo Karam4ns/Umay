@@ -15,4 +15,8 @@ assert.equal(run('text',{text:'abc'},'return calls++==0?count:0;').error,'NATIVE
 assert.equal(run('text',{text:'a'},'return 1;').error,'NATIVE_PARTIAL_INPUT');
 assert.equal(run('text',{text:'a'},'return 0;').error,'NATIVE_INPUT_DENIED');
 assert.equal(run('text',{text:'\n'},'return calls++==0?count:0;').error,'NATIVE_PARTIAL_INPUT');
+assert.equal(run('hold',{keys:[87],milliseconds:1},'return 0;').error,'NATIVE_INPUT_DENIED');
+assert.equal(run('hold',{keys:[87],milliseconds:1},'return calls++==0?count:0;').error,'NATIVE_PARTIAL_INPUT');
+assert.equal(run('move_relative',{dx:10,dy:1},'return 0;').error,'NATIVE_INPUT_DENIED');
+const stopped='.superpowers/hold-stop-fixture.stop';fs.writeFileSync(stopped,'stop');try{assert.equal(run('hold',{keys:[87],milliseconds:2000,stopFile:require('node:path').resolve(stopped)},'throw new Exception("MUST_NOT_SEND");').result,false);}finally{fs.unlinkSync(stopped);}
 console.log('PASS actual PowerShell/C# protocol normalizes wrapped errors and marks first-chunk/first-pair/newline partial input; zero OS input generated');

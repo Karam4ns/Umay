@@ -9,6 +9,7 @@
   let card=cards.get(value.id);if(!card||!card.isConnected){card=element('section',undefined,'message computer-task');card.dataset.taskId=value.id;card.setAttribute('aria-label','Bilgisayar görevi');cards.set(value.id,card);$('messages').append(card);}
   const labels={running:'Bilgisayarında çalışıyorum',paused:'Durakladım — devam etmeni bekliyorum',question:'Bir ayrıntıya ihtiyacım var',confirmation:'Bu işlem için onayın gerekiyor',permission:'Windows izni gerekiyor',completed:'Görev tamamlandı',stopped:'Görev durduruldu',failed:'Görev tamamlanamadı'};
   card.replaceChildren(element('strong',labels[value.status]||'Bilgisayar görevi'),element('p',value.goal||'','computer-task-goal'),element('p',value.message||'','computer-task-progress'));
+  if(value.status==='confirmation'&&value.requiresInput?.summary&&value.requiresInput.summary!==value.message)card.append(element('p',value.requiresInput.summary,'computer-task-progress'));
   const buttons=element('div',undefined,'button-row');
   function button(text,handler,primary=false){const node=element('button',text,'button small'+(primary?' primary':''));node.type='button';node.onclick=async()=>{const current=epoch;node.disabled=true;try{await handler();}catch(error){if(current===epoch)status(error.message);}finally{node.disabled=false;}};buttons.append(node);}
   if(value.status==='confirmation'){button('Onaylıyorum',()=>send('Onaylıyorum'),true);button('Vazgeç',()=>send('Vazgeç'));}

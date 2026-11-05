@@ -9,7 +9,7 @@ class ComputerSession{
  }
  observe(data){
   if(!data)return;this.windows=(data.windows||[]).slice(0,8).map(w=>({handle:w.handle,title:text(w.title,160),minimized:!!w.minimized}));
-  if(data.handle&&data.title&&!/^Umay(?: bilgisayar görevi)?$/i.test(data.title))this.foreground={handle:data.handle,title:text(data.title,240),observedAt:new Date().toISOString()};
+  if(data.isForeground!==false&&data.handle&&data.title&&!/^Umay(?: bilgisayar görevi)?$/i.test(data.title))this.foreground={handle:data.handle,title:text(data.title,240),observedAt:new Date().toISOString()};
  }
  context(compact=false){
   const value=structuredClone({task:this.task,previous:this.previous,foreground:this.foreground,windows:this.windows});
