@@ -34,6 +34,19 @@ test('planner sees the actual focused accessibility target instead of guessing f
  assert.equal(prompt.observation.focusedElementId,150);assert.ok(prompt.observation.elements.some(e=>e.id===150&&e.focused),'focused input survives a large accessibility tree');
 });
 const model={id:'model',source:'PERSONAL',categories:['vision']};
+test('the planner can distinguish the current foreground window from the other available windows',async()=>{
+ const f=agent([{action:'done',message:'Görüldü.'}]);await f.planner.run('Pencereyi incele',model);assert.equal(JSON.parse(f.getPosted().content).observation.window,1);
+});
+test('nested follow-up actions outside confirmation are rejected rather than repeatedly focusing a window',()=>{
+ assert.throws(()=>parseAction(JSON.stringify({action:'focus_window',windowHandle:123,nextAction:{action:'type',text:'Do not silently execute'}})),/nextAction/);
+ assert.equal(parseAction(JSON.stringify({action:'confirm',summary:'Onay',nextAction:{action:'type',text:'Onaylı işlem'}})).action,'confirm');
+});
+test('text-first desktop avoids capture with useful controls and recovers a coordinate action with a fresh image',async()=>{
+ const f=agent([{action:'click',x:10,y:10},{action:'done',message:'Görüldü.'}]);let image=false,captures=0,observations=0;const requests=[],api=f.planner.api;
+ f.control.observe=async({preferText})=>{observations++;const view={id:'text'+observations,createdAt:1000,handle:1,title:'Test',windows:[],displays:[{id:'1',bounds:{x:0,y:0,width:100,height:100}}],elements:['Button','Edit','MenuItem'].map((type,id)=>({id,name:'Denetim',type:'ControlType.'+type,bounds:{x:0,y:0,width:10,height:10}})),screenshots:[]};if(!preferText(view)){captures++;view.screenshots=[{displayId:'1',width:100,height:100,image:'data:image/jpeg;base64,aA=='}];}f.control.observation=view;return view;};
+ f.planner.api=async(route,body)=>{if(route.endsWith('/messages'))requests.push(body);return api(route,body);};
+ const result=await f.planner.run('Test uygulamasında ilerle',model);assert.equal(result.status,'completed');assert.equal(requests[0].desktopImage,undefined);assert.ok(requests[1].desktopImage);assert.equal(captures,1);assert.equal(f.calls.filter(c=>c.method==='click').length,0,'initial coordinate was not applied against the text-only view');assert.equal(f.planner.task.timings.images,1);
+});
 test('browser navigation focuses and replaces once while website forms cannot offer this capability',async()=>{
  const f=control();f.control.enable(true);let focus=false;const request=f.control.native.request;
  f.control.native.request=async(method,params)=>{if(method==='keys')focus=true;const result=await request(method,params);if(method==='observe')result.elements=[{id:0,name:'Adres ve arama çubuğu',type:'ControlType.Edit',focused:focus,inDocument:false,runtimeId:[42,8]}];return result;};

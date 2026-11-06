@@ -14,7 +14,7 @@ app.on('browser-window-created',(_e,w)=>w.webContents.once('did-finish-load',asy
  if(!w.webContents.getURL().endsWith('/index.html'))return;main=w;
  try{
   fixture=new BrowserWindow({width:900,height:650,title:'UMAY canlı doğrulama',webPreferences:{contextIsolation:true,nodeIntegration:false}});
-  const file=path.join(app.getPath('userData'),'fixture.html');fs.writeFileSync(file,'<!doctype html><meta charset="utf-8"><title>UMAY canlı doğrulama</title><h1>Umay test penceresi</h1><label>Deneme metni <textarea aria-label="Deneme metni" rows="6" cols="60"></textarea></label>');await fixture.loadFile(file);
+  const file=path.join(app.getPath('userData'),'fixture.html');fs.writeFileSync(file,'<!doctype html><meta charset="utf-8"><title>UMAY canlı doğrulama</title><h1>Umay test penceresi</h1><label>Deneme metni <textarea aria-label="Deneme metni" rows="6" cols="60"></textarea></label><button>Bir</button><button>İki</button><button>Üç</button>');await fixture.loadFile(file);
   const handle=Number(fixture.getNativeWindowHandle().readBigUInt64LE()),native=new NativeDesktop();
   const nativeApi={request:async(method,params)=>{
    if(!['observe','observe_window','foreground','release','location','state'].includes(method)){
@@ -34,7 +34,7 @@ app.on('browser-window-created',(_e,w)=>w.webContents.once('did-finish-load',asy
   const began=Date.now();await js('send('+JSON.stringify('Yalnızca “UMAY canlı doğrulama” penceresindeki “Deneme metni” alanına “Merhaba Umay 051” yaz. Başka bir pencereye veya kullanıcı dosyasına dokunma.')+')');
   const state=service.agent.state(),text=await fixture.webContents.executeJavaScript('document.querySelector("textarea").value');
   assert.equal(state?.status,'completed',JSON.stringify(state));assert.equal(text,'Merhaba Umay 051');assert.ok(inputs.includes('text'));
-  console.log(JSON.stringify({elapsedMs:Date.now()-began,status:state.status,inputs,message:state.message}));console.log('PASS real site chat -> actual assigned cloud model handoff -> real model planner -> real fixture input -> visible text verification');
+  console.log(JSON.stringify({elapsedMs:Date.now()-began,status:state.status,inputs,timings:service.agent.task.timings,message:state.message}));console.log('PASS real site chat -> actual assigned cloud model handoff -> real model planner -> real fixture input -> visible text verification');
   service.close();clearTimeout(timeout);app.quit();
  }catch(error){console.error(error);service?.close();clearTimeout(timeout);app.exit(1);}
 }));

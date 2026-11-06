@@ -3,6 +3,7 @@ const {randomUUID}=require('node:crypto');
 const {inputSignature,repeatedWrite,noteInput,stepRecord,observeOutcome,focusedField}=require('./computer-progress.cjs');
 const {addressField,simpleNavigation}=require('./computer-navigation.cjs');
 const {watchWindow}=require('./computer-watch.cjs');
+const {standaloneNavigation,landingVerified,preferDesktopText}=require('./control-performance.cjs');
 const INPUT_ACTIONS=new Set(['click','double_click','right_click','middle_click','move','drag','scroll','keys','type','wait','focus_window','hold','move_relative','navigate','browser_tool']);
 function browserTask(request){return /https?:\/\/|www\.|chrome|tarayıcı|internet|\bweb\b|site(?:yi|ye|de|den|si)?\b|sekme|sayfa|\burl\b/iu.test(request)&&!/(?:chrome|tarayıcı).{0,30}(?:kaldır|yükle|kurulum|uninstall|install)/iu.test(request);}
 function parseAction(text){
@@ -12,6 +13,7 @@ function parseAction(text){
  if(value.action==='done'&&!value.message&&typeof value.summary==='string'&&value.summary.trim())value.message=value.summary;
  if(['done','ask'].includes(value.action)&&(!value.message||typeof value.message!=='string'))throw Error('Modelin görev açıklaması eksik.');
  if(value.action==='focus_window'&&!Number.isInteger(value.windowHandle))throw Error('focus_window için güncel observation.windows listesinden windowHandle gerekli. Önceki adım kaydını kopyalama; sonraki gerçek işlemi seç.');
+ if(value.nextAction!=null&&value.action!=='confirm')throw Error('nextAction yalnız confirm işleminde kullanılabilir. İç içe işlem verme. Pencere zaten öndeyse tekrar focus_window seçme; güncel alan için tek click veya type işlemini üst düzeyde action olarak döndür.');
  if(value.action==='confirm'&&(!value.nextAction||!INPUT_ACTIONS.has(value.nextAction.action)))throw Error('Onaylanacak işlem geçersiz.');return value;
 }
 function visionModel(model){return (model.categories||[]).some(c=>/^(vision|multimodal|image[-_ ]to[-_ ]text|görsel anlama)$/i.test(typeof c==='string'?c:c?.name||c?.slug||''));}
@@ -25,7 +27,7 @@ class ComputerAgent{
   if(!this.control.enabled)throw Error('Ayarlar bölümünden bilgisayar kontrolünü açın.');
   if(typeof goal!=='string'||!goal.trim()||goal.length>12000||!model?.id||!['PERSONAL','SUBSCRIPTION'].includes(model.source))throw Error('Görev veya seçilen model geçersiz.');
   if(origin&&(typeof origin.userRequest!=='string'||!origin.userRequest.trim()))throw Error('Asıl kullanıcı isteği doğrulanamadı.');
-  const task=this.task={id:randomUUID(),sequence:++this.sequence,epoch:this.memory.epoch,goal:goal.trim(),model,origin,mode:this.browser&&(origin?.executor==='browser'||!origin?.executor&&(browserTask(origin?.userRequest||goal)||browserTask(goal)))?'browser':'desktop',steps:[],status:'running',createdAt:this.now(),recoveries:0,messageTimes:[],lastRun:null,selectedDisplay:null};
+  const task=this.task={id:randomUUID(),sequence:++this.sequence,epoch:this.memory.epoch,goal:goal.trim(),model,origin,mode:this.browser&&(origin?.executor==='browser'||!origin?.executor&&(browserTask(origin?.userRequest||goal)||browserTask(goal)))?'browser':'desktop',steps:[],status:'running',createdAt:this.now(),recoveries:0,messageTimes:[],lastRun:null,selectedDisplay:null,timings:{observationMs:0,modelMs:0,inputMs:0,modelTurns:0,images:0}};
   this.browser?.beginTask?.();this.memory.archiveConversation({id:task.id,title:goal.slice(0,100),localSource:'computer'},[{id:randomUUID(),role:'user',content:goal}]);
   this.memory.log('computer-task',goal,{status:'running',details:{taskId:task.id}});return task.work=this.loop(task,true);
  }
@@ -64,31 +66,46 @@ class ComputerAgent{
   }
  }
  recover(task,error){
-  this.check(task);if(!['PLANNER_INVALID','NATIVE_FOCUS_CHANGED','NATIVE_WINDOW_UNAVAILABLE','BROWSER_TOOL_FAILED'].includes(error.code)||task.recoveries>=2)return false;
+  this.check(task);if(!['PLANNER_INVALID','NATIVE_FOCUS_CHANGED','NATIVE_WINDOW_UNAVAILABLE','BROWSER_TOOL_FAILED',...(visionModel(task.model)?['MODEL_VISION_REQUIRED']:[])].includes(error.code)||task.recoveries>=2)return false;
   task.recoveries++;task.forceImage=true;task.feedback=(error.code==='BROWSER_TOOL_FAILED'?'Önceki Chrome işlemi kısmen uygulanmış olabilir. Tekrar etmeden güncel sonucu incele: ':'Önceki işlem uygulanmadı: ')+error.message+'. Güncel gözlemi incele; geçerli tek bir işlem seç. Başarı iddia etme.';
   task.message='Ekran değişti; yeniden inceleniyor…';this.emit();return true;
  }
- complete(task,message,verified=false){this.check(task);task.status='completed';task.message=message;this.memory.archiveConversation({id:task.id,title:task.goal.slice(0,100),localSource:'computer'},[{id:randomUUID(),role:'assistant',content:message}]);this.memory.log('computer-task',message,{details:{taskId:task.id,steps:task.steps.length,verified}});this.memory.saveComputerExperience?.(task,{verified});this.emit();this.onFinish();return this.state();}
+ complete(task,message,verified=false){this.check(task);task.status='completed';task.message=message;this.memory.archiveConversation({id:task.id,title:task.goal.slice(0,100),localSource:'computer'},[{id:randomUUID(),role:'assistant',content:message}]);this.memory.log('computer-task',message,{details:{taskId:task.id,steps:task.steps.length,verified,timings:task.timings}});this.memory.saveComputerExperience?.(task,{verified});this.emit();this.onFinish();return this.state();}
+ async timed(task,phase,work){const began=this.now();try{return await work();}finally{task.timings[phase]+=Math.max(0,this.now()-began);}}
+ async navigateDirect(task){
+  const url=task.mode==='browser'&&!task.fastNavigationAttempted&&standaloneNavigation(task.origin?.userRequest);if(!url)return false;
+  task.fastNavigationAttempted=true;task.message='Chrome’da sayfayı açıyorum…';this.emit();
+  let view=await this.timed(task,'observationMs',()=>this.browser.observe());this.check(task);this.onObservation(task,view);
+  if(this.browser.capabilities().availableTools.includes('select_page')){await this.timed(task,'inputMs',()=>this.browser.call('select_page',{pageId:view.browser.pageId,bringToFront:true}));this.check(task);task.steps.push({action:'browser_tool',toolName:'select_page',summary:'Chrome sekmesi öne getirildi.',outcome:'mcp_confirmed'});}
+  const began=this.now(),result=await this.timed(task,'inputMs',()=>this.browser.perform({toolName:'navigate_page',toolArguments:JSON.stringify({pageId:view.browser.pageId,url,timeout:15000})},view.id));this.check(task);
+  task.steps.push({action:'browser_tool',toolName:result.toolName,summary:'İstenen site açılıyor.',outcome:result.outcome,elapsedMs:this.now()-began,target:{title:view.title,type:'ChromeMcpPage'}});
+  this.memory.log('browser-tool','İstenen siteye doğrudan gezinme',{details:{taskId:task.id,tool:result.toolName,elapsedMs:this.now()-began}});
+  view=await this.timed(task,'observationMs',()=>this.browser.observe());this.check(task);this.onObservation(task,view);this.memory.saveComputerExperience?.(task);
+  if(landingVerified(view,url))return this.complete(task,'Chrome’da '+new URL(url).hostname+' açıldı.',true);
+  task.feedback='İstenen adrese navigate_page bir kez uygulandı; tamamlanma henüz doğrulanmadı. Güncel sayfayı incele; gezinmeyi körlemesine tekrarlama.';return false;
+ }
  async loop(task,start=false,{resumeFrom,refreshConversation=false,restoreWaiting}={}){
   try{
+   task.timings??={observationMs:0,modelMs:0,inputMs:0,modelTurns:0,images:0};
    await this.inputDrain;if(resumeFrom?.work)await resumeFrom.work.catch(()=>{});this.check(task);
    if(resumeFrom){task.idleMilliseconds=(resumeFrom.idleMilliseconds||0)+Math.max(0,this.now()-(resumeFrom.pauseStartedAt??this.now()));delete task.pauseStartedAt;}
    if(restoreWaiting){task.status=restoreWaiting;task.message=resumeFrom.pausedMessage||resumeFrom.requiresInput?.summary||resumeFrom.requiresInput;this.emit();this.onFinish();return this.state();}
    if(refreshConversation&&task.conversation){const detail=await this.api('/site/chat/conversations/'+task.conversation.id);this.check(task);task.conversation=detail.conversation;}
    if(start){task.initialCompletion=await this.verifyCompletion(task);this.check(task);if(task.initialCompletion?.verified===true)return this.complete(task,task.initialCompletion.message,true);await this.onStart();this.check(task);this.emit();}
+   try{const direct=await this.navigateDirect(task);if(direct)return direct;}catch(error){if(!this.recover(task,error))throw error;}this.check(task);
    if(!task.conversation){const created=await this.api('/site/chat/conversations',{source:task.model.source,modelId:task.model.id,title:'Umay bilgisayar görevi: '+task.goal.slice(0,110),requestId:randomUUID()});this.check(task);task.conversation=created.conversation;}
    while(task.steps.length<120&&this.now()-task.createdAt-(task.idleMilliseconds||0)<30*60000){
     this.check(task);task.message=task.mode==='browser'?'Chrome sayfası inceleniyor…':'Ekran inceleniyor…';this.emit();
-    let observed;try{observed=task.mode==='browser'?await this.browser.observe({image:!!task.forceImage&&visionModel(task.model)}):await this.control.observe({image:visionModel(task.model),preferText:view=>!task.forceImage&&simpleNavigation(task.origin?.userRequest||task.goal)&&!!addressField(view)});}catch(error){if(this.recover(task,error))continue;throw error;}this.check(task);observeOutcome(task,observed);if(task.steps.length)this.memory.saveComputerExperience?.(task);this.onObservation(task,observed);
+    let observed;try{observed=await this.timed(task,'observationMs',()=>task.mode==='browser'?this.browser.observe({image:!!task.forceImage&&visionModel(task.model)}):this.control.observe({image:visionModel(task.model),preferText:view=>!task.forceImage&&(simpleNavigation(task.origin?.userRequest||task.goal)&&!!addressField(view)||preferDesktopText(task.origin?.userRequest||task.goal,view))}));}catch(error){if(this.recover(task,error))continue;throw error;}this.check(task);observeOutcome(task,observed);if(task.steps.length)this.memory.saveComputerExperience?.(task);this.onObservation(task,observed);
     const images=observed.screenshots;
     const selected=images.find(s=>s.displayId===task.selectedDisplay)||images.find(s=>observed.elements.some(e=>{const p=this.control.screen.screenToDipPoint?.({x:Math.round(e.bounds.x+e.bounds.width/2),y:Math.round(e.bounds.y+e.bounds.height/2)})||e.bounds;return this.control.screen.getDisplayNearestPoint?.(p)?.id==s.displayId;}))||images[0];
     task.inspectedDisplays??=new Set();if(selected&&visionModel(task.model))task.inspectedDisplays.add(selected.displayId);
-    const prompt={session:this.sessionContext(),proposedGoal:task.goal,originalUserRequest:task.origin?task.origin.userRequest:task.goal,userAuthorization:task.userAuthorization?.slice(-6)||[],step:task.steps.length+1,previousSteps:task.steps.slice(-6),userFeedback:task.feedback||null,capabilities:{actions:[...INPUT_ACTIONS,'observe','watch','done','ask','confirm'],holdLimits:{maxMilliseconds:2000},watchLimits:{maxMilliseconds:600000,minIntervalMs:500,maxIntervalMs:5000},relativeMouseLimit:2000,windowsShortcuts:{showDesktop:['WIN','D'],runDialog:['WIN','R'],addressBar:['CTRL','L'],newFolderOnDesktopOrExplorer:['CTRL','SHIFT','N'],rename:['F2']},scrollAxes:['vertical','horizontal'],windowAction:'focus_window with windowHandle from observation.windows',dragEnd:'endDisplayId is optional; inspect the destination monitor first'},observation:{id:observed.id,title:observed.title,focusedElementId:focusedField(observed)?.id??null,cursorPhysical:observed.cursor,windows:observed.windows||[],displayId:selected?.displayId,screenshotSize:selected?{width:selected.width,height:selected.height}:null,displays:observed.displays,elements:observed.elements.filter(e=>e.focused).concat(observed.elements.filter(e=>!e.focused)).slice(0,100).map(e=>({...e,name:e.name.slice(0,160)}))},hasImage:visionModel(task.model)&&!!selected};
+    const prompt={session:this.sessionContext(),proposedGoal:task.goal,originalUserRequest:task.origin?task.origin.userRequest:task.goal,userAuthorization:task.userAuthorization?.slice(-6)||[],step:task.steps.length+1,previousSteps:task.steps.slice(-6),userFeedback:task.feedback||null,capabilities:{actions:[...INPUT_ACTIONS,'observe','watch','done','ask','confirm'],holdLimits:{maxMilliseconds:2000},watchLimits:{maxMilliseconds:600000,minIntervalMs:500,maxIntervalMs:5000},relativeMouseLimit:2000,windowsShortcuts:{showDesktop:['WIN','D'],runDialog:['WIN','R'],addressBar:['CTRL','L'],newFolderOnDesktopOrExplorer:['CTRL','SHIFT','N'],rename:['F2']},scrollAxes:['vertical','horizontal'],windowAction:'focus_window with windowHandle from observation.windows',dragEnd:'endDisplayId is optional; inspect the destination monitor first'},observation:{id:observed.id,window:observed.handle,title:observed.title,focusedElementId:focusedField(observed)?.id??null,cursorPhysical:observed.cursor,windows:observed.windows||[],displayId:selected?.displayId,screenshotSize:selected?{width:selected.width,height:selected.height}:null,displays:observed.displays,elements:observed.elements.filter(e=>e.focused).concat(observed.elements.filter(e=>!e.focused)).slice(0,100).map(e=>({...e,name:e.name.slice(0,160)}))},hasImage:visionModel(task.model)&&!!selected};
     prompt.handoffPlan=task.origin?.plan||[];
     if(!addressField(observed))prompt.capabilities.actions=prompt.capabilities.actions.filter(a=>a!=='navigate');
     else prompt.capabilities.navigation={action:'navigate',url:'full HTTP/HTTPS URL',effect:'Focus the actual browser address bar, replace its content once, submit with Enter, then re-observe. Prefer this single operation for visiting a site.'};
     prompt.experience=(this.memory.computerExperience?.(task.origin?.userRequest||task.goal)||[]).filter(e=>e.taskId!==task.id);
-    prompt.inputRules={type:'Appends by default. Never type the same text again if already sent. Use replace:true only on a freshly focused Edit field to select all and replace. submit:true presses Enter after typing. Check the next observation to verify submission.',repeat:'If a write is blocked, inspect the field and choose the missing next action, e.g. Enter; never keep typing the URL.'};
+    prompt.inputRules={type:'Appends by default. Never type the same text again if already sent. Use replace:true only on a freshly focused Edit field to select all and replace. submit:true presses Enter after typing. Check the next observation to verify submission.',repeat:'If a write is blocked, inspect the field and choose the missing next action, e.g. Enter; never keep typing the URL.',singleAction:'nextAction is ONLY for confirm. Never nest click/type in focus_window; return the actual next click/type as the top-level action. observation.window is already foreground; do not keep focusing it.'};
     if(this.browser){
      if(task.mode==='browser'){
       prompt.capabilities={actions:['browser_tool','browser_tools','browser_result','browser_desktop','done','ask','confirm'],browser:this.browser.capabilities()};prompt.observation.browser=observed.browser;
@@ -108,7 +125,7 @@ class ComputerAgent{
     // all chats. Wait cooperatively; F8 remains available during this interval.
     task.messageTimes=task.messageTimes.filter(t=>this.now()-t<61000);if(task.messageTimes.length>=10)await this.wait(task,61000-(this.now()-task.messageTimes[0]));
     const request={content:JSON.stringify(prompt),requestId:randomUUID(),expectedVersion:Number(task.conversation.version),kind:'CHAT',desktopMode:'computer',desktopContext:JSON.stringify({clock:new Date(this.now()).toISOString(),memory:this.memory.context(task.goal)}).slice(0,12000),...(prompt.hasImage?{desktopImage:selected.image}:{})};
-    task.message='Modelin işlem yanıtı bekleniyor…';this.emit();const posted=await this.api('/site/chat/conversations/'+task.conversation.id+'/messages',request);task.lastRun=posted.run.id;task.messageTimes.push(this.now());
+    task.message='Modelin işlem yanıtı bekleniyor…';this.emit();const planningStarted=this.now();task.timings.modelTurns++;if(request.desktopImage)task.timings.images++;const posted=await this.api('/site/chat/conversations/'+task.conversation.id+'/messages',request);task.lastRun=posted.run.id;task.messageTimes.push(this.now());
     // Local stop quarantines this generation immediately. Let an already
     // accepted provider request finish its usage accounting instead of aborting
     // its stream (which can strand reserved tokens). Never parse a stale result.
@@ -116,7 +133,7 @@ class ComputerAgent{
     while(true){const {run}=await this.api('/site/chat/runs/'+task.lastRun);if(!['QUEUED','RUNNING'].includes(run.status)){terminal=run;break;}if(this.now()>deadline)throw Error('MODEL_TIMEOUT');await this.delay(300);}
     task.lastRun=null;this.check(task);
     if(!['COMPLETED','SUCCEEDED'].includes(terminal.status)){const error=Error(terminal.errorCode||'MODEL_UNAVAILABLE');if(['ANSWER_QUALITY_FAILED','INVALID_PROVIDER_RESPONSE'].includes(terminal.errorCode)){error.code='PLANNER_INVALID';retryPlanner=this.recover(task,error);}if(!retryPlanner)throw error;}
-    const detail=await this.api('/site/chat/conversations/'+task.conversation.id);this.check(task);task.conversation=detail.conversation;if(retryPlanner)continue;
+    const detail=await this.api('/site/chat/conversations/'+task.conversation.id);task.timings.modelMs+=Math.max(0,this.now()-planningStarted);this.check(task);task.conversation=detail.conversation;if(retryPlanner)continue;
     const response=terminal.assistantMessageId?detail.messages.find(m=>m.id===terminal.assistantMessageId&&String(m.role).toLowerCase()==='assistant'):[...detail.messages].reverse().find(m=>String(m.role).toLowerCase()==='assistant');let action;try{action=parseAction(response?.content);}catch(error){error.code='PLANNER_INVALID';if(this.recover(task,error))continue;throw error;}
     task.message=String(action.summary||'İşlem uygulanıyor…').slice(0,500);this.emit();
     if(this.browser&&['browser_start','browser_desktop','browser_tools','browser_result','browser_tool','navigate'].includes(action.action)){
@@ -135,7 +152,7 @@ class ComputerAgent{
      const began=this.now();let result;
      try{
       if(action.action==='navigate'){task.mode='browser';observed=await this.browser.observe();action={action:'browser_tool',summary:task.message,toolName:'navigate_page',toolArguments:JSON.stringify({url:action.url,pageId:observed.browser.pageId,timeout:15000})};}
-      this.check(task);result=await this.browser.perform(action,observed.id);
+      this.check(task);result=await this.timed(task,'inputMs',()=>this.browser.perform(action,observed.id));
      }catch(error){if(this.recover(task,error))continue;throw error;}
      this.check(task);task.recoveries=0;task.forceImage=action.toolName==='take_screenshot';if(action.toolName==='wait_for')task.idleMilliseconds=(task.idleMilliseconds||0)+Math.max(0,this.now()-began);
      task.steps.push({action:'browser_tool',toolName:result.toolName,summary:task.message,outcome:result.outcome,elapsedMs:this.now()-began,target:{title:observed.title,type:'ChromeMcpPage'}});
@@ -178,7 +195,7 @@ class ComputerAgent{
     const fingerprint=inputSignature(action,observed);
     task.repeated=task.lastFingerprint===fingerprint?(task.repeated||0)+1:1;task.lastFingerprint=fingerprint;
     if(task.repeated>3){task.status='question';task.message='Aynı işlem ekranda ilerleme olmadan tekrarlandı. Nasıl devam etmemi istersin?';task.requiresInput=task.message;this.emit();this.onFinish();return this.state();}
-    this.check(task);const inputStarted=this.now();try{await this.control.perform(action,observed.id);}catch(error){if(this.recover(task,error))continue;throw error;}this.check(task);task.recoveries=0;
+    this.check(task);const inputStarted=this.now();try{await this.timed(task,'inputMs',()=>this.control.perform(action,observed.id));}catch(error){if(this.recover(task,error))continue;throw error;}this.check(task);task.recoveries=0;
     noteInput(task,action,observed);if(action.action==='type')task.pendingText=action.text;
     const record=stepRecord(action,observed,this.now()-inputStarted);task.steps.push(record);if(action.action==='navigate'){task.pendingNavigation={url:action.url,index:task.steps.length-1,window:observed.handle};await this.settleNavigation(task);}this.memory.log('computer-step',task.message,{details:{taskId:task.id,step:task.steps.length,action:action.action,characters:record.characters,elapsedMs:record.elapsedMs}});await this.wait(task,80);
     if(task.initialCompletion?.verified===false){const verified=await this.verifyCompletion(task);this.check(task);if(verified?.verified===true)return this.complete(task,verified.message,true);}

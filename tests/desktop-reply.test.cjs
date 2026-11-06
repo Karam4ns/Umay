@@ -1,6 +1,21 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 // The same small module is loaded by the server overlay and the desktop tests.
 const {replyInstructions,publicReply,publicDraft,toolOptions,toolTask}=require('../server/desktop-reply.cjs');
+test('an exact standalone landing request has a zero-provider handoff, while compound and untrusted text cannot use it',()=>{
+ const {directTask,plannedTask}=require('../server/desktop-reply.cjs'),options={desktopMode:'context',desktopContext:JSON.stringify({capabilities:{computerControl:true,protocol:'umay-computer-task-v1',chromeMcp:true,browserProtocol:'umay-browser-mcp-v1',controlPerformance:'v1'}})};
+ const result=directTask(options,'chrome kullanarak netflix açar mısın');assert.equal(plannedTask(result,options).goal,'chrome kullanarak netflix açar mısın');assert.equal(plannedTask(result,options).executor,'browser');
+ for(const request of ['Netflix nasıl açılır?','netflix aç ve hesabıma gir','https://example.org/delete adresini aç','"Netflix aç" cümlesini çevir'])assert.equal(directTask(options,request),null);
+ assert.equal(directTask({},'netflix aç'),null);assert.equal(directTask({...options,desktopMode:'computer'},'netflix aç'),null);
+});
+test('planner memory reads only the privacy revision rather than discarded full archive retrieval',async()=>{
+ const {plannerMemory}=require('../server/desktop-reply.cjs');let called=0;const memory=await plannerMemory({async query(sql,args){called++;assert.equal(sql,'SELECT epoch,revision::text FROM chat_memory_settings WHERE user_id=$1');assert.deepEqual(args,['user']);return {rows:[{epoch:3,revision:'12'}]};}},'user');assert.equal(called,1);assert.deepEqual(memory,{context:'',clarification:null,privateContext:false,searchQuery:'',epoch:3,revision:'12'});
+});
+test('short routing is capability-gated and never changes how/examples/quoted requests',()=>{
+ const {performanceEnabled,fastRoute}=require('../server/desktop-reply.cjs'),options={desktopMode:'context',desktopContext:JSON.stringify({capabilities:{computerControl:true,protocol:'umay-computer-task-v1',controlPerformance:'v1'}})};
+ assert.ok(performanceEnabled(options));assert.ok(fastRoute(options,'chrome kullanarak netflix açar mısın'));assert.ok(fastRoute(options,'Not Defteri’ni aç'));
+ for(const text of ['Netflix nasıl açılır?','"Chrome aç" cümlesini çevir','Neden açılmıyor?','Selam'])assert.equal(fastRoute(options,text),false);
+ assert.equal(fastRoute({...options,desktopMode:'computer'},'Chrome aç'),false);assert.equal(fastRoute({},'Chrome aç'),false);
+});
 test('browser planners get a separate text-capable contract and only advertised actions',()=>{
  const {plannerInstructions,plannerOptions}=require('../server/desktop-reply.cjs'),query=JSON.stringify({capabilities:{actions:['browser_tool','done','ask'],browser:{}}});
  const instructions=plannerInstructions('With no image use Windows keys only',query);assert.match(instructions,/CHROME MCP OPERATOR/);assert.doesNotMatch(instructions,/With no image use Windows keys only/);assert.match(instructions,/NAVIGATE NOW/);assert.deepEqual(plannerOptions('browser-contract-test',query).response_format.json_schema.schema.properties.action.enum,['browser_tool','done','ask']);

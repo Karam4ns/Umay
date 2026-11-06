@@ -3,7 +3,7 @@ const path=require('node:path'),{randomUUID,createHash}=require('node:crypto');
 const {Client}=require('@modelcontextprotocol/sdk/client/index.js');
 const {StdioClientTransport}=require('@modelcontextprotocol/sdk/client/stdio.js');
 const {ChromeBrowser}=require('./chrome-browser.cjs');
-const COMMON=['navigate_page','new_page','select_page','click','fill','press_key','evaluate_script','wait_for'];
+const COMMON=['navigate_page','new_page','select_page','click','fill','fill_form','press_key','evaluate_script','wait_for'];
 const textOf=result=>(result?.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('\n');
 function safeUrl(value){try{const url=new URL(value);url.username='';url.password='';for(const key of [...url.searchParams.keys()])if(/token|secret|password|code|key|auth|session|state/i.test(key))url.searchParams.set(key,'[gizli]');url.hash='';return url.href;}catch{return String(value||'').slice(0,200);}}
 function redact(text){return String(text||'').replace(/https?:\/\/[^\s"<>]+/g,safeUrl).replace(/(password|parola|şifre)([^\n]*?value=)["'][^"']*["']/gi,'$1$2"[gizli]"');}

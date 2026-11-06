@@ -789,3 +789,7 @@ Kullanıcının Chrome/web işlemlerinin MCP ile yapılması talebi uygulanır. 
 ## [2026-11-06] Kapalı Chrome bağlantısının yenilenmesi — 0.6.1
 
 Son iki gerçek Netflix görevinin ilk gözlemde başarısız olması incelenir. Sıra: yerel log/sohbet → kurulu MCP'den gerçek bağlantı hatası → önce başarısız birim ve gerçek Chrome kapat/aç testi → gözlem öncesi uç nokta doğrulaması ve güvenli yardımcı yenileme → gerçek modeller ve paketlenmiş exe ile tekrar → installer ve GitHub. Ayrıntılar `Docs/chrome-reconnect-fix.md` içinde.
+
+## [2026-11-06] Chrome ve bilgisayar kontrol hızlandırması — 0.6.2
+
+Önce model, kuyruk, gözlem ve giriş sürelerini ayır. Kesin bağımsız site açma isteğinde model beklemeden mevcut görev devri ve doğrulanmış MCP gezinmesi; genel görevlerde daha kısa yönlendirme, kullanılmayan hafıza aramasının kaldırılması ve erişilebilir arayüzde önce metin. Gerçek pencere kimliği, tek işlem, görsele dönüş, izin, durdurma ve tekrar koruması korunur. İzole HTTP/DB → gerçek Chrome/form/Windows/ses → son paket → installer/GitHub sırası ve ölçülen sınırlar `Docs/control-performance.md` içindedir.

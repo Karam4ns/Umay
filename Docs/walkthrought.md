@@ -476,3 +476,14 @@ Detaylar ve dış model/Windows/çoklu monitör test sınırları computer-model
 - [x] Gerçek Chrome/ajan ve seçili bulut modelleriyle kapalı Chrome'u açıp Netflix başlık/adresini doğrula; geçici oturumu iptal et.
 - [x] Son 0.6.1 paketinin kaynak/MCP bütünlüğü; proje dışında gerçek exe ile Chrome kapat/yeniden bağlan/form ve yardımcı çıkışı.
 - [x] Installer SHA512/boyut kaydı ve GitHub teslimi (`codex/computer-model-roles`); sonuçlar `Docs/chrome-reconnect-fix.md` içinde.
+
+## [2026-11-06] Kontrol performansı — 0.6.2
+
+- [x] Gerçek model/işlem kayıtlarından gecikme ayrımı; görevlerde gözlem/model/giriş ve görüntü sayaçları.
+- [x] Ortak kesin istek ayrıştırıcısı; yeni istemcide sıfır sağlayıcı turlu site açma devri ve gerçek sayfa başlığı/adresiyle sonuç.
+- [x] Genel görevler için daha kısa yönlendirme; planlayıcıda yalnız hafıza gizlilik sürümü; metin önceliği ve görsele dönüş.
+- [x] İnceleme ve canlı testte bulunan kısmi gezinme geri dönüşü, iç içe işlem ve ön plan kimliği regresyonları; 227 Node testi.
+- [x] İzole HTTP/PostgreSQL, iki sağlıklı işçi/10203; eski istemci, merkezî kayıt ve sıfır sağlayıcı/token kanıtı.
+- [x] Gerçek Netflix: devir 614 ms / toplam 9.283 ms; genel form: 28.741 ms. Yerel soğuk/açık/kapalı Chrome, gerçek Windows/F8 ve ses regresyonları. Bulut masaüstü testindeki odak sınırı ayrıca kayıtlıdır.
+- [x] Son 49 kaynak/native/konuşma ve 361 MCP dosyası eşleşmesi; proje dışında gerçek exe ile Chrome yenileme ve sıfır planlayıcı turlu gezinme.
+- [x] Son installer SHA512/boyut ve GitHub teslimi (`codex/computer-model-roles`); `Docs/control-performance.md` içinde kayıtlıdır.

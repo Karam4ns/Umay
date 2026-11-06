@@ -6,6 +6,19 @@ function patchDesktopReply(source,{worker=true}={}){
  replace("''::text AS \"draftContent\",id,",`CASE WHEN media_options->>'desktopSpeechDraft'='true' AND status='RUNNING' AND phase='generating' THEN draft_content ELSE '' END AS "draftContent",user_message_id AS "userMessageId",assistant_message_id AS "assistantMessageId",id,`);
  if(!worker)return source;
  replace('const desktop_context_1 = require("./desktop-context");','const desktop_context_1 = require("./desktop-context");\nconst desktop_reply_1 = require("./desktop-reply.cjs");');
+ // Planner observations already carry the task's scoped context. The existing
+ // code discarded recall.context/clarification after paying for its DB search.
+ replace('const memory = await this.memory.recall(run.user_id, run.conversation_id, run.user_message_id, messages, client);','const umayDirectTask = !isDesktop && !documentContext && !imageParts.length ? desktop_reply_1.directTask(run.media_options,messages.at(-1)?.content) : null;\n                const memory = isDesktop || umayDirectTask ? await desktop_reply_1.plannerMemory(client,run.user_id) : await this.memory.recall(run.user_id, run.conversation_id, run.user_message_id, messages, client);');
+ replace('const knowledgeCatalog = !isDesktop && run.source', 'const knowledgeCatalog = !isDesktop && !umayDirectTask && run.source');
+ replace('if (profileAcknowledgement) {\n                        trace.stages.push({',`if (umayDirectTask) {
+                        trace.stages.push({stage:"desktop_direct_handoff",providerCalled:false,executed:false});
+                        result={choices:[{message:{content:umayDirectTask}}],usage:{prompt_tokens:0,completion_tokens:0}};
+                    }
+                    else if (profileAcknowledgement) {
+                        trace.stages.push({`);
+ replace('const qualityInstructions = isDesktop || capabilitiesQuestion || socialQuestion',`if (!isDesktop && desktop_reply_1.fastRoute(run.media_options,messages.at(-1)?.content)) instructions = identityInstructions + "Route the actual user request using the Umay response contract. Preserve their entire authorized scope. Do not plan individual UI steps, research a site before opening it, or claim success. Ask only for genuinely missing user choices.";
+                const qualityInstructions = isDesktop || desktop_reply_1.fastRoute(run.media_options,messages.at(-1)?.content) || capabilitiesQuestion || socialQuestion`);
+ replace('+ desktop_context_1.desktopChatInstructionsFor(run.media_options) + memoryContext','+ (desktop_reply_1.performanceEnabled(run.media_options) ? "" : desktop_context_1.desktopChatInstructionsFor(run.media_options)) + memoryContext');
  replace('const documentContext = (0, desktop_context_1.deviceContext)(run.media_options) +\n                    codeResults', 'const umayDeviceContext = (0, desktop_context_1.deviceContext)(run.media_options);\n                const documentContext = codeResults');
  replace('const attachmentMessage = conversation.at(-1);',`const attachmentMessage = conversation.at(-1);
                 if (umayDeviceContext && attachmentMessage) attachmentMessage.content = String(attachmentMessage.content) + umayDeviceContext;`);

@@ -43,7 +43,7 @@ class DeviceServices{
  }
  async prepareContext(query){
   const epoch=this.memory.epoch;
-  const context={capabilities:{computerControl:true,protocol:'umay-computer-task-v1',chromeMcp:true,browserProtocol:'umay-browser-mcp-v1'},memory:this.memory.context(query),environment:this.environment.context(query),computerExperience:this.memory.computerExperience(query),browser:this.browser.state()};
+  const context={capabilities:{computerControl:true,protocol:'umay-computer-task-v1',chromeMcp:true,browserProtocol:'umay-browser-mcp-v1',controlPerformance:'v1'},memory:this.memory.context(query),environment:this.environment.context(query),computerExperience:this.memory.computerExperience(query),browser:this.browser.state()};
   if(this.control.enabled){try{const foreground=await this.control.native.request('foreground');this.memory.check(epoch);this.computerSession.observe(foreground);}catch(error){if(epoch!==this.memory.epoch)throw error;}context.computer=this.computerSession.context();}
   if(/hava|sıcaklık|yağmur|kar yağ|şemsiye|rüzgâr|rüzgar/i.test(query)){
    try{context.environment.weather=await this.environment.weather();}catch(error){context.environment.weather={available:false,message:error.message};}

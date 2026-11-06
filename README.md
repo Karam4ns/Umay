@@ -48,7 +48,7 @@ Merkezi hafıza çıkarımı sunucunun ChatMemory iş kuyruğu ve kullanıcını
 ayarlarıyla yürür. Yerel hafıza ve işlem kayıtları için `Docs/device-features.md`
 ve `Docs/computer-progress-learning.md` dosyalarına bakın.
 
-### Chrome MCP (0.6.1)
+### Chrome MCP (0.6.2)
 
 Web görevleri normal yazılı/sesli sohbetten Chrome DevTools MCP ile yürür.
 Chrome cihazda kurulu olmalıdır; MCP, SDK ve çalışma ortamı installer'a dahildir,
@@ -61,6 +61,10 @@ Hesap bağlama sistemin varsayılan tarayıcısında kalır. Tarayıcı görevle
 durdurma, paket ve gerçek model testleri: `Docs/chrome-mcp.md`.
 Chrome kapatıldıktan sonraki komutta aynı profil yeniden açılır ve bağlantı
 yenilenir. 0.6.1 hata kaydı ve testleri: `Docs/chrome-reconnect-fix.md`.
+0.6.2'de açık ve bağımsız “netflix aç” / “https://example.org adresini aç”
+komutları model beklemeden mevcut görev devriyle yürür; sonuç gerçek Chrome'dan
+doğrulanır. Genel görevler seçili modellerle devam eder. Süreler ve masaüstü
+metin/görsel optimizasyonu: `Docs/control-performance.md`.
 
 Varsayılan tarayıcı girişi için `server/desktop-auth.controller.ts` ve
 `server/desktop-auth-policy.ts` sunucu API'sine eklenir; `DesktopAuthController`
