@@ -13,7 +13,8 @@ app.whenReady().then(async()=>{
   const until=async(code)=>{const end=Date.now()+4000;while(!await js(code)){if(Date.now()>end)throw Error('Expected UI state: '+code);await new Promise(r=>setTimeout(r,20));}};
   a.show();a.focus();await js('edit.focus()');
   control=new ComputerControl({screen,capture:async()=>{const sources=await desktopCapturer.getSources({types:['screen'],thumbnailSize:{width:1200,height:800}});return sources.map(s=>({displayId:s.display_id,width:s.thumbnail.getSize().width,height:s.thumbnail.getSize().height,image:s.thumbnail.toDataURL()}));}});control.enable(true);
-  const act=async action=>{const view=await control.observe();assert.match(view.title,/Umay workflow A/);await control.perform(action(view),view.id);};
+  await control.native.request('focus',{handle:Number(a.getNativeWindowHandle().readBigUInt64LE())});
+  const act=async action=>{const view=await control.observe();assert.ok(/Umay workflow A/.test(view.title),'owned fixture must be foreground');await control.perform(action(view),view.id);};
   const element=(view,name)=>{const found=view.elements.find(e=>e.name===name);assert.ok(found,'UIA target: '+name);return found.id;};
   await act(v=>({action:'move',elementId:element(v,'Umay workflow target')}));await until('events.hover===true');
   await act(v=>({action:'right_click',elementId:element(v,'Umay workflow target')}));await until('events.right===true');

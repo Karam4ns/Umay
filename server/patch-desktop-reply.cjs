@@ -40,7 +40,7 @@ function patchDesktopReply(source,{worker=true}={}){
                     }`);
  // Declarations are before inference/callback invocation; the callback closure
  // is only called after umayConversation/umaySpeechDraft initialize above.
- replace(': message),\n                        stream: streamingEnabled,',`: message).concat(umayConversation ? [{role:"system",content:desktop_reply_1.replyInstructions+(desktop_reply_1.browserEnabled(run.media_options)?"\\n"+desktop_reply_1.browserReplyInstructions:"")}] : []),
+ replace(': message),\n                        stream: streamingEnabled,',`: message).concat(umayConversation ? [{role:"system",content:desktop_reply_1.replyInstructions+(desktop_reply_1.generalEnabled(run.media_options)?"\\n"+desktop_reply_1.generalReplyInstructions:"")+(desktop_reply_1.browserEnabled(run.media_options)?"\\n"+desktop_reply_1.browserReplyInstructions:"")}] : []),
                         stream: streamingEnabled,`);
  replace('...(toolRecovery || textOnly ? { tool_choice: "none" } : {}),','...(toolRecovery || textOnly ? { tool_choice: "none" } : {}),\n                        ...(umayConversation && !socialQuestion && desktopTools ? desktop_reply_1.toolOptions : {}),');
  replace('if (knownOptions?.effort === "low")\n                    reasoningEffort = "low";',`if (knownOptions?.effort === "low")
@@ -48,17 +48,33 @@ function patchDesktopReply(source,{worker=true}={}){
                 if ((isDesktop || umayConversation && !(0, chat_quality_1.needsConsistencyReview)(messages.at(-1)?.content ?? "")) && desktop_reply_1.noThoughtsAllowed(optionKey)) reasoningEffort = "none";`);
  replace('catch (error) {\n                            if (error instanceof chat_provider_1.ChatProviderError &&',`catch (error) {
                             if (isDesktop && error instanceof chat_provider_1.ChatProviderError && error.parameter === "response_format" && [400,422].includes(error.status) && desktop_reply_1.rejectPlannerFormat(optionKey)) {optionRetries++;continue;}
-                            if (reasoningEffort === "none" && error instanceof chat_provider_1.ChatProviderError && error.message === "PROVIDER_REJECTED" && [400,422].includes(error.status)) {desktop_reply_1.rejectNoThoughts(optionKey);reasoningEffort="minimal";optionRetries++;continue;}
+                            if (reasoningEffort === "none" && error instanceof chat_provider_1.ChatProviderError && error.message === "PROVIDER_REJECTED" && [400,422].includes(error.status) && (!error.parameter || error.parameter==='reasoning_effort')) {desktop_reply_1.rejectNoThoughts(optionKey);reasoningEffort="minimal";optionRetries++;continue;}
+                            if (isDesktop && payload.tools?.some(t=>t.function?.name==='umay_control') && error instanceof chat_provider_1.ChatProviderError && [400,422].includes(error.status) && ['tools','tool_choice','parallel_tool_calls'].includes(error.parameter||'') && desktop_reply_1.rejectOperatorTools(optionKey,error.parameter)) {trace.stages.push({stage:'desktop_operator_fallback',parameter:error.parameter,status:error.status});optionRetries++;continue;}
                             if (umayConversation && desktopTools && error instanceof chat_provider_1.ChatProviderError && ["tools","tool_choice"].includes(error.parameter || "")) {desktopTools=false;continue;}
                             if (error instanceof chat_provider_1.ChatProviderError &&`);
  // Some providers buffer an entire reasoning pass when json_object is forced.
  // Start with the explicit contract plus strict parsing; use schema mode only
  // for the single bounded repair, preserving native streaming on the fast path.
  replace('...(structuredAnswer\n                            ? { response_format:', '...((structuredAnswer || umayConversation && desktopRepair > 0)\n                            ? { response_format:');
- replace('max_tokens: responseBudget,','max_tokens: responseBudget,\n                        ...(isDesktop ? desktop_reply_1.plannerOptions(optionKey, messages.at(-1)?.content) : {}),');
+ replace('max_tokens: responseBudget,','max_tokens: responseBudget,\n                        ...(isDesktop ? desktop_reply_1.plannerOptions(optionKey, messages.at(-1)?.content,{budget:responseBudget,repair:emptyRetries>0}) : {}),');
+ replace('if (visualLookup && !visualIdentified) {\n                        payload.messages = [',`if(isDesktop)trace.stages.push({stage:'desktop_operator_transport',native:!!payload.tools?.some(t=>t.function?.name==='umay_control'),toolCount:payload.tools?.length||0});
+                    if(isDesktop && payload.tools?.some(t=>t.function?.name==='umay_control')) {
+                        payload.messages=desktop_reply_1.operatorMessages(payload.messages,messages.at(-1)?.content,messages);
+                        delete payload.tool_choice;
+                        delete payload.response_format;
+                    }
+                    if (visualLookup && !visualIdentified) {
+                        payload.messages = [`);
+ replace('responseBudget = Math.min(Math.min(12288, maxOutput * 2), Math.max(maxOutput, Math.floor(capacity / 3)));',`responseBudget = Math.min(Math.min(12288, maxOutput * 2), Math.max(maxOutput, Math.floor(capacity / 3)));
+                        if(isDesktop)conversation.push({role:"system",content:"The previous completion was cut off. Return exactly ONE smallest allowed action; never simulate later actions/results or repeat selector chains. A fresh browser snapshot is real readback evidence. If its visible result already proves the web step, continue the remaining user task, using system_start for local work. If JavaScript is necessary, inspect actual DOM or read document.body.innerText; never invent a chain of div selectors. Preserve the exact original user request, data and authorization. A genuinely long action may use this larger retry budget."});`);
  replace('// Clear previous tool/partial attempts before processing another round.','// Clear previous tool/partial attempts before processing another round.\n                    await draftWrite;');
  replace('const text = (isDesktop || desktop_context_1.desktopChatTask(message?.content, run.media_options)) ?', 'const text = (isDesktop || umayConversation || desktop_context_1.desktopChatTask(message?.content, run.media_options)) ?');
  replace('const message = result.choices?.[0]?.message;',`let message = result.choices?.[0]?.message;
+                    if(isDesktop && payload.tools?.some(t=>t.function?.name==='umay_control')) {
+                        if(result.choices?.[0]?.finish_reason==='length') message={content:''};
+                        else {let localAction;try{localAction=desktop_reply_1.operatorAction(message,messages.at(-1)?.content,payload.tools);}catch{throw new chat_provider_1.ChatProviderError('INVALID_PROVIDER_RESPONSE');}if(localAction)message={content:localAction};}
+                    }
+                    if (isDesktop && typeof message?.content === "string") message={...message,content:desktop_reply_1.plannerReply(message.content, messages.at(-1)?.content)};
                     const desktopTool = umayConversation ? desktop_reply_1.toolTask(message) : null;
                     if (desktopTool) {message={content:desktopTool};trace.stages.push({stage:"desktop_function_handoff",executed:false});}`);
  replace('answer = text;\n                    {',`if (umayConversation && !profileAcknowledgement && !memory.clarification && !desktop_context_1.desktopChatTask(text, run.media_options) && desktop_reply_1.publicReply(text) === null) {

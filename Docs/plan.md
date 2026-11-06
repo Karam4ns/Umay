@@ -797,3 +797,7 @@ Son iki gerçek Netflix görevinin ilk gözlemde başarısız olması incelenir.
 ## [2026-11-06] Genel kişisel asistan kapsamının yeniden teyidi
 
 Netflix/Chrome/dosya örnekleri tekil hedefler değildir. Bütün siteler, Windows uygulamaları, yetkili disk/aygıt dosyaları ve bunların arasında kesintisiz çok adımlı işler genel kapsamdır. Hız çalışması birkaç kesin kısa yolla sınırlanmaz. Kapsam, gerçek mevcut eksikler, yönetici yetkilendirmesi ve geniş kabul matrisi `Docs/general-assistant-scope.md` dosyasına işlendi. Bu kayıtla yeni araç veya yönetici servisinin tamamlandığı iddia edilmez; sonraki uygulama sırası o belgede tanımlıdır.
+
+## [2026-11-06] Genel kişisel asistan yürütücüsü — 0.7.0
+
+Genel dosya/uygulama/paket/süreç araçları, sohbetten sistem↔Chrome MCP↔Windows geçişleri, sayfalı sonuçlar ve sonraki yönlendirme için işlem/artifact hafızası uygulandı. Gerçek kullanıcı yetkili yönetici oturumu ve doğrulanmış worker eklendi; ilk güvenli UAC onayı kullanıcıda kalır. Önce katman testleri ve izole sunucu HTTP/DB, sonra gerçek araç/model/Windows/ses ve paket kabulü sırası izlendi. 301 otomatik test geçti. Ayrıntılı sonuç ve açık kabul: `Docs/general-operator-verification.md`; uygulama adımları `Docs/general-operator-implementation.md`. Geniş uygulama/aygıt ve p50/p95 matrisi açık kalır.

@@ -494,3 +494,16 @@ Detaylar ve dış model/Windows/çoklu monitör test sınırları computer-model
 - [x] Mevcut kontrol altyapısıyla eksikleri ayır; 0.6.2'nin basit testlerini genel başarı gibi sunma.
 - [x] Genel ve birleşik görev, dosya/aygıt, uygulama kurulumu/yönetimi, yönetici ve p50/p95 performans kabul matrisini yaz: `Docs/general-assistant-scope.md`.
 - [ ] Görev güvenilirliği → genel araç sözleşmesi/işlem grupları → dosya/uygulama araçları → çapraz yürütücü kabulü → kullanıcı yetkilendirmeli yönetici aracısı → geniş performans kabulü sırasını uygula.
+
+## [2026-11-06] Genel yürütücü — 0.7.0
+
+- [x] 21 genel dosya/uygulama/paket/süreç aracı; kaynak koruma, sürüm, kısmi işlem ve sahiplik.
+- [x] Sohbetten genel görev devri; sistem, Chrome MCP ve Windows arasında aynı asıl istek/iptal nesli; sonraki mesajda gerçek dosya yollarını hatırlama.
+- [x] Kullanıcı tarafından yetkilendirilmiş yönetici oturumunu koruma, gerektiğinde yüksek yetkili worker, hesap değişimi/çıkış/revoke.
+- [x] Durdurma doğrulanmadan başarı göstermeme; belirsiz durdurmada yeni görev/devamı engelleme ve tekrar deneme.
+- [x] Sunucuda izole HTTP/DB, genel sözleşmeler, ayrı operatör kotası; iki worker/frontend ve 10203 sağlık/bütünlük.
+- [x] 301 otomatik test; gerçek çok adımlı web/dosya/süreç, test uygulaması kur/aç/kullan/kaldır, gerçek modellerle dosya ve devam, Windows/F8, STT/TTS, ayarlar.
+- [x] Son kaynaklarla 57 uygulama/4 konuşma modülü ve 361 MCP dosyası; gerçek paketlenmiş Umay.exe ile ASAR yönetici worker ve Chrome yeniden bağlantı.
+- [ ] Geniş gerçek uygulama/aygıt/çok monitör/ilk UAC ve p50/p95 kabulü. Bu kutu birkaç başarılı örnekle kapatılmaz.
+
+Ölçümler, başarısız denemeler ve teslim: `Docs/general-operator-verification.md`.

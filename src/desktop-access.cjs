@@ -46,8 +46,11 @@ function createElevationTransport({timeout=120000,launch=launchAdministrator}={}
  return {promise,listening,cancel:()=>finish(failure('NATIVE_CANCELLED','Yönetici izni işlemi durduruldu.'))};
 }
 class DesktopAccess{
- constructor({normal=new NativeDesktop(),transportFactory=createElevationTransport,nativeFactory=options=>new NativeDesktop(options),publish=()=>{}}={}){Object.assign(this,{normal,transportFactory,nativeFactory,publish});this.elevated=null;this.pending=null;this.generation=0;this.closed=false;}
- state(){return {administrator:!!this.elevated,pending:!!this.pending};}
+ constructor({normal=new NativeDesktop(),transportFactory=createElevationTransport,nativeFactory=options=>new NativeDesktop(options),publish=()=>{}}={}){Object.assign(this,{normal,transportFactory,nativeFactory,publish});this.elevated=null;this.pending=null;this.generation=0;this.closed=false;this.retained=false;this.releaseListeners=new Set();}
+ state(){return {administrator:!!this.elevated,pending:!!this.pending,retained:this.retained&&!!this.elevated};}
+ onRelease(listener){this.releaseListeners.add(listener);return ()=>this.releaseListeners.delete(listener);}
+ retainAdministrator(){if(!this.elevated)throw Error('Önce gerçek Windows yönetici izni gerekiyor.');this.retained=true;if(!this.heartbeat){this.heartbeat=setInterval(()=>{const native=this.elevated;if(native&&!native.active&&!native.queue?.length)void native.request('privileges').catch(()=>{if(this.elevated===native)void this.release();});},60000);this.heartbeat.unref();}this.publish(this.state());}
+ finishTask(){return this.retained?Promise.resolve():this.release();}
  request(method,params){if(this.closed)return Promise.reject(Error('Windows kontrol bağlantısı kapandı.'));return (this.elevated||this.normal).request(method,params);}
  async elevate(){
   if(this.closed)throw Error('Windows kontrol bağlantısı kapandı.');if(this.pending)throw Error('Windows yönetici onayı zaten bekleniyor.');if(this.elevated)return this.state();
@@ -56,12 +59,12 @@ class DesktopAccess{
    const child=await transaction.promise;if(generation!==this.generation){child.kill();throw failure('NATIVE_CANCELLED','Yönetici izni işlemi durduruldu.');}
    elevated=this.candidate=this.nativeFactory({spawnImpl:()=>child});const privileges=await elevated.request('privileges');
    if(generation!==this.generation)throw failure('NATIVE_CANCELLED','Yönetici izni işlemi durduruldu.');
-   if(!privileges?.administrator)throw failure('UAC_NOT_ELEVATED','Windows yönetici izni doğrulanamadı.');this.candidate=null;this.elevated=elevated;child.once('exit',()=>{if(this.elevated===elevated){this.elevated=null;this.publish(this.state());}});return {administrator:true,pending:false};
+   if(!privileges?.administrator)throw failure('UAC_NOT_ELEVATED','Windows yönetici izni doğrulanamadı.');this.candidate=null;this.elevated=elevated;child.once('exit',()=>{if(this.elevated===elevated){this.elevated=null;this.retained=false;clearInterval(this.heartbeat);this.heartbeat=null;for(const listener of this.releaseListeners)listener();this.publish(this.state());}});return {administrator:true,pending:false};
   }catch(error){if(this.candidate===elevated)this.candidate=null;if(this.elevated===elevated)this.elevated=null;elevated?.close();throw error;}
   finally{if(this.pending===transaction)this.pending=null;this.publish(this.state());}
  }
- async release(){this.generation++;const pending=this.pending,elevated=this.elevated,candidate=this.candidate;this.pending=null;this.elevated=null;this.candidate=null;pending?.cancel();for(const native of [elevated,candidate])if(native){await native.cancel();native.close();}this.publish(this.state());}
- async cancel(){const normal=this.normal.cancel();await Promise.all([normal,this.release()]);}
+ async release(){this.generation++;this.retained=false;clearInterval(this.heartbeat);this.heartbeat=null;for(const listener of this.releaseListeners)listener();const pending=this.pending,elevated=this.elevated,candidate=this.candidate;this.pending=null;this.elevated=null;this.candidate=null;pending?.cancel();for(const native of [elevated,candidate])if(native){await native.cancel();native.close();}this.publish(this.state());}
+ async cancel(){const normal=this.normal.cancel();if(this.retained&&this.elevated&&!this.pending){await this.elevated.cancel({keepAlive:true});await normal;return;}await Promise.all([normal,this.release()]);}
  close(){this.closed=true;this.normal.close();void this.release();}
 }
 module.exports={DesktopAccess,createElevationTransport,launchAdministrator};

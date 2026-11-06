@@ -135,6 +135,16 @@ while($true){
   if($request.method -in @('click','move','move_relative','hold','drag','scroll','keys','text','focus') -and -not $administrator -and [UmayInput]::ElevatedWindow([UmayInput]::GetForegroundWindow()) -eq $true){throw 'NATIVE_ELEVATION_REQUIRED'}
   switch($request.method){
    'privileges' {$result=@{administrator=$administrator;pid=$PID}}
+   'system_worker' {
+    if(-not $administrator){throw 'NATIVE_ELEVATION_REQUIRED'}
+    $workerCommand=[IO.Path]::GetFullPath([string]$p.command);$workerEntry=[IO.Path]::GetFullPath([string]$p.entry)
+    if(-not [IO.Path]::IsPathRooted([string]$p.command) -or -not [IO.Path]::IsPathRooted([string]$p.entry) -or $workerEntry -notmatch '[\\/]system-worker\.cjs$' -or [string]$p.token -cnotmatch '^[a-f0-9]{64}$' -or [string]$p.pipe -notmatch '^\\\\\.\\pipe\\umay-system-[a-f0-9-]+$'){throw 'NATIVE_INVALID_SYSTEM_WORKER'}
+    $entryContainer=$workerEntry -replace '(?i)app\.asar[\\/].*$','app.asar'
+    if(-not (Test-Path -LiteralPath $workerCommand -PathType Leaf) -or -not (Test-Path -LiteralPath $entryContainer -PathType Leaf)){throw 'NATIVE_INVALID_SYSTEM_WORKER'}
+    $workerInfo=New-Object Diagnostics.ProcessStartInfo;$workerInfo.FileName=$workerCommand;$workerInfo.Arguments='"'+$workerEntry+'" --system-pipe '+[string]$p.pipe+' --system-token '+[string]$p.token
+    $workerInfo.UseShellExecute=$false;$workerInfo.CreateNoWindow=$true;$workerInfo.WindowStyle=[Diagnostics.ProcessWindowStyle]::Hidden;$workerInfo.EnvironmentVariables['ELECTRON_RUN_AS_NODE']='1';$workerInfo.EnvironmentVariables['UMAY_SYSTEM_WORKER_ADMIN']='1'
+    $workerProcess=[Diagnostics.Process]::Start($workerInfo);$result=@{pid=$workerProcess.Id;administrator=$true};$workerProcess.Dispose()
+   }
    'foreground' {$result=@{handle=[UmayInput]::GetForegroundWindow().ToInt64();title=[UmayInput]::Title();windows=[UmayInput]::Windows()}}
    'observe' {$result=Get-Observation}
    'observe_window' {$result=Get-Observation -TargetHandle ([long]$p.handle) -ExpectedProcessId ([uint32]$p.expectedProcessId)}

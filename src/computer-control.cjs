@@ -50,13 +50,14 @@ class NativeDesktop{
   if(method==='hold'){this.stopDirectory??=fs.mkdtempSync(path.join(os.tmpdir(),'umay-native-stop-'));stopFile=path.join(this.stopDirectory,id+'.stop');params={...params,stopFile};}
   return new Promise((resolve,reject)=>{this.queue.push({id,method,params,stopFile,resolve,reject});this.pump();});
  }
- cancel(){
+ cancel({keepAlive=false}={}){
   const error=Object.assign(Error('Bilgisayar görevi durduruldu.'),{code:'NATIVE_CANCELLED'});
   for(const entry of this.queue)entry.reject(error);this.queue=[];
   if(!this.child)return;
   // Never kill a key chord or drag halfway through its finally/release block.
   // Only one native command is sent at a time, so no later input can escape.
-  if(this.active&&!['observe','observe_window','foreground','location'].includes(this.active.method)){if(this.active.stopFile)try{fs.writeFileSync(this.active.stopFile,'stop');}catch{}this.active.cancelled=true;this.active.reject(error);this.active.drained??=new Promise(resolve=>this.active.resolveDrain=resolve);return this.active.drained;}
+  if(this.active&&(keepAlive||!['observe','observe_window','foreground','location'].includes(this.active.method))){if(this.active.stopFile)try{fs.writeFileSync(this.active.stopFile,'stop');}catch{}this.active.cancelled=true;this.active.reject(error);this.active.drained??=new Promise(resolve=>this.active.resolveDrain=resolve);return this.active.drained;}
+  if(keepAlive&&!this.closing)return;
   this.shutdown(this.child,error);
  }
  close(){this.closing=true;this.cancel();}

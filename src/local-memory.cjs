@@ -10,7 +10,7 @@ function machineProtocol(text){
  if(!source.startsWith('{'))return false;
  let value;try{value=JSON.parse(source);}catch{return false;}
  if(!value||typeof value!=='object'||Array.isArray(value))return false;
- return !!(value.observation&&typeof value.observation==='object'&&('originalUserRequest' in value||'proposedGoal' in value))||['click','double_click','right_click','middle_click','move','drag','scroll','keys','type','wait','focus_window','hold','move_relative','observe','navigate','watch','browser_tool','browser_start','browser_desktop','browser_tools','browser_result','done','ask','confirm'].includes(value.action);
+ return !!(value.observation&&typeof value.observation==='object'&&('originalUserRequest' in value||'proposedGoal' in value))||['click','double_click','right_click','middle_click','move','drag','scroll','keys','type','wait','focus_window','hold','move_relative','observe','navigate','watch','browser_tool','browser_start','browser_desktop','browser_tools','browser_result','system_tool','system_batch','system_start','desktop_start','system_tools','system_result','done','ask','confirm'].includes(value.action);
 }
 function conversationalMessage(message){return message.conversation_source!=='computer'&&!/^umay bilgisayar gorevi\s*:/u.test(fold(message.conversation_title))&&!machineProtocol(message.content);}
 function factsFrom(text){
@@ -75,6 +75,11 @@ class LocalMemory{
  log(kind,summary,{status='completed',details={}}={}){
   const safe={};for(const [key,value]of Object.entries(details))if(!/password|parola|secret|token|audio|image|text|content/i.test(key))safe[key]=typeof value==='string'?redact(value).slice(0,600):value;
   this.require().prepare('INSERT INTO operations(kind,status,summary,details,created_at) VALUES(?,?,?,?,?)').run(bounded(kind,80),bounded(status,40),redact(summary).slice(0,500),JSON.stringify(safe),this.now());
+ }
+ rememberSystemArtifacts(artifacts){
+  const db=this.require(),now=this.now();for(const item of artifacts||[]){if(item.kind!=='file'||typeof item.path!=='string'||!path.isAbsolute(item.path))continue;
+   db.prepare('INSERT INTO device_files(path,name,root,kind,size,modified_at,seen_at,present) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(path) DO UPDATE SET kind=excluded.kind,size=excluded.size,modified_at=excluded.modified_at,seen_at=excluded.seen_at,present=excluded.present').run(item.path,path.basename(item.path),path.parse(item.path).root,item.type||'file',Number(item.size)||0,item.modifiedAt||now,now,item.effect==='trashed'?0:1);
+  }
  }
  archiveConversation(conversation,messages=[]){
   if(!conversation?.id)return;const db=this.require(),now=this.now();

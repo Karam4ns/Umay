@@ -3,6 +3,12 @@
 Türkçe sesli asistan geliştirme sürümü. Fütüristik kontrol merkezi ve canlı Türkçe
 konuşma akışı içerir.
 
+## Genel görev yürütücüsü — 0.7.0
+
+Sohbetten verilen işler genel dosya, uygulama, paket ve süreç araçlarıyla; Chrome MCP ve Windows arayüzü arasında geçiş yaparak yürütülür. Son işlem yolları ve sonuçları sonraki yönlendirmelerde kullanılır. İlk Windows yönetici onayından sonra yetkili yardımcı Umay oturumunda tutulabilir; Ayarlar → Modeller üzerinden kapatılır. Durdurma doğrulanmazsa yeni işler engellenir ve hata gösterilir.
+
+Gerçek test sonuçları ve açık sınırlar: [genel yürütücü doğrulaması](Docs/general-operator-verification.md). Her uygulama/site için kusursuzluk veya sabit hız garantisi yoktur.
+
 ## Geliştirme
 
 Windows, Node.js 24 LTS ve uv gerektirir. Son kullanıcının Python kurmasına gerek

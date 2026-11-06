@@ -8,15 +8,19 @@ const {chatComputerTask}=require('./chat-computer-task.cjs');
 const {verifyComputerCompletion}=require('./computer-completion.cjs');
 const {ComputerSession}=require('./computer-session.cjs');
 const {BrowserMcp}=require('./browser-mcp.cjs');
+const {SystemTools}=require('./system-tools.cjs');
+const {SystemWorkerClient}=require('./system-worker-client.cjs');
 class DeviceServices{
- constructor({directory,api,encrypt,decrypt,screen,capture,notify,publish=()=>{},onComputerStart=()=>{},onComputerFinish=()=>{},excludedWindowHandles=()=>[],chooseRoots,saveFile,openSource=()=>{},defaultRoots=[],native=new NativeDesktop(),background=true,browser}){
+ constructor({directory,api,encrypt,decrypt,screen,capture,notify,publish=()=>{},onComputerStart=()=>{},onComputerFinish=()=>{},excludedWindowHandles=()=>[],chooseRoots,saveFile,openSource=()=>{},defaultRoots=[],native=new NativeDesktop(),background=true,browser,system,trashItem,openPath}){
   Object.assign(this,{api,publish,chooseRoots,saveFile,openSource,defaultRoots,background});this.indexCancelled=false;this.indexing=null;this.bridgeSupported=null;
   this.memory=new LocalMemory(path.join(directory,'memory'),{encrypt,decrypt});
   this.environment=new EnvironmentService({memory:this.memory,locate:()=>native.request('location'),notify,publish});
   this.control=new ComputerControl({native,capture,screen,excludedWindowHandles});
   this.browser=browser||new BrowserMcp({directory:path.join(directory,'browser'),...(__dirname.includes('app.asar')?{entry:path.join(process.resourcesPath,'browser','chrome-devtools-mcp','build','src','bin','chrome-devtools-mcp.js')}:{})});
+  const roots=[require('node:os').homedir(),...defaultRoots];
+  this.system=system===null?null:system||new SystemTools({roots,trash:trashItem,openPath,publish:event=>{if(event.event==='system-artifacts'&&this.memory.account&&this.agent?.task?.id===event.taskId)this.memory.rememberSystemArtifacts(event.artifacts);publish(event);},remote:new SystemWorkerClient({native,roots})});
   this.computerSession=new ComputerSession();
-  this.agent=new ComputerAgent({control:this.control,browser:this.browser,api,memory:this.memory,onObservation:(_task,view)=>this.computerSession.observe(view),sessionContext:()=>this.computerSession.context(true),verifyCompletion:task=>verifyComputerCompletion(task.origin?task.origin.userRequest:task.goal,{desktop:this.defaultRoots[0]}),publish:event=>{if(event.event==='computer-task'){const task=this.agent.task;this.computerSession.update(task);if(task&&task.status!=='running')this.recordComputerLine(task,'assistant',task.message);}publish(event);},onStart:onComputerStart,onFinish:()=>{const status=this.agent.task?.status;if(!status||['completed','failed','stopped'].includes(status))void native.release?.();onComputerFinish();}});
+  this.agent=new ComputerAgent({control:this.control,browser:this.browser,system:this.system,api,memory:this.memory,onObservation:(_task,view)=>this.computerSession.observe(view),sessionContext:()=>this.computerSession.context(true),verifyCompletion:task=>verifyComputerCompletion(task.origin?task.origin.userRequest:task.goal,{desktop:this.defaultRoots[0]}),publish:event=>{if(event.event==='computer-task'){const task=this.agent.task;this.computerSession.update(task);if(task&&task.status!=='running')this.recordComputerLine(task,'assistant',task.message);}publish(event);},onStart:onComputerStart,onFinish:()=>{const status=this.agent.task?.status;if(!status||['completed','failed','stopped'].includes(status))void (native.finishTask?native.finishTask():native.release?.());onComputerFinish();}});
  }
  recordComputerLine(task,role,content){
   const id=task?.origin?.conversationId;if(!id||!content||task.epoch!==this.memory.epoch||!this.memory.account)return;
@@ -28,7 +32,7 @@ class DeviceServices{
  }
  activate(account){
   if(String(account??'')===String(this.memory.account??''))return;
-  this.indexCancelled=true;void this.agent.stop();this.agent.task=null;this.control.enable(false);this.environment.stop();this.environment.cache.clear();this.environment.sourceState.clear();this.memory.activate(account);this.browser.activate(account,account?this.memory.setting('browserMode','managed'):'managed');this.computerSession.reset();this.bridgeSupported=null;
+  this.indexCancelled=true;void this.agent.stop().catch(()=>{});this.agent.task=null;this.control.enable(false);void this.control.native.release?.()?.catch(()=>{});this.system?.activate(account);this.environment.stop();this.environment.cache.clear();this.environment.sourceState.clear();this.memory.activate(account);this.browser.activate(account,account?this.memory.setting('browserMode','managed'):'managed');this.computerSession.reset();this.bridgeSupported=null;
   if(account&&this.background){this.environment.start();const epoch=this.memory.epoch;if(!this.memory.setting('location'))void this.environment.detectLocation().then(()=>{if(epoch===this.memory.epoch)this.publish({event:'environment-updated',state:this.environment.state()});}).catch(()=>{});void this.syncHistory(epoch).catch(()=>{});if(!this.memory.setting('indexInitialized',false))void Promise.resolve(this.indexing).catch(()=>{}).then(()=>{this.memory.check(epoch);return this.index(this.defaultRoots);}).then(result=>{if(!result.cancelled&&epoch===this.memory.epoch)this.memory.setSetting('indexInitialized',true);}).catch(error=>{if(epoch===this.memory.epoch)this.publish({event:'device-warning',message:error.message});});}
  }
  async syncHistory(epoch){
@@ -43,7 +47,7 @@ class DeviceServices{
  }
  async prepareContext(query){
   const epoch=this.memory.epoch;
-  const context={capabilities:{computerControl:true,protocol:'umay-computer-task-v1',chromeMcp:true,browserProtocol:'umay-browser-mcp-v1',controlPerformance:'v1'},memory:this.memory.context(query),environment:this.environment.context(query),computerExperience:this.memory.computerExperience(query),browser:this.browser.state()};
+  const context={capabilities:{computerControl:true,protocol:'umay-computer-task-v1',chromeMcp:true,browserProtocol:'umay-browser-mcp-v1',controlPerformance:'v1',systemTools:'umay-system-tools-v1'},memory:this.memory.context(query),environment:this.environment.context(query),computerExperience:this.memory.computerExperience(query),browser:this.browser.state()};
   if(this.control.enabled){try{const foreground=await this.control.native.request('foreground');this.memory.check(epoch);this.computerSession.observe(foreground);}catch(error){if(epoch!==this.memory.epoch)throw error;}context.computer=this.computerSession.context();}
   if(/hava|sıcaklık|yağmur|kar yağ|şemsiye|rüzgâr|rüzgar/i.test(query)){
    try{context.environment.weather=await this.environment.weather();}catch(error){context.environment.weather={available:false,message:error.message};}
@@ -159,7 +163,8 @@ class DeviceServices{
     this.memory.setSetting(key,{startedAt:new Date().toISOString()});this.control.enable(true);
     return this.agent.run(task.goal,model,{conversationId:run.conversationId,runId:run.id,userRequest:task.userRequest,anchorMessageId:task.anchorMessageId,plan:task.plan,executor:task.executor});
    }
-   case 'elevate':{const task=this.agent.task;if(!task||task.id!==input.id||task.status!=='permission')throw Error('Yönetici izni bekleyen etkin görev bulunamadı.');this.agent.check(task);if(!this.control.native.elevate)throw Error('Windows yönetici izni bu ortamda kullanılamıyor.');this.recordComputerLine(task,'user',input.userReply||'Windows yönetici onayını aç');await this.control.native.elevate();this.memory.check(task.epoch);this.agent.check(task);this.memory.log('computer-elevation','Kullanıcı Windows yönetici onayını verdi',{details:{taskId:task.id}});return this.agent.resume(task.id,{approved:true,elevated:true});}
+   case 'release-admin':await this.agent.stop();this.system?.releaseAdministrator();await this.control.native.release?.();return {administrator:false,pending:false};
+   case 'elevate':{const task=this.agent.task;if(!task||task.id!==input.id||task.status!=='permission')throw Error('Yönetici izni bekleyen etkin görev bulunamadı.');this.agent.check(task);if(!this.control.native.elevate)throw Error('Windows yönetici izni bu ortamda kullanılamıyor.');this.recordComputerLine(task,'user',input.userReply||'Windows yönetici onayını aç');await this.control.native.elevate();this.memory.check(task.epoch);this.control.native.retainAdministrator?.();this.agent.check(task);this.memory.log('computer-elevation','Kullanıcı Windows yönetici onayını verdi',{details:{taskId:task.id}});if(this.system)await this.system.elevate();this.memory.check(task.epoch);this.agent.check(task);return this.agent.resume(task.id,{approved:true,elevated:true});}
    case 'stop':if(this.agent.task?.id===input.id&&input.userReply)this.recordComputerLine(this.agent.task,'user',input.userReply);return this.agent.stop();
    case 'resume':{const task=this.agent.task;if(task?.id===input.id)this.recordComputerLine(task,'user',input.userReply||input.answer||(input.approved?'Onaylıyorum.':'Vazgeçtim.'));return this.agent.resume(input.id,input);}
    default:throw Error('Bilgisayar kontrol işlemi geçersiz.');
@@ -176,7 +181,7 @@ class DeviceServices{
   if(method==='open-url'){const view=await this.browser.observe();this.memory.check(epoch);await this.browser.perform({toolName:'new_page',toolArguments:JSON.stringify({url:input.url,background:false})},view.id);return this.browser.state();}
   throw Error('Chrome işlemi geçersiz.');
  }
- async shutdown(){this.indexCancelled=true;this.environment.stop();await this.agent.stop();await this.browser.stop();this.browser.close();this.control.close();this.memory.close();}
- close(){this.indexCancelled=true;this.environment.stop();void this.agent.stop();this.browser.close();this.control.close();this.memory.close();}
+ async shutdown(){this.indexCancelled=true;this.environment.stop();await this.agent.stop();this.system?.close();await this.browser.stop();this.browser.close();this.control.close();this.memory.close();}
+ close(){this.indexCancelled=true;this.environment.stop();void this.agent.stop().catch(()=>{});this.system?.close();this.browser.close();this.control.close();this.memory.close();}
 }
 module.exports={DeviceServices};

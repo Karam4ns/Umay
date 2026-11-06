@@ -44,7 +44,7 @@ function speech(method,params={}){
 async function rawApi(route,body){
  const allowed=/^\/site\/(auth\/(me|logout)|chat\/(models|conversations(?:\/[a-f0-9-]+(?:\/(messages|model))?)?|runs\/[a-f0-9-]+(?:\/cancel)?)|user-memory(?:\/(summary|notes))?)$/;
  if(!allowed.test(route)&&!/^\/site\/chat\/conversations\/[a-f0-9-]+\?before=[a-f0-9-]+$/.test(route))throw Error('İzin verilmeyen API yolu.');
- let response;try{response=await site.fetch(ORIGIN+route,{method:body===undefined?'GET':'POST',headers:{'Origin':ORIGIN,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(30000),redirect:'error'});}catch(error){throw Error(['TimeoutError','AbortError'].includes(error.name)?'REQUEST_TIMEOUT':'NETWORK_ERROR');}
+ let response;try{response=await site.fetch(ORIGIN+route,{method:body===undefined?'GET':'POST',headers:{'Origin':ORIGIN,'Content-Type':'application/json',...require('./operator-channel.cjs').operatorHeaders(body)},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(30000),redirect:'error'});}catch(error){throw Error(['TimeoutError','AbortError'].includes(error.name)?'REQUEST_TIMEOUT':'NETWORK_ERROR');}
  return readSiteResponse(response);
 }
 async function api(route,body){
@@ -64,6 +64,7 @@ app.whenReady().then(()=>{
  deviceServices=new DeviceServices({native:new DesktopAccess({publish:state=>publish({event:'computer-access',state})}),directory:app.getPath('userData'),api:rawApi,screen,publish,notify,openSource:url=>deviceServices.browserAction('open-url',{url}),
   encrypt:async text=>{if(!await safeStorage.isAsyncEncryptionAvailable())throw Error('Windows güvenli saklama kullanılamıyor.');return safeStorage.encryptStringAsync(text);},
   decrypt:async encrypted=>(await safeStorage.decryptStringAsync(encrypted)).result,
+  trashItem:target=>shell.trashItem(target),openPath:target=>shell.openPath(target),
   defaultRoots:['desktop','documents','downloads'].map(key=>app.getPath(key)),
   chooseRoots:async()=>{const selected=await dialog.showOpenDialog(win,{title:'Dosya hafızasına klasör ekle',properties:['openDirectory','multiSelections']});return selected.canceled?null:selected.filePaths;},
   saveFile:async()=>{const selected=await dialog.showSaveDialog(win,{title:'Hafızayı Markdown olarak dışa aktar',defaultPath:'Umay Hafızası.md',filters:[{name:'Markdown',extensions:['md']}]});return selected.canceled?null:selected.filePath;},

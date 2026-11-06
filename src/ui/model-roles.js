@@ -2,7 +2,10 @@
  const $=id=>document.getElementById(id),key=m=>m?m.source+':'+m.id:'',ref=value=>{const model=models.find(m=>key(m)===value);return model?{id:model.id,source:model.source}:null;};
  let roles={chat:null,computer:null},epoch=0,request=0;
  const vision=model=>(model?.categories||[]).some(c=>/^(vision|multimodal|image[-_ ]to[-_ ]text|görsel anlama)$/i.test(typeof c==='string'?c:c?.name||c?.slug||''));
- function tab(name){const showing=name==='models';$('settings-models').hidden=!showing;$('settings-speech').hidden=showing;$('settings-models-tab').setAttribute('aria-selected',String(showing));$('settings-speech-tab').setAttribute('aria-selected',String(!showing));if(showing)void Promise.all([load(),window.umayBrowser?.load()]).catch(showError);}
+ function tab(name){const showing=name==='models';$('settings-models').hidden=!showing;$('settings-speech').hidden=showing;$('settings-models-tab').setAttribute('aria-selected',String(showing));$('settings-speech-tab').setAttribute('aria-selected',String(!showing));if(showing)void Promise.all([load(),window.umayBrowser?.load(),loadAccess()]).catch(showError);}
+ async function loadAccess(){if(!api.computer||!$('admin-state'))return;const current=epoch,data=await api.computer('state');if(current!==epoch)return;const active=!!data?.access?.administrator;$('admin-state').textContent=active?'Yönetici erişimi açık · bu Umay oturumunda kullanılabilir.':'Yönetici erişimi kapalı.';$('admin-revoke').disabled=!active;}
+ if($('admin-revoke'))$('admin-revoke').onclick=async()=>{try{await api.computer('release-admin');await loadAccess();}catch(error){showError(error);}};
+ api.onEvent?.(event=>{if(event.event==='computer-access')void loadAccess().catch(()=>{});});
  function showError(error){$('model-roles-status').textContent=String(error.message||error).replace(/^Error invoking remote method '[^']+': (?:Error: )?/,'');}
  function detail(role){const model=models.find(m=>key(m)===$('role-'+role).value);$('role-'+role+'-detail').textContent=!model?'Bir model seç.':role==='computer'?(vision(model)?'Ekran görüntüsü, fare ve klavye ile çalışır.':'Bu model görsel desteklemiyor. Chrome MCP ve Windows erişilebilirlik bilgileriyle çalışır.'):(model.source==='PERSONAL'?'Kişisel modelin.':'Aboneliğine bağlı model.');}
  function paint(){

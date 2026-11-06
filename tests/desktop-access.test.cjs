@@ -1,6 +1,9 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),net=require('node:net'),{EventEmitter}=require('node:events'),{PassThrough}=require('node:stream');
 const {DesktopAccess,createElevationTransport}=require('../src/desktop-access.cjs');
 function launcher(){const child=new EventEmitter();child.stdout=new PassThrough();child.stderr=new PassThrough();child.kill=()=>{};return child;}
+test('an explicitly retained administrator session survives task completion but can be revoked and notifies system workers',async()=>{
+ let closed=0,released=0;const elevated={request:async()=>({administrator:true}),cancel:async()=>{},close:()=>closed++},access=new DesktopAccess({normal:{cancel(){},close(){}},transportFactory:()=>({promise:Promise.resolve(launcher()),cancel(){}}),nativeFactory:()=>elevated});access.onRelease(()=>released++);await access.elevate();access.retainAdministrator();await access.finishTask();await access.cancel();assert.equal(access.state().administrator,true);assert.equal(closed,0);await access.release();assert.equal(access.state().administrator,false);assert.equal(closed,1);assert.ok(released);access.close();
+});
 test('named pipe authenticates only the one-use session token and requires an administrator hello',async()=>{
  let details;const tx=createElevationTransport({timeout:2000,launch:input=>{details=input;return launcher();}});await tx.listening;
  const bad=net.connect(details.pipeName);bad.on('error',()=>{});bad.write(JSON.stringify({event:'elevated-ready',token:'wrong',administrator:true})+'\n');await new Promise(r=>bad.once('close',r));

@@ -8,13 +8,13 @@
   task=value;if(!value?.id||!sameChat(value))return;
   let card=cards.get(value.id);if(!card||!card.isConnected){card=element('section',undefined,'message computer-task');card.dataset.taskId=value.id;card.setAttribute('aria-label','Bilgisayar görevi');cards.set(value.id,card);$('messages').append(card);}
   const labels={running:'Bilgisayarında çalışıyorum',paused:'Durakladım — devam etmeni bekliyorum',question:'Bir ayrıntıya ihtiyacım var',confirmation:'Bu işlem için onayın gerekiyor',permission:'Windows izni gerekiyor',completed:'Görev tamamlandı',stopped:'Görev durduruldu',failed:'Görev tamamlanamadı'};
-  card.replaceChildren(element('strong',labels[value.status]||'Bilgisayar görevi'),element('p',value.goal||'','computer-task-goal'),element('p',value.message||'','computer-task-progress'));
+  card.replaceChildren(element('strong',value.stopUnconfirmed?'Durdurma doğrulanamadı':labels[value.status]||'Bilgisayar görevi'),element('p',value.goal||'','computer-task-goal'),element('p',value.message||'','computer-task-progress'));
   if(value.status==='confirmation'&&value.requiresInput?.summary&&value.requiresInput.summary!==value.message)card.append(element('p',value.requiresInput.summary,'computer-task-progress'));
   const buttons=element('div',undefined,'button-row');
   function button(text,handler,primary=false){const node=element('button',text,'button small'+(primary?' primary':''));node.type='button';node.onclick=async()=>{const current=epoch;node.disabled=true;try{await handler();}catch(error){if(current===epoch)status(error.message);}finally{node.disabled=false;}};buttons.append(node);}
   if(value.status==='confirmation'){button('Onaylıyorum',()=>send('Onaylıyorum'),true);button('Vazgeç',()=>send('Vazgeç'));}
-  if(value.status==='paused')button('Devam et',()=>send('devam et'),true);
-  if(value.status==='permission'){card.append(element('p','Windows yönetici onayını kendin tamamla. Görev bitince ek yönetici yardımcısı kapanır.','muted'));button('Windows yönetici onayını aç',()=>send('Windows yönetici onayını aç'),true);button('Vazgeç',()=>send('Vazgeç'));}
+  if(value.status==='paused'&&!value.stopUnconfirmed)button('Devam et',()=>send('devam et'),true);
+  if(value.status==='permission'){card.append(element('p','Windows yönetici onayını kendin tamamla. Erişim bu Umay oturumunda korunur; Ayarlar → Modeller üzerinden kapatabilirsin.','muted'));button('Windows yönetici erişimini aç',()=>send('Windows yönetici onayını aç'),true);button('Vazgeç',()=>send('Vazgeç'));}
   if(active.has(value.status))button('Durdur · F8',()=>stop());
   card.append(buttons);$('input').placeholder=value.status==='question'?'Umay’ın sorusunu yanıtla…':'Umay’a bir şey sor ya da bir iş ver…';
   if(['question','confirmation','permission','failed'].includes(value.status))window.umayShell?.navigate('chat');
@@ -25,7 +25,7 @@
  async function answer(text){
   const waiting=pending();if(!waiting)throw Error('Yanıt bekleyen bilgisayar görevi bulunamadı.');const current=epoch;
   const folded=text.normalize('NFKD').replace(/\p{M}/gu,'').replace(/ı/g,'i').toLowerCase().replace(/[.,!?:]/g,' ').replace(/\s+/g,' ').trim();
-  const yes=/^(?:evet|evet onayliyorum|tamam|onayliyorum|onay veriyorum|bu islemi onayliyorum|devam et|yap|olur|windows yonetici onayini ac|yonetici onayini ac)$/.test(folded),no=/^(?:hayir|iptal|iptal et|vazgec|dur|durdur|yapma|onaylamiyorum)$/.test(folded);
+  const yes=/^(?:evet|evet onayliyorum|tamam|onayliyorum|onay veriyorum|bu islemi onayliyorum|devam et|yap|olur|windows yonetici onayini ac|yonetici onayini ac|windows yonetici erisimini ac|yonetici erisimini ac)$/.test(folded),no=/^(?:hayir|iptal|iptal et|vazgec|dur|durdur|yapma|onaylamiyorum)$/.test(folded);
   working=true;try{
    let result;if(no)result=await api.computer('stop',{id:waiting.id,userReply:text});
    else if(waiting.status==='question')result=await api.computer('resume',{id:waiting.id,answer:text,userReply:text});

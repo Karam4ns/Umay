@@ -34,6 +34,9 @@ test('planner sees the actual focused accessibility target instead of guessing f
  assert.equal(prompt.observation.focusedElementId,150);assert.ok(prompt.observation.elements.some(e=>e.id===150&&e.focused),'focused input survives a large accessibility tree');
 });
 const model={id:'model',source:'PERSONAL',categories:['vision']};
+test('retained native cancellation drains an in-flight read without destroying its authenticated helper',async()=>{
+ const f=nativeFixture(),reading=f.native.request('observe').catch(error=>error.code),child=f.child;const drain=f.native.cancel({keepAlive:true});assert.equal(await reading,'NATIVE_CANCELLED');assert.equal(child.killed,undefined);let settled=false;Promise.resolve(drain).then(()=>settled=true);await new Promise(r=>setImmediate(r));assert.equal(settled,false);f.reply();await drain;const next=f.native.request('privileges');assert.equal(f.child,child);f.reply();assert.equal(await next,true);f.native.close();
+});
 test('the planner can distinguish the current foreground window from the other available windows',async()=>{
  const f=agent([{action:'done',message:'Görüldü.'}]);await f.planner.run('Pencereyi incele',model);assert.equal(JSON.parse(f.getPosted().content).observation.window,1);
 });
@@ -199,7 +202,7 @@ test('native timeout kills the stalled worker and rejects unsent input queue',as
 });
 test('stop finishes the active atomic input before restoring the user interface',async()=>{
  const f=agent([]);let release,finished=0;f.control.stop=()=>new Promise(r=>release=r);f.planner.onFinish=()=>finished++;f.planner.task={id:'task',sequence:1,epoch:1,status:'running',steps:[]};f.planner.sequence=1;
- const stopping=f.planner.stop();assert.equal(f.planner.state().status,'stopped');assert.equal(finished,0);release();await stopping;assert.equal(finished,1);
+ const stopping=f.planner.stop();assert.equal(f.planner.state().status,'paused');assert.match(f.planner.state().message,/durduruluyor/);assert.equal(finished,0);release();await stopping;assert.equal(f.planner.state().status,'stopped');assert.equal(finished,1);
 });
 test('invalid action fields recover before any input while preserving partial-input failure behavior',async()=>{
  for(const invalid of [{action:'scroll',amount:11},{action:'click',elementId:999},{action:'keys',keys:['RUN:cmd']},{action:'click',displayId:'missing',x:1,y:1}]){
