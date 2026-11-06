@@ -6,7 +6,7 @@ app.commandLine.appendSwitch('force-renderer-accessibility');
 const timeout=setTimeout(()=>{console.error('FAIL native primitives timeout');control?.native.close();app.exit(1);},45000);
 app.whenReady().then(async()=>{try{
  app.setAccessibilitySupportEnabled(true);
- const html=title=>`<!doctype html><html lang="tr"><title>${title}</title><body style="margin:40px;background:#eef;color:#111"><button aria-label="Umay hold target" style="width:400px;height:180px">Test input surface</button><p id="progress" role="status">Working</p><input type="password" value="never-expose-this"><script>window.events={down:[],up:[],mouseDown:0,mouseUp:0};document.onkeydown=e=>{events.down.push(e.key);e.preventDefault()};document.onkeyup=e=>{events.up.push(e.key);e.preventDefault()};document.onmousedown=()=>events.mouseDown++;document.onmouseup=()=>events.mouseUp++;</script></body></html>`;
+ const html=title=>`<!doctype html><html lang="tr"><title>${title}</title><body style="margin:40px;background:#eef;color:#111"><button aria-label="Umay hold target" style="width:400px;height:180px">Test input surface</button><p id="progress" role="status">Working</p><input type="password" value="never-expose-this"><input id="address" aria-label="Fixture address" value="bad.examplebad.example"><script>window.events={down:[],up:[],mouseDown:0,mouseUp:0};document.onkeydown=e=>{events.down.push(e.key);if(e.target.id==='address'){if(e.key==='Enter')window.submitted=e.target.value;}else e.preventDefault()};document.onkeyup=e=>{events.up.push(e.key);e.preventDefault()};document.onmousedown=()=>events.mouseDown++;document.onmouseup=()=>events.mouseUp++;</script></body></html>`;
  for(const title of ['Umay input fixture','Umay background progress']){const w=new BrowserWindow({width:650,height:450,x:80,y:80,title,webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true,backgroundThrottling:false}});windows.push(w);const file=path.join(app.getPath('userData'),windows.length+'.html');fs.writeFileSync(file,html(title));await w.loadFile(file);}
  const [input,progress]=windows,js=code=>input.webContents.executeJavaScript(code);input.show();input.focus();
  control=new ComputerControl({screen,capture:async()=>[]});control.enable(true);
@@ -18,6 +18,11 @@ app.whenReady().then(async()=>{try{
  view=await observeSelf();const hold=control.perform({action:'hold',keys:['W','SHIFT'],button:'left',milliseconds:2000},view.id).catch(e=>e.code);
  await until(()=>js("events.down.includes('w')&&events.down.includes('Shift')&&events.mouseDown===1"));const started=Date.now();await control.stop();assert.equal(await hold,'NATIVE_CANCELLED');await until(()=>js("events.up.includes('w')&&events.up.includes('Shift')&&events.mouseUp===1"));const stoppedMs=Date.now()-started;assert.ok(stoppedMs<1000,'held keys/buttons must release promptly');
  view=await observeSelf();const before=view.cursor;await control.perform({action:'move_relative',dx:25,dy:10},view.id);view=await observeSelf();assert.ok(view.cursor.x>before.x&&view.cursor.y>before.y);
+ view=await observeSelf();const address=view.elements.find(e=>e.name==='Fixture address');assert.ok(address);await control.perform({action:'click',elementId:address.id},view.id);
+ view=await observeSelf();assert.equal(view.elements.filter(e=>e.focused).length,1,'ancestor focus hints must not overshadow the actual input');assert.equal(view.elements.find(e=>e.focused)?.type,'ControlType.Edit');
+ await control.perform({action:'type',text:'https://example.org',replace:true,submit:true},view.id);await until(()=>js("window.submitted==='https://example.org'"));assert.equal(await js("document.getElementById('address').value"),'https://example.org');
+ console.log('PASS real focused Edit: replace + Unicode typing + Enter is one guarded transaction without appended URL');
+ view=await observeSelf();
  const watched=view.windows.find(w=>w.title==='Umay background progress');assert.ok(watched?.processId);const initial=view;
  progress.minimize();
  setTimeout(()=>void progress.webContents.executeJavaScript("document.getElementById('progress').textContent='Task completed'"),300);

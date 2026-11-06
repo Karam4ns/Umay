@@ -99,9 +99,9 @@ function Get-Observation {
  if($null -ne $root){while($null -ne $walker.GetParent($root) -and $walker.GetParent($root) -ne [System.Windows.Automation.AutomationElement]::RootElement){$root=$walker.GetParent($root)}}
  $items=New-Object System.Collections.Generic.List[object]
  if($null -ne $root){
-  $queue=New-Object System.Collections.Generic.Queue[object];$queue.Enqueue(@($root,0))
+  $queue=New-Object System.Collections.Generic.Queue[object];$queue.Enqueue(@($root,0,$false))
   while($queue.Count -gt 0 -and $items.Count -lt 160){
-   $pair=$queue.Dequeue();$element=$pair[0];$depth=$pair[1]
+   $pair=$queue.Dequeue();$element=$pair[0];$depth=$pair[1];$inDocument=[bool]$pair[2]
    try{
     $p=$element.Current
     if(-not $p.IsOffscreen -and -not $p.IsPassword){
@@ -110,13 +110,17 @@ function Get-Observation {
      if($rectangle.Width -gt 0 -and $rectangle.Height -gt 0){
       $value='';$pattern=$null
       if($element.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern,[ref]$pattern)){$value=[string]$pattern.Current.Value;if($value.Length -gt 600){$value=$value.Substring(0,600)}}
-      $items.Add(@{id=$items.Count;name=$name;value=$value;focused=[bool]$p.HasKeyboardFocus;type=$p.ControlType.ProgrammaticName;automationId=$p.AutomationId;bounds=@{x=$rectangle.X;y=$rectangle.Y;width=$rectangle.Width;height=$rectangle.Height}})
+      $runtimeId=@($element.GetRuntimeId())
+      $items.Add(@{id=$items.Count;name=$name;value=$value;focused=$false;inDocument=$inDocument;runtimeId=$runtimeId;type=$p.ControlType.ProgrammaticName;automationId=$p.AutomationId;bounds=@{x=$rectangle.X;y=$rectangle.Y;width=$rectangle.Width;height=$rectangle.Height}})
      }
     }
-    if($depth -lt 8){$child=$walker.GetFirstChild($element);$count=0;while($null -ne $child -and $count -lt 100){$queue.Enqueue(@($child,$depth+1));$child=$walker.GetNextSibling($child);$count++}}
+    if($depth -lt 24){$child=$walker.GetFirstChild($element);$count=0;while($null -ne $child -and $count -lt 100){$queue.Enqueue(@($child,($depth+1),($inDocument -or $p.ControlType -eq [System.Windows.Automation.ControlType]::Document)));$child=$walker.GetNextSibling($child);$count++}}
    }catch{}
   }
  }
+ $focusedRuntime=''
+ try{$focusedElement=[System.Windows.Automation.AutomationElement]::FocusedElement;if($null -ne $focusedElement){$focusedRuntime=$focusedElement.GetRuntimeId() -join ','}}catch{}
+ foreach($item in $items){$item.focused=([bool]$focusedRuntime -and (($item.runtimeId -join ',') -eq $focusedRuntime))}
  $point=New-Object UmayInput+Point;[void][UmayInput]::GetCursorPos([ref]$point)
  if(-not $background -and $handle -ne [UmayInput]::GetForegroundWindow().ToInt64()){throw 'NATIVE_FOCUS_CHANGED'}
  return @{title=[UmayInput]::TitleFor($handle);handle=$handle;processId=$processId;isForeground=($handle -eq [UmayInput]::GetForegroundWindow().ToInt64());administrator=$administrator;requiresElevation=$false;windows=[UmayInput]::Windows();elements=$items.ToArray();cursor=@{x=$point.X;y=$point.Y}}
@@ -142,7 +146,17 @@ while($true){
    'scroll' {if($null -ne $p.x -and $null -ne $p.y){[void][UmayInput]::SetCursorPos([int]$p.x,[int]$p.y)};[UmayInput]::Scroll([int]$p.amount,($p.axis -eq 'horizontal'))}
    'focus' {[UmayInput]::Focus([long]$p.handle)}
    'keys' {[UmayInput]::Chord([uint16[]]$p.keys)}
-   'text' {[UmayInput]::Text([string]$p.text)}
+   'text' {
+    $focused=[System.Windows.Automation.AutomationElement]::FocusedElement
+    if($null -ne $p.expectedFocus -and (($null -eq $focused) -or (($focused.GetRuntimeId() -join ',') -ne ($p.expectedFocus -join ',')))){throw 'NATIVE_FOCUS_CHANGED'}
+    if($p.replace -or $p.submit){if($null -eq $focused -or $focused.Current.ControlType -ne [System.Windows.Automation.ControlType]::Edit -or $focused.Current.IsPassword){throw 'NATIVE_FOCUS_CHANGED'}}
+    if($p.replace){[UmayInput]::Chord([uint16[]]@(17,65))}
+    [UmayInput]::Text([string]$p.text)
+    if($p.submit){
+     if([long]$p.expectedHandle -ne [UmayInput]::GetForegroundWindow().ToInt64()){throw 'NATIVE_PARTIAL_INPUT'}
+     [UmayInput]::Chord([uint16[]]@(13))
+    }
+   }
    'location' {
     Add-Type -AssemblyName System.Device
     $watcher=New-Object System.Device.Location.GeoCoordinateWatcher

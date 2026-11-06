@@ -1,13 +1,16 @@
 'use strict';
-const {randomUUID,createHash}=require('node:crypto');
+const {randomUUID}=require('node:crypto');
+const {inputSignature,repeatedWrite,noteInput,stepRecord,observeOutcome,focusedField}=require('./computer-progress.cjs');
+const {addressField,simpleNavigation}=require('./computer-navigation.cjs');
 const {watchWindow}=require('./computer-watch.cjs');
-const INPUT_ACTIONS=new Set(['click','double_click','right_click','middle_click','move','drag','scroll','keys','type','wait','focus_window','hold','move_relative']);
+const INPUT_ACTIONS=new Set(['click','double_click','right_click','middle_click','move','drag','scroll','keys','type','wait','focus_window','hold','move_relative','navigate']);
 function parseAction(text){
  const source=String(text||'').trim().replace(/^```(?:json)?\s*|\s*```$/gi,'');let value;
  try{value=JSON.parse(source);}catch{throw Error('Model bilgisayar işlemini geçerli biçimde yanıtlamadı. Başka bir model seçip yeniden deneyebilirsiniz.');}
  if(!value||typeof value!=='object'||Array.isArray(value)||!['done','ask','confirm','observe','watch',...INPUT_ACTIONS].includes(value.action))throw Error('Model desteklenmeyen bir bilgisayar işlemi istedi.');
  if(value.action==='done'&&!value.message&&typeof value.summary==='string'&&value.summary.trim())value.message=value.summary;
  if(['done','ask'].includes(value.action)&&(!value.message||typeof value.message!=='string'))throw Error('Modelin görev açıklaması eksik.');
+ if(value.action==='focus_window'&&!Number.isInteger(value.windowHandle))throw Error('focus_window için güncel observation.windows listesinden windowHandle gerekli. Önceki adım kaydını kopyalama; sonraki gerçek işlemi seç.');
  if(value.action==='confirm'&&(!value.nextAction||!INPUT_ACTIONS.has(value.nextAction.action)))throw Error('Onaylanacak işlem geçersiz.');return value;
 }
 function visionModel(model){return (model.categories||[]).some(c=>/^(vision|multimodal|image[-_ ]to[-_ ]text|görsel anlama)$/i.test(typeof c==='string'?c:c?.name||c?.slug||''));}
@@ -48,32 +51,46 @@ class ComputerAgent{
  }
  async stop(){
   const task=this.task,sequence=++this.sequence,drained=this.drainInput();
-  if(task&&['running','paused','confirmation','question','permission'].includes(task.status)){task.status='stopped';task.message='Görev durduruldu.';this.emit();if(task.epoch===this.memory.epoch)this.memory.log('computer-task',task.message,{status:'cancelled',details:{taskId:task.id}});}
+  if(task&&['running','paused','confirmation','question','permission'].includes(task.status)){task.status='stopped';task.message='Görev durduruldu.';this.emit();if(task.epoch===this.memory.epoch){this.memory.log('computer-task',task.message,{status:'cancelled',details:{taskId:task.id}});this.memory.saveComputerExperience?.(task);}}
   await drained;if(sequence===this.sequence)this.onFinish();return this.state();
  }
  async wait(task,milliseconds){const end=this.now()+milliseconds;while(this.now()<end){this.check(task);await this.delay(Math.min(200,end-this.now()));}this.check(task);}
+ async settleNavigation(task){
+  const deadline=this.now()+2500;
+  while(task.pendingNavigation&&this.now()<deadline){
+   this.check(task);const view=await this.control.observe({image:false});this.check(task);observeOutcome(task,view);this.onObservation(task,view);
+   if(task.pendingNavigation)await this.wait(task,150);
+  }
+ }
  recover(task,error){
   this.check(task);if(!['PLANNER_INVALID','NATIVE_FOCUS_CHANGED','NATIVE_WINDOW_UNAVAILABLE'].includes(error.code)||task.recoveries>=2)return false;
-  task.recoveries++;task.feedback='Önceki işlem uygulanmadı: '+error.message+'. Güncel gözlemi incele; geçerli tek bir işlem seç. Başarı iddia etme.';
+  task.recoveries++;task.forceImage=true;task.feedback='Önceki işlem uygulanmadı: '+error.message+'. Güncel gözlemi incele; geçerli tek bir işlem seç. Başarı iddia etme.';
   task.message='Ekran değişti; yeniden inceleniyor…';this.emit();return true;
  }
- complete(task,message){this.check(task);task.status='completed';task.message=message;this.memory.archiveConversation({id:task.id,title:task.goal.slice(0,100),localSource:'computer'},[{id:randomUUID(),role:'assistant',content:message}]);this.memory.log('computer-task',message,{details:{taskId:task.id,steps:task.steps.length}});this.emit();this.onFinish();return this.state();}
+ complete(task,message,verified=false){this.check(task);task.status='completed';task.message=message;this.memory.archiveConversation({id:task.id,title:task.goal.slice(0,100),localSource:'computer'},[{id:randomUUID(),role:'assistant',content:message}]);this.memory.log('computer-task',message,{details:{taskId:task.id,steps:task.steps.length,verified}});this.memory.saveComputerExperience?.(task,{verified});this.emit();this.onFinish();return this.state();}
  async loop(task,start=false,{resumeFrom,refreshConversation=false,restoreWaiting}={}){
   try{
    await this.inputDrain;if(resumeFrom?.work)await resumeFrom.work.catch(()=>{});this.check(task);
    if(resumeFrom){task.idleMilliseconds=(resumeFrom.idleMilliseconds||0)+Math.max(0,this.now()-(resumeFrom.pauseStartedAt??this.now()));delete task.pauseStartedAt;}
    if(restoreWaiting){task.status=restoreWaiting;task.message=resumeFrom.pausedMessage||resumeFrom.requiresInput?.summary||resumeFrom.requiresInput;this.emit();this.onFinish();return this.state();}
    if(refreshConversation&&task.conversation){const detail=await this.api('/site/chat/conversations/'+task.conversation.id);this.check(task);task.conversation=detail.conversation;}
-   if(start){task.initialCompletion=await this.verifyCompletion(task);this.check(task);if(task.initialCompletion?.verified===true)return this.complete(task,task.initialCompletion.message);await this.onStart();this.check(task);this.emit();}
+   if(start){task.initialCompletion=await this.verifyCompletion(task);this.check(task);if(task.initialCompletion?.verified===true)return this.complete(task,task.initialCompletion.message,true);await this.onStart();this.check(task);this.emit();}
    if(!task.conversation){const created=await this.api('/site/chat/conversations',{source:task.model.source,modelId:task.model.id,title:'Umay bilgisayar görevi: '+task.goal.slice(0,110),requestId:randomUUID()});this.check(task);task.conversation=created.conversation;}
    while(task.steps.length<120&&this.now()-task.createdAt-(task.idleMilliseconds||0)<30*60000){
     this.check(task);task.message='Ekran inceleniyor…';this.emit();
-    let observed;try{observed=await this.control.observe({image:true});}catch(error){if(this.recover(task,error))continue;throw error;}this.check(task);this.onObservation(task,observed);
+    let observed;try{observed=await this.control.observe({image:visionModel(task.model),preferText:view=>!task.forceImage&&simpleNavigation(task.origin?.userRequest||task.goal)&&!!addressField(view)});}catch(error){if(this.recover(task,error))continue;throw error;}this.check(task);observeOutcome(task,observed);if(task.steps.length)this.memory.saveComputerExperience?.(task);this.onObservation(task,observed);
     const images=observed.screenshots;
     const selected=images.find(s=>s.displayId===task.selectedDisplay)||images.find(s=>observed.elements.some(e=>{const p=this.control.screen.screenToDipPoint?.({x:Math.round(e.bounds.x+e.bounds.width/2),y:Math.round(e.bounds.y+e.bounds.height/2)})||e.bounds;return this.control.screen.getDisplayNearestPoint?.(p)?.id==s.displayId;}))||images[0];
     task.inspectedDisplays??=new Set();if(selected&&visionModel(task.model))task.inspectedDisplays.add(selected.displayId);
-    const prompt={session:this.sessionContext(),proposedGoal:task.goal,originalUserRequest:task.origin?task.origin.userRequest:task.goal,userAuthorization:task.userAuthorization?.slice(-6)||[],step:task.steps.length+1,previousSteps:task.steps.slice(-6),userFeedback:task.feedback||null,capabilities:{actions:[...INPUT_ACTIONS,'observe','watch','done','ask','confirm'],holdLimits:{maxMilliseconds:2000},watchLimits:{maxMilliseconds:600000,minIntervalMs:500,maxIntervalMs:5000},relativeMouseLimit:2000,windowsShortcuts:{showDesktop:['WIN','D'],runDialog:['WIN','R'],addressBar:['CTRL','L'],newFolderOnDesktopOrExplorer:['CTRL','SHIFT','N'],rename:['F2']},scrollAxes:['vertical','horizontal'],windowAction:'focus_window with windowHandle from observation.windows',dragEnd:'endDisplayId is optional; inspect the destination monitor first'},observation:{id:observed.id,title:observed.title,focusedElementId:observed.elements.find(e=>e.focused)?.id??null,cursorPhysical:observed.cursor,windows:observed.windows||[],displayId:selected?.displayId,screenshotSize:selected?{width:selected.width,height:selected.height}:null,displays:observed.displays,elements:observed.elements.filter(e=>e.focused).concat(observed.elements.filter(e=>!e.focused)).slice(0,100).map(e=>({...e,name:e.name.slice(0,160)}))},hasImage:visionModel(task.model)&&!!selected};
+    const prompt={session:this.sessionContext(),proposedGoal:task.goal,originalUserRequest:task.origin?task.origin.userRequest:task.goal,userAuthorization:task.userAuthorization?.slice(-6)||[],step:task.steps.length+1,previousSteps:task.steps.slice(-6),userFeedback:task.feedback||null,capabilities:{actions:[...INPUT_ACTIONS,'observe','watch','done','ask','confirm'],holdLimits:{maxMilliseconds:2000},watchLimits:{maxMilliseconds:600000,minIntervalMs:500,maxIntervalMs:5000},relativeMouseLimit:2000,windowsShortcuts:{showDesktop:['WIN','D'],runDialog:['WIN','R'],addressBar:['CTRL','L'],newFolderOnDesktopOrExplorer:['CTRL','SHIFT','N'],rename:['F2']},scrollAxes:['vertical','horizontal'],windowAction:'focus_window with windowHandle from observation.windows',dragEnd:'endDisplayId is optional; inspect the destination monitor first'},observation:{id:observed.id,title:observed.title,focusedElementId:focusedField(observed)?.id??null,cursorPhysical:observed.cursor,windows:observed.windows||[],displayId:selected?.displayId,screenshotSize:selected?{width:selected.width,height:selected.height}:null,displays:observed.displays,elements:observed.elements.filter(e=>e.focused).concat(observed.elements.filter(e=>!e.focused)).slice(0,100).map(e=>({...e,name:e.name.slice(0,160)}))},hasImage:visionModel(task.model)&&!!selected};
+    prompt.handoffPlan=task.origin?.plan||[];
+    if(!addressField(observed))prompt.capabilities.actions=prompt.capabilities.actions.filter(a=>a!=='navigate');
+    else prompt.capabilities.navigation={action:'navigate',url:'full HTTP/HTTPS URL',effect:'Focus the actual browser address bar, replace its content once, submit with Enter, then re-observe. Prefer this single operation for visiting a site.'};
+    prompt.experience=(this.memory.computerExperience?.(task.origin?.userRequest||task.goal)||[]).filter(e=>e.taskId!==task.id);
+    prompt.inputRules={type:'Appends by default. Never type the same text again if already sent. Use replace:true only on a freshly focused Edit field to select all and replace. submit:true presses Enter after typing. Check the next observation to verify submission.',repeat:'If a write is blocked, inspect the field and choose the missing next action, e.g. Enter; never keep typing the URL.'};
     task.feedback=null;
+    while(JSON.stringify(prompt.experience).length>2200&&prompt.experience.length)prompt.experience.pop();
+    while(JSON.stringify(prompt).length>11900&&prompt.experience.length)prompt.experience.pop();
     while(JSON.stringify(prompt).length>11200&&prompt.observation.elements.length>5)prompt.observation.elements.pop();
     while(JSON.stringify(prompt).length>11700&&prompt.observation.windows.length>1)prompt.observation.windows.pop();
     if(JSON.stringify(prompt).length>11900)throw Error('Görev açıklaması çok uzun. Daha kısa ve tek bir görev olarak yazın.');
@@ -90,7 +107,7 @@ class ComputerAgent{
     task.lastRun=null;this.check(task);
     if(!['COMPLETED','SUCCEEDED'].includes(terminal.status)){const error=Error(terminal.errorCode||'MODEL_UNAVAILABLE');if(['ANSWER_QUALITY_FAILED','INVALID_PROVIDER_RESPONSE'].includes(terminal.errorCode)){error.code='PLANNER_INVALID';retryPlanner=this.recover(task,error);}if(!retryPlanner)throw error;}
     const detail=await this.api('/site/chat/conversations/'+task.conversation.id);this.check(task);task.conversation=detail.conversation;if(retryPlanner)continue;
-    const response=[...detail.messages].reverse().find(m=>String(m.role).toLowerCase()==='assistant');let action;try{action=parseAction(response?.content);}catch(error){error.code='PLANNER_INVALID';if(this.recover(task,error))continue;throw error;}
+    const response=terminal.assistantMessageId?detail.messages.find(m=>m.id===terminal.assistantMessageId&&String(m.role).toLowerCase()==='assistant'):[...detail.messages].reverse().find(m=>String(m.role).toLowerCase()==='assistant');let action;try{action=parseAction(response?.content);}catch(error){error.code='PLANNER_INVALID';if(this.recover(task,error))continue;throw error;}
     task.message=String(action.summary||'İşlem uygulanıyor…').slice(0,500);this.emit();
     if(action.action==='watch'){
      task.message='Uygulamadaki ilerlemeyi izliyorum. Dur diyerek ara verebilirsin.';this.emit();const began=this.now();let result;
@@ -99,7 +116,7 @@ class ComputerAgent{
     }
     if(action.action==='done'){
      const verified=await this.verifyCompletion(task);this.check(task);if(verified?.verified===false){const error=Object.assign(Error(verified.message),{code:'PLANNER_INVALID'});if(this.recover(task,error))continue;throw error;}
-     return this.complete(task,verified?.verified===true?verified.message:action.message);
+     return this.complete(task,verified?.verified===true?verified.message:action.message,verified?.verified===true);
     }
     if(['ask','confirm'].includes(action.action)){task.status=action.action==='ask'?'question':'confirmation';task.requiresInput=action.action==='confirm'?{summary:action.summary,nextAction:action.nextAction}:action.message;task.message=action.message||action.summary;this.emit();this.onFinish();return this.state();}
     // Only one screenshot is sent in this model turn. Coordinates without an
@@ -111,18 +128,25 @@ class ComputerAgent{
     if((['click','double_click','right_click','middle_click','move','drag'].includes(action.action)||action.action==='scroll'&&(action.x!==undefined||action.y!==undefined))&&(!Number.isInteger(action.elementId)||action.action==='drag')&&(!prompt.hasImage||String(action.displayId)!==selected?.displayId))throw Object.assign(Error('Koordinat işlemi için görsel destekli modelin ilgili ekranı önce incelemesi gerekiyor.'),{code:prompt.hasImage?'PLANNER_INVALID':'MODEL_VISION_REQUIRED'});
     if(action.action==='drag'&&action.endDisplayId&&action.endDisplayId!==selected?.displayId&&!task.inspectedDisplays?.has(String(action.endDisplayId)))throw Error('Sürüklemenin hedef ekranı önce incelenmeli.');
     }catch(error){error.code??='PLANNER_INVALID';if(this.recover(task,error))continue;throw error;}
-    if(action.action==='observe'){task.selectedDisplay=String(action.displayId);task.steps.push({action:'observe',displayId:task.selectedDisplay});continue;}
-    const fingerprint=createHash('sha256').update(JSON.stringify([action.action,action.elementId,action.x,action.y,action.displayId,action.windowHandle,action.text,action.keys,action.amount,observed.title,observed.elements,selected?.image])).digest('hex');
+    if(action.action==='observe'){task.forceImage=true;task.selectedDisplay=String(action.displayId);task.steps.push({action:'observe',displayId:task.selectedDisplay});continue;}
+    if(repeatedWrite(task,action,observed)){
+     task.blockedWrites=(task.blockedWrites||0)+1;
+     this.memory.log('computer-repeat','Aynı metnin tekrar yazılması engellendi',{details:{taskId:task.id,characters:action.text.length}});
+     if(task.blockedWrites>=2){task.status='question';task.message='Aynı metnin tekrar yazılmasını durdurdum. Model sonraki adıma geçemedi; ekrandaki durumu kontrol ederek devam edebiliriz.';task.requiresInput=task.message;this.emit();this.onFinish();return this.state();}
+     task.feedback='WRITE_ALREADY_APPLIED: Aynı metin bu alana zaten yazıldı. Bir daha yazma veya ekleme. Güncel değeri incele; gerekiyorsa ENTER ile gönder ya da doğru alanı seç. Önceki işlemin uygulanmadığını varsayma.';continue;
+    }
+    const fingerprint=inputSignature(action,observed);
     task.repeated=task.lastFingerprint===fingerprint?(task.repeated||0)+1:1;task.lastFingerprint=fingerprint;
     if(task.repeated>3){task.status='question';task.message='Aynı işlem ekranda ilerleme olmadan tekrarlandı. Nasıl devam etmemi istersin?';task.requiresInput=task.message;this.emit();this.onFinish();return this.state();}
-    this.check(task);try{await this.control.perform(action,observed.id);}catch(error){if(this.recover(task,error))continue;throw error;}this.check(task);task.recoveries=0;
-    const record={action:action.action,summary:task.message,...(action.action==='type'?{characters:action.text.length}:{})};task.steps.push(record);this.memory.log('computer-step',task.message,{details:{taskId:task.id,step:task.steps.length,action:action.action,characters:record.characters}});await this.wait(task,250);
-    if(task.initialCompletion?.verified===false){const verified=await this.verifyCompletion(task);this.check(task);if(verified?.verified===true)return this.complete(task,verified.message);}
+    this.check(task);const inputStarted=this.now();try{await this.control.perform(action,observed.id);}catch(error){if(this.recover(task,error))continue;throw error;}this.check(task);task.recoveries=0;
+    noteInput(task,action,observed);if(action.action==='type')task.pendingText=action.text;
+    const record=stepRecord(action,observed,this.now()-inputStarted);task.steps.push(record);if(action.action==='navigate'){task.pendingNavigation={url:action.url,index:task.steps.length-1,window:observed.handle};await this.settleNavigation(task);}this.memory.log('computer-step',task.message,{details:{taskId:task.id,step:task.steps.length,action:action.action,characters:record.characters,elapsedMs:record.elapsedMs}});await this.wait(task,80);
+    if(task.initialCompletion?.verified===false){const verified=await this.verifyCompletion(task);this.check(task);if(verified?.verified===true)return this.complete(task,verified.message,true);}
    }
    throw Error('Görev adım veya süre sınırına ulaştı. Son yapılanlar işlem günlüğüne kaydedildi.');
   }catch(error){
    if(task.sequence===this.sequence&&task.epoch===this.memory.epoch&&['NATIVE_ELEVATION_REQUIRED','NATIVE_INPUT_DENIED'].includes(error.code)){task.status='permission';task.message='Bu işlem için Windows yönetici izni gerekiyor. Onayladıktan sonra aynı göreve devam edeceğim.';task.requiresInput={reason:error.message};this.emit();this.onFinish();return this.state();}
-   if(task.sequence===this.sequence&&task.epoch===this.memory.epoch){task.status='failed';task.message=String(error.message);this.memory.log('computer-task',task.message,{status:'failed',details:{taskId:task.id}});this.emit();}
+   if(task.sequence===this.sequence&&task.epoch===this.memory.epoch){task.status='failed';task.message=String(error.message);this.memory.log('computer-task',task.message,{status:'failed',details:{taskId:task.id}});this.memory.saveComputerExperience?.(task,{errorCode:error.code||error.message});this.emit();}
    if(this.task===task&&task.sequence===this.sequence)this.onFinish();return this.state();
   }
  }

@@ -4,7 +4,7 @@ const assert=require('node:assert/strict'),path=require('node:path'),{createRequ
 const req=createRequire(path.join(path.resolve(process.argv[2]||'.'),'package.json'));
 const {createPool}=req('./dist/database'),{createApp}=req('./dist/app'),{encryptServerKey}=req('./dist/server-secret');
 (async()=>{
- const original={...process.env},control=createPool(),name='umay_desktop_'+randomBytes(8).toString('hex');let db,app,server,seen=[],rejectedNone=false;
+ const original={...process.env},control=createPool(),name='umay_desktop_'+randomBytes(8).toString('hex');let db,app,server,seen=[],rejectedNone=false,rejectedFormat=false;
  try{
   await control.query(`CREATE DATABASE "${name}"`);process.env.DB_NAME=name;process.env.FRONTEND_UI='true';process.env.CHAT_WORKER_ENABLED='false';
   db=createPool();const migrate=spawnSync(process.execPath,[req.resolve('./dist/migrate')],{env:process.env,encoding:'utf8'});assert.equal(migrate.status,0,migrate.stderr);
@@ -12,15 +12,16 @@ const {createPool}=req('./dist/database'),{createApp}=req('./dist/app'),{encrypt
    const payload=JSON.parse(body);seen.push(payload);
    const computer=payload.messages.some(m=>typeof m.content==='string'&&m.content.includes('Windows computer-control planner'));
    if(computer&&payload.reasoning_effort==='none'&&!rejectedNone){rejectedNone=true;response.writeHead(400,{'Content-Type':'application/json'});response.end(JSON.stringify({error:{message:'unsupported reasoning_effort',param:'reasoning_effort',type:'invalid_request_error'}}));return;}
+   if(computer&&payload.response_format?.type==='json_schema'&&!rejectedFormat){rejectedFormat=true;response.writeHead(400,{'Content-Type':'application/json'});response.end(JSON.stringify({error:{message:'unsupported response_format',param:'response_format',type:'invalid_request_error'}}));return;}
    const contract=payload.messages.some(m=>m.role==='system'&&m.content.includes('UMAY DESKTOP RESPONSE CONTRACT'));
    const user=payload.messages.findLast(m=>m.role==='user');
    const handoff=!computer&&payload.messages.some(m=>typeof m.content==='string'&&m.content.includes('UMAY CONVERSATIONAL COMPUTER CONTROL'))&&String(user?.content).startsWith('Not Defteri’ni aç');
    const answer='Kahveyi sevdiğini hatırlıyorum. Seni dinliyorum.';
-   const content=handoff?JSON.stringify({umayComputerTask:1,goal:'Not Defteri’ni aç',acknowledgement:'Not Defteri’ni açıyorum.'}):computer?JSON.stringify({action:'done',message:'Metin ekranda doğrulandı.'}):contract?JSON.stringify({umayChatReply:1,answer}):answer;
+   const content=handoff?JSON.stringify({umayComputerTask:1,goal:'Not Defteri’ni aç',acknowledgement:'Not Defteri’ni açıyorum.',plan:['Uygulamayı aç','Açılan pencereyi doğrula']}):computer?JSON.stringify({action:'done',message:'Metin ekranda doğrulandı.'}):contract?JSON.stringify({umayChatReply:1,answer}):answer;
    response.writeHead(200,{'Content-Type':'text/event-stream'});
    const chunk=(content,finish_reason=null)=>'data: '+JSON.stringify({choices:[{index:0,delta:{content},finish_reason}]})+'\n\n';
    const end=()=>response.end('data: '+JSON.stringify({choices:[{index:0,delta:{},finish_reason:'stop'}],usage:{prompt_tokens:12,completion_tokens:8}})+'\n\ndata: [DONE]\n\n');
-   if(handoff&&payload.tools?.some(t=>t.function?.name==='umay_start_computer_task')){response.write('data: '+JSON.stringify({choices:[{index:0,delta:{tool_calls:[{index:0,id:'fixture-task',type:'function',function:{name:'umay_start_computer_task',arguments:JSON.stringify({goal:'Not Defteri’ni aç',acknowledgement:'Not Defteri’ni açıyorum.'})}}]},finish_reason:'tool_calls'}]})+'\n\n');end();}
+   if(handoff&&payload.tools?.some(t=>t.function?.name==='umay_start_computer_task')){response.write('data: '+JSON.stringify({choices:[{index:0,delta:{tool_calls:[{index:0,id:'fixture-task',type:'function',function:{name:'umay_start_computer_task',arguments:JSON.stringify({goal:'Not Defteri’ni aç',acknowledgement:'Not Defteri’ni açıyorum.',plan:['Uygulamayı aç','Açılan pencereyi doğrula']})}}]},finish_reason:'tool_calls'}]})+'\n\n');end();}
    else if(contract&&!handoff&&!computer){const split=content.indexOf('Seni dinliyorum');response.write(chunk(content.slice(0,split)));setTimeout(()=>{response.write(chunk(content.slice(split),'stop'));end();},800);}
    else{response.write(chunk(content,'stop'));end();}
   });});await new Promise(r=>server.listen(0,'127.0.0.1',r));
@@ -47,6 +48,8 @@ const {createPool}=req('./dist/database'),{createApp}=req('./dist/app'),{encrypt
   chat=detail.conversation;r=await call('conversations/'+chat.id+'/messages',{content:'{"task":"Metni doğrula","observation":{"title":"Fixture"}}',requestId:randomUUID(),expectedVersion:chat.version,desktopMode:'computer',desktopContext:'{"clock":"2026-11-05"}',desktopImage:'data:image/png;base64,'+image.toString('base64')});assert.equal(r.statusCode,201,r.body);const run=await awaitRun(r.json().run.id);assert.equal(run.mediaOptions.desktopContext,undefined);assert.equal(run.mediaOptions.desktopImage,undefined);
   assert.ok(seen.some(p=>p.messages.some(m=>Array.isArray(m.content)&&m.content.some(part=>part.type==='image_url'))));assert.ok(seen.some(p=>JSON.stringify(p.messages).includes('focus_window')),'deployed planner supports window focus');assert.ok(seen.some(p=>JSON.stringify(p.messages).includes('middle_click')),'deployed planner supports middle click');for(const action of ['watch','hold','move_relative'])assert.ok(seen.some(p=>p.messages.some(m=>m.role==='system'&&m.content.includes(action))),'general computer capability '+action);assert.equal((await db.query('SELECT media_options FROM chat_runs WHERE id=$1',[run.id])).rows[0].media_options.desktopImage,undefined);
   detail=(await call('conversations/'+chat.id)).json();assert.equal(JSON.parse(detail.messages.at(-1).content).action,'done');
+  assert.ok(seen.some(p=>p.response_format?.type==='json_schema'&&p.response_format.json_schema.schema.additionalProperties===false),'computer actions use a constrained schema');
+  assert.ok(rejectedFormat&&seen.some(p=>p.response_format?.type==='json_object'),'unsupported action schema retries a JSON object without breaking execution');
   assert.ok(rejectedNone,'fast planner negotiates no-reasoning mode');assert.ok(seen.some(p=>p.reasoning_effort==='minimal'&&p.stream===true),'unsupported none returns to minimal without disabling stream');
   chat=detail.conversation;r=await call('conversations/'+chat.id+'/messages',{content:JSON.stringify({task:'Yeni gözlemi doğrula',previousSteps:[{action:'type',summary:'Metin yazıldı'}],observation:{title:'Fresh fixture'}}),requestId:randomUUID(),expectedVersion:chat.version,desktopMode:'computer',desktopContext:'{"clock":"test"}'});await awaitRun(r.json().run.id);
   assert.equal(seen.at(-1).messages.filter(m=>m.role==='user').length,1,'planner must not replay obsolete observations');assert.ok(JSON.stringify(seen.at(-1).messages).includes('Metin yazıldı'),'current structured feedback preserved');detail=(await call('conversations/'+chat.id)).json();
@@ -56,6 +59,8 @@ const {createPool}=req('./dist/database'),{createApp}=req('./dist/app'),{encrypt
   detail=(await call('conversations/'+chat.id)).json();assert.equal(detail.messages.at(-1).content,'Not Defteri’ni açıyorum.','human readable chat handoff');assert.equal(handoffRun.mediaOptions.desktopChatTask.anchorMessageId,detail.messages.at(-1).id);
   assert.ok(seen.at(-1).messages.at(-1)?.content.includes('UMAY DESKTOP RESPONSE CONTRACT'),'desktop response contract must be enforced');
   assert.ok(seen.at(-1).tools?.some(t=>t.function?.name==='umay_start_computer_task'),'real desktop function advertised');assert.ok(handoffRun.researchTrace.stages.some(s=>s.stage==='desktop_function_handoff'));
+  assert.deepEqual(handoffRun.mediaOptions.desktopChatTask.plan,['Uygulamayı aç','Açılan pencereyi doğrula'],'the chat approach reaches the computer executor intact');
+  assert.ok(seen.some(p=>p.messages.some(m=>m.role==='system'&&m.content.includes('WRITE_ALREADY_APPLIED'))),'planner knows write verification and repeat prevention');
   assert.equal(handoffRun.assistantMessageId,detail.messages.at(-1).id);assert.equal(typeof handoffRun.userMessageId,'string');
   chat=detail.conversation;r=await call('conversations/'+chat.id+'/messages',{content:'Selam nasılsın?',requestId:randomUUID(),expectedVersion:chat.version,desktopMode:'context',desktopContext:caps});const ordinary=await awaitRun(r.json().run.id);assert.equal(ordinary.mediaOptions.desktopChatTask,undefined);detail=(await call('conversations/'+chat.id)).json();assert.equal(detail.messages.at(-1).content,'Kahveyi sevdiğini hatırlıyorum. Seni dinliyorum.');
   assert.ok(drafts.some(d=>d.id===ordinary.id&&d.text==='Kahveyi sevdiğini hatırlıyorum. '&&d.status==='RUNNING'),'public desktop speech before completion');assert.ok(drafts.every(d=>!/[{}]|umayChatReply|umayComputerTask/.test(d.text)),'no protocol in public drafts');assert.equal(ordinary.draftContent,'');

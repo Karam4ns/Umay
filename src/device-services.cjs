@@ -41,7 +41,7 @@ class DeviceServices{
  }
  async prepareContext(query){
   const epoch=this.memory.epoch;
-  const context={capabilities:{computerControl:true,protocol:'umay-computer-task-v1'},memory:this.memory.context(query),environment:this.environment.context(query)};
+  const context={capabilities:{computerControl:true,protocol:'umay-computer-task-v1'},memory:this.memory.context(query),environment:this.environment.context(query),computerExperience:this.memory.computerExperience(query)};
   if(this.control.enabled){try{const foreground=await this.control.native.request('foreground');this.memory.check(epoch);this.computerSession.observe(foreground);}catch(error){if(epoch!==this.memory.epoch)throw error;}context.computer=this.computerSession.context();}
   if(/hava|sıcaklık|yağmur|kar yağ|şemsiye|rüzgâr|rüzgar/i.test(query)){
    try{context.environment.weather=await this.environment.weather();}catch(error){context.environment.weather={available:false,message:error.message};}
@@ -155,7 +155,7 @@ class DeviceServices{
     if(this.memory.setting(key))throw Error('Bu sohbet görevi zaten başlatıldı.');
     if(this.agent.task&&['running','question','confirmation','permission'].includes(this.agent.task.status))throw Error('Önce etkin bilgisayar görevini bitirin veya durdurun.');
     this.memory.setSetting(key,{startedAt:new Date().toISOString()});this.control.enable(true);
-    return this.agent.run(task.goal,model,{conversationId:run.conversationId,runId:run.id,userRequest:task.userRequest,anchorMessageId:task.anchorMessageId});
+    return this.agent.run(task.goal,model,{conversationId:run.conversationId,runId:run.id,userRequest:task.userRequest,anchorMessageId:task.anchorMessageId,plan:task.plan});
    }
    case 'elevate':{const task=this.agent.task;if(!task||task.id!==input.id||task.status!=='permission')throw Error('Yönetici izni bekleyen etkin görev bulunamadı.');this.agent.check(task);if(!this.control.native.elevate)throw Error('Windows yönetici izni bu ortamda kullanılamıyor.');this.recordComputerLine(task,'user',input.userReply||'Windows yönetici onayını aç');await this.control.native.elevate();this.memory.check(task.epoch);this.agent.check(task);this.memory.log('computer-elevation','Kullanıcı Windows yönetici onayını verdi',{details:{taskId:task.id}});return this.agent.resume(task.id,{approved:true,elevated:true});}
    case 'stop':if(this.agent.task?.id===input.id&&input.userReply)this.recordComputerLine(this.agent.task,'user',input.userReply);return this.agent.stop();

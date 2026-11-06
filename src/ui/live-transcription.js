@@ -19,14 +19,14 @@
    void this.pump();
   }
   async pump(){
-   if(this.busy||!this.session||this.samples<1600)return;this.busy=true;
+   if(this.busy||!this.session||this.samples<640)return;this.busy=true;
    const session=this.session,generation=this.generation,parts=[];let size=0;
-   while(this.parts.length&&size<6400){const part=this.parts.shift();parts.push(part);size+=part.length;this.samples-=part.length;}
+   while(this.parts.length&&size<3200){const part=this.parts.shift();parts.push(part);size+=part.length;this.samples-=part.length;}
    try{
     await this.ready;if(this.session!==session||this.generation!==generation)return;
     await this.speech('stt_feed',{streamId:session,generation,audio:encode(parts)});
    }catch(error){if(this.session===session&&this.generation===generation)this.fail(error);}
-   finally{this.busy=false;if(this.session&&this.samples>=1600)void this.pump();}
+   finally{this.busy=false;if(this.session&&this.samples>=640)void this.pump();}
   }
   receive(event){
    if(!this.session||event.streamId!==this.session||event.generation!==this.generation||!Number.isInteger(event.utterance)||event.utterance<0||typeof event.text!=='string')return;

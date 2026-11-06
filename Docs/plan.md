@@ -776,3 +776,8 @@ Kullanıcının verdiği uygulama/site/kodlama/video/oyun örnekleri kapsam sın
 ## [2026-11-05] Gerçek sohbet ve ses sorunları — 0.5.1
 
 Gerçek kayıtlarla geçici STT iptali, eski yanıta bağlanma, teknik hafızanın sohbeti kirletmesi, cihaz bağlamının belge sayılması ve eski frontend yürütücüsünün yeni worker'larla yarışması giderilir. Konuşma/model rolleri korunur; görev devri gerçek işlev/JSON protokolüyle doğrulanır. Önce testle hata, sonra düzeltme, izole HTTP/DB, gerçek ses/Windows, canlı model, paket ve dağıtım denetimi sırası izlenir. Kapsam ve kanıtlar: `Docs/chat-voice-hotfix.md`.
+
+
+## [2026-11-06] Tekrar koruması, hızlı görev devri ve işlem öğrenmesi — 0.5.2
+
+Gerçek Netflix tekrar kaydı esas alınır. Sıra: gerçek kayıt → metin tekrarı/odak düzeltmesi → kısa plan aktarımı ve işlem şeması → kalıcı kaynaklı deneyim → ses gecikmesi ölçümü → gerçek Chrome kabulü → paket bütünlüğü. `Docs/computer-progress-learning.md` kapsam, kanıt ve sınırları açıklar. Deneyim hafızası model ağırlığı eğitimi değildir; güncel ekran, gerçek kullanıcı isteği ve izinler her görevde yeniden geçerlidir.

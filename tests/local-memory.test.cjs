@@ -1,6 +1,14 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const {LocalMemory,factsFrom}=require('../src/local-memory.cjs');
 function memory(options={}){return new LocalMemory(fs.mkdtempSync(path.join(os.tmpdir(),'umay-local-memory-')),options);}
+test('procedural learning survives restart, isolates accounts and never becomes a verified fact by model assertion',()=>{
+ const store=memory();store.activate('alice');
+ const task={id:'experience',epoch:store.epoch,goal:'Tarayıcıda site aç',createdAt:Date.now(),status:'completed',userAuthorization:[{approved:true}],steps:[{action:'type',text:'secret-payload',characters:14,target:{title:'Browser',name:'Address',automationId:'url',type:'ControlType.Edit'},outcome:'field_matches_input',replace:true,submit:true,x:10,y:20}]};
+ store.saveComputerExperience(task);store.close();store.activate('alice');
+ const found=store.computerExperience('site aç');assert.equal(found.length,1);assert.equal(found[0].completion,'model_reported');assert.equal(found[0].steps[0].outcome,'field_matches_input');
+ assert.doesNotMatch(JSON.stringify(found),/secret-payload|approved|"x":|"y":/);assert.equal(store.context('site aç').profile.length,0);
+ store.activate('bob');assert.deepEqual(store.computerExperience('site aç'),[]);assert.throws(()=>store.saveComputerExperience(task),/Hesap değişti/);store.close();
+});
 test('chat survives remote deletion, restart and searches Turkish word prefixes',()=>{
  const store=memory();store.activate('alice');
  store.archiveConversation({id:'chat',title:'Kahve'},[{id:'m1',role:'user',content:'Adım Kazım. Kahveyi seviyorum.'},{id:'m2',role:'assistant',content:'Tercihini hatırlayacağım.'}]);

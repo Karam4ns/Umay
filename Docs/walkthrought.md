@@ -439,3 +439,16 @@ Detaylar ve dış model/Windows/çoklu monitör test sınırları computer-model
 - [x] 184 uygulama ve60 konuşma testi; gerçek capture→STT→sohbet→TTS; kaynak/paket Windows giriş/odak/dur/F8 regresyonu; paket Python ile gerçek klon TTS.
 - [x] Gerçek Veriüssü modelleriyle gerçek Windows test penceresine metin yazılması ve görünür sonucun doğrulanması.
 - [x] 0.5.1 installer ve kaynak/native/konuşma/runtime bütünlüğü. Son performans ve dağıtım sonuçları `Docs/chat-voice-hotfix.md` içinde tutulur.
+
+
+## [2026-11-06] İşlem ilerlemesi ve deneyim — 0.5.2
+
+- [x] Yerel arşiv ve sunucudan 16 tekrar yazma olayını doğrula; değişen görüntü/alan kimliğiyle tekrar regresyonu.
+- [x] Gerçek UIA odağı, derinlik/üst-belge bilgisi ve odak korumalı değiştir/yaz/gönder.
+- [x] Sohbetin kısa yaklaşım planını gerçek bilgisayar rolüne aktar; geçerli işlem şeması, eski run yanıtını reddetme.
+- [x] Hesaba ait kalıcı deneyim, adım kontrol noktaları, kanıt düzeyleri, hata hatırlama ve sonraki göreve kaynaklı geri çağırma.
+- [x] Gerçek tarayıcı adresi için tek gezinme işlemi, web formu ayrımı, belge URL'siyle geri okuma; gerekli durumda görsele dönüş.
+- [x] 197 uygulama +60 Python testi; gerçek ses zinciri ve Dur/F8; gerçek Chrome ve seçili bulut modelleriyle Netflix sayfası/adres sonkoşulu.
+- [x] İzole HTTP/PostgreSQL kabulü sonrası iki worker; mevcut portlar/ortam/mount'lar ve model rolleri korundu.
+- [x] 0.5.2 final kurulumunun 44 kaynak/native/konuşma karşılaştırması, paket üzerinden gerçek Windows testi, dağıtılan Python ile STT karşılaştırması, installer SHA512/uzunluğu ve son rapor.
+- [ ] Seçili sağlayıcılarda anlık denebilecek model yanıtı ve geniş çok uygulamalı performans kabulü; 29–31 saniyelik tek URL testi bu ölçütü karşılamıyor.

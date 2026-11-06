@@ -11,7 +11,7 @@ function patchDesktopReply(source,{worker=true}={}){
                 if (umayDeviceContext && attachmentMessage) attachmentMessage.content = String(attachmentMessage.content) + umayDeviceContext;`);
  // Every planner turn already carries goal, original authority, prior steps,
  // feedback and the current observation. Older screenshots are stale evidence.
- replace('(0, chat_memory_1.fitHistory)(messages, Math.max(0, capacity -','(0, chat_memory_1.fitHistory)(isDesktop ? messages.slice(-1) : messages, Math.max(0, capacity -');
+ replace('(0, chat_memory_1.fitHistory)(messages, Math.max(0, capacity -','(0, chat_memory_1.fitHistory)(isDesktop ? messages.slice(-1) : desktop_reply_1.enabled(run.media_options) ? messages.slice(-12) : messages, Math.max(0, capacity -');
  replace('let structuredAnswer = false, reasoningEnabled',`const umayConversation = desktop_reply_1.enabled(run.media_options);
                 const umaySpeechDraft = umayConversation && socialQuestion && !memory.clarification && !knowledgePassages.length;
                 if (umaySpeechDraft) await this.db.connection.query("UPDATE chat_runs SET media_options=media_options||'{\\"desktopSpeechDraft\\":true}'::jsonb WHERE id=$1", [run.id]);
@@ -32,8 +32,9 @@ function patchDesktopReply(source,{worker=true}={}){
  replace('...(toolRecovery || textOnly ? { tool_choice: "none" } : {}),','...(toolRecovery || textOnly ? { tool_choice: "none" } : {}),\n                        ...(umayConversation && !socialQuestion && desktopTools ? desktop_reply_1.toolOptions : {}),');
  replace('if (knownOptions?.effort === "low")\n                    reasoningEffort = "low";',`if (knownOptions?.effort === "low")
                     reasoningEffort = "low";
-                if ((isDesktop || umayConversation && socialQuestion) && desktop_reply_1.noThoughtsAllowed(optionKey)) reasoningEffort = "none";`);
+                if ((isDesktop || umayConversation && !(0, chat_quality_1.needsConsistencyReview)(messages.at(-1)?.content ?? "")) && desktop_reply_1.noThoughtsAllowed(optionKey)) reasoningEffort = "none";`);
  replace('catch (error) {\n                            if (error instanceof chat_provider_1.ChatProviderError &&',`catch (error) {
+                            if (isDesktop && error instanceof chat_provider_1.ChatProviderError && error.parameter === "response_format" && [400,422].includes(error.status) && desktop_reply_1.rejectPlannerFormat(optionKey)) {optionRetries++;continue;}
                             if (reasoningEffort === "none" && error instanceof chat_provider_1.ChatProviderError && error.message === "PROVIDER_REJECTED" && [400,422].includes(error.status)) {desktop_reply_1.rejectNoThoughts(optionKey);reasoningEffort="minimal";optionRetries++;continue;}
                             if (umayConversation && desktopTools && error instanceof chat_provider_1.ChatProviderError && ["tools","tool_choice"].includes(error.parameter || "")) {desktopTools=false;continue;}
                             if (error instanceof chat_provider_1.ChatProviderError &&`);
@@ -41,6 +42,7 @@ function patchDesktopReply(source,{worker=true}={}){
  // Start with the explicit contract plus strict parsing; use schema mode only
  // for the single bounded repair, preserving native streaming on the fast path.
  replace('...(structuredAnswer\n                            ? { response_format:', '...((structuredAnswer || umayConversation && desktopRepair > 0)\n                            ? { response_format:');
+ replace('max_tokens: responseBudget,','max_tokens: responseBudget,\n                        ...(isDesktop ? desktop_reply_1.plannerOptions(optionKey) : {}),');
  replace('// Clear previous tool/partial attempts before processing another round.','// Clear previous tool/partial attempts before processing another round.\n                    await draftWrite;');
  replace('const text = (isDesktop || desktop_context_1.desktopChatTask(message?.content, run.media_options)) ?', 'const text = (isDesktop || umayConversation || desktop_context_1.desktopChatTask(message?.content, run.media_options)) ?');
  replace('const message = result.choices?.[0]?.message;',`let message = result.choices?.[0]?.message;
@@ -53,6 +55,8 @@ function patchDesktopReply(source,{worker=true}={}){
                     }
                     answer = umayConversation ? (desktop_reply_1.publicReply(text) ?? text) : text;
                     {`);
+ source=source.replaceAll('desktop_context_1.desktopChatTask(', 'desktop_reply_1.plannedTask(');
+ source=source.replaceAll('desktop_context_1.computerInstructions', '(desktop_context_1.computerInstructions + "\\n" + desktop_reply_1.progressInstructions)');
  return source;
 }
 module.exports={patchDesktopReply};

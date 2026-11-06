@@ -34,6 +34,42 @@ test('planner sees the actual focused accessibility target instead of guessing f
  assert.equal(prompt.observation.focusedElementId,150);assert.ok(prompt.observation.elements.some(e=>e.id===150&&e.focused),'focused input survives a large accessibility tree');
 });
 const model={id:'model',source:'PERSONAL',categories:['vision']};
+test('browser navigation focuses and replaces once while website forms cannot offer this capability',async()=>{
+ const f=control();f.control.enable(true);let focus=false;const request=f.control.native.request;
+ f.control.native.request=async(method,params)=>{if(method==='keys')focus=true;const result=await request(method,params);if(method==='observe')result.elements=[{id:0,name:'Adres ve arama çubuğu',type:'ControlType.Edit',focused:focus,inDocument:false,runtimeId:[42,8]}];return result;};
+ const view=await f.control.observe();await f.control.perform({action:'navigate',url:'https://example.org'},view.id);
+ assert.deepEqual(f.calls.filter(c=>c.method!=='observe'),[{method:'keys',params:{keys:[17,76],expectedHandle:1}},{method:'text',params:{text:'https://example.org/',expectedHandle:1,expectedFocus:[42,8],replace:true,submit:true}}]);
+ const next=await f.control.observe();next.elements[0].inDocument=true;await assert.rejects(f.control.perform({action:'navigate',url:'https://example.org'},next.id),/bulunamadı/);
+});
+test('navigation never types after foreground changes and rejects non-web protocols',async()=>{
+ const f=control();f.control.enable(true);let changed=false;const request=f.control.native.request;
+ f.control.native.request=async(method,params)=>{if(method==='keys')changed=true;const result=await request(method,params);if(method==='observe'){result.handle=changed?2:1;result.elements=[{id:0,name:'Address and search bar',type:'ControlType.Edit',focused:true,inDocument:false}];}return result;};
+ let view=await f.control.observe();await assert.rejects(f.control.perform({action:'navigate',url:'javascript:alert(1)'},view.id));assert.equal(f.calls.filter(c=>c.method==='keys').length,0);
+ view=await f.control.observe();await assert.rejects(f.control.perform({action:'navigate',url:'https://example.org'},view.id),/odağı değişti/);assert.equal(f.calls.filter(c=>c.method==='text').length,0);
+});
+test('changing address values and screenshots never permit a repeated append',async()=>{
+ const f=agent(Array.from({length:20},()=>({action:'type',text:'netflix.com',summary:'Adresi yaz'}))),observe=f.control.observe.bind(f.control);let n=0;
+ f.control.observe=async options=>{const view=await observe(options);view.title='Browser '+n;view.elements=[{id:n++,name:'Address',value:'netflix.com'.repeat(n),focused:true,type:'ControlType.Edit',automationId:'address',bounds:{x:0,y:0,width:100,height:20}}];view.screenshots[0].image='frame'+n;return view;};
+ const result=await f.planner.run('Tarayıcıda netflix.com aç',model);
+ assert.equal(result.status,'question');assert.equal(f.calls.filter(c=>c.method==='text').length,1);assert.equal(f.planner.task.steps.length,1);
+ assert.match(JSON.parse(f.getPosted().content).userFeedback,/WRITE_ALREADY_APPLIED/);
+});
+test('a blocked repeated write gives the planner a chance to submit instead',async()=>{
+ const f=agent([{action:'type',text:'example.org'},{action:'type',text:'example.org'},{action:'keys',keys:['ENTER']},{action:'done',message:'Açıldı.'}]);
+ assert.equal((await f.planner.run('Siteyi aç',model)).status,'completed');
+ assert.equal(f.calls.filter(c=>c.method==='text').length,1);assert.deepEqual(f.calls.filter(c=>c.method==='keys').map(c=>c.params.keys),[[13]]);
+});
+test('replace and submit use a focused edit with one guarded native text transaction',async()=>{
+ const f=control();f.control.enable(true);const view=await f.control.observe();Object.assign(view.elements[0],{focused:true,type:'ControlType.Edit',runtimeId:[42,8]});
+ await f.control.perform({action:'type',text:'https://example.org',replace:true,submit:true},view.id);
+ assert.deepEqual(f.calls.at(-1),{method:'text',params:{text:'https://example.org',expectedHandle:1,expectedFocus:[42,8],replace:true,submit:true}});
+ const other=await f.control.observe();await assert.rejects(f.control.perform({action:'type',text:'x',replace:true},other.id),/odaklanın/);
+});
+test('the computer planner selects the assistant bound to its accepted run',async()=>{
+ const f=agent([]),api=f.planner.api;
+ f.planner.api=async(route,body)=>route.includes('/runs/')?{run:{status:'COMPLETED',assistantMessageId:'current'}}:route==='/site/chat/conversations/c'?{conversation:{id:'c',version:2},messages:[{id:'current',role:'assistant',content:'{"action":"done","message":"Doğru yanıt"}'},{id:'stale',role:'assistant',content:'{"action":"type","text":"wrong"}'}]}:api(route,body);
+ assert.equal((await f.planner.run('Ekranı oku',model)).message,'Doğru yanıt');assert.equal(f.calls.filter(c=>c.method==='text').length,0);
+});
 test('a generic app watch polls locally and passes only its observed outcome to the next model step',async()=>{
  const f=agent([{action:'watch',windowHandle:1,contains:'completed',milliseconds:2000,intervalMs:500},{action:'done',message:'Görev izlendi.'}]),native=f.control.native.request,api=f.planner.api,posts=[];let polls=0;
  f.control.native.request=async(method,params)=>method==='observe_window'?{handle:1,title:'Coding app',elements:[{name:++polls===2?'Task completed':'Working'}]}:native(method,params);

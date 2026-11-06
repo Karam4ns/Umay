@@ -1,5 +1,7 @@
 'use strict';
 const {spawn}=require('node:child_process'),path=require('node:path'),readline=require('node:readline'),fs=require('node:fs'),os=require('node:os'),{randomUUID}=require('node:crypto');
+const {focusedField}=require('./computer-progress.cjs');
+const {navigationUrl,addressField}=require('./computer-navigation.cjs');
 const KEYS={CTRL:17,CONTROL:17,ALT:18,SHIFT:16,WIN:91,META:91,ENTER:13,RETURN:13,TAB:9,ESC:27,ESCAPE:27,BACKSPACE:8,DELETE:46,HOME:36,END:35,PAGEUP:33,PAGEDOWN:34,LEFT:37,UP:38,RIGHT:39,DOWN:40,SPACE:32};
 Object.assign(KEYS,{INSERT:45,PRINTSCREEN:44,CAPSLOCK:20,NUMLOCK:144,SCROLLLOCK:145,PAUSE:19,PLUS:187,MINUS:189,COMMA:188,PERIOD:190,SEMICOLON:186,SLASH:191,BACKSLASH:220,QUOTE:222,BRACKETLEFT:219,BRACKETRIGHT:221,BACKTICK:192});
 function keyCodes(input){if(!Array.isArray(input)||input.length<1||input.length>8)throw Error('Tuş birleşimi geçersiz.');return input.map(value=>{const name=String(value).toUpperCase();if(KEYS[name])return KEYS[name];if(/^[A-Z0-9]$/.test(name))return name.charCodeAt(0);if(/^F(?:[1-9]|1[0-9]|2[0-4])$/.test(name))return 111+Number(name.slice(1));throw Error('Desteklenmeyen tuş: '+name);});}
@@ -62,10 +64,10 @@ class NativeDesktop{
 class ComputerControl{
  constructor({native=new NativeDesktop(),capture,screen,now=()=>Date.now(),excludedWindowHandles=()=>[]}={}){Object.assign(this,{native,capture,screen,now,excludedWindowHandles});this.observation=null;this.sequence=0;this.enabled=false;}
  enable(value){this.enabled=!!value;if(!value)this.observation=null;return this.enabled;}
- async observe({image=true}={}){
+ async observe({image=true,preferText=()=>false}={}){
   if(!this.enabled)throw Error('Önce bilgisayar kontrolünü açın.');const sequence=++this.sequence;
   const native=await this.native.request('observe');if(native.requiresElevation&&!native.administrator)throw Object.assign(Error('Bu pencere için Windows yönetici izni gerekiyor.'),{code:'NATIVE_ELEVATION_REQUIRED'});const displays=this.screen.getAllDisplays();
-  const shots=image?await this.capture(displays):[];
+  const shots=image&&!preferText(native)?await this.capture(displays):[];
   if(!this.enabled||sequence!==this.sequence)throw Error('Bilgisayar görevi durduruldu.');
   const observation={id:randomUUID(),createdAt:this.now(),title:native.title,handle:native.handle,processId:native.processId,windows:(native.windows||[]).filter(w=>!this.excludedWindowHandles().includes(w.handle)),elements:native.elements||[],cursor:native.cursor,displays:displays.map(d=>({id:String(d.id),bounds:d.bounds,scaleFactor:d.scaleFactor})),screenshots:shots};this.observation=observation;return observation;
  }
@@ -90,23 +92,39 @@ class ComputerControl{
   else if(type==='drag'){method='drag';const end=coordinate(action.endX,action.endY,action.endDisplayId??action.displayId);params={...point,endX:end.x,endY:end.y};}
   else if(type==='scroll'){if(!Number.isInteger(action.amount)||Math.abs(action.amount)>10||!action.amount||action.axis&&!['vertical','horizontal'].includes(action.axis))throw Error('Kaydırma miktarı veya yönü geçersiz.');method='scroll';params={...point,amount:action.amount,axis:action.axis||'vertical'};}
   else if(type==='focus_window'){const target=observed.windows.find(w=>w.handle===action.windowHandle);if(!target)throw Error('Seçilen pencere güncel gözlemde bulunamadı.');method='focus';params={handle:target.handle};}
+  else if(type==='navigate'){if(!addressField(observed))throw Error('Tarayıcının adres alanı güncel gözlemde bulunamadı.');method='navigate';params={url:navigationUrl(action.url)};}
   else if(type==='keys'){method='keys';params={keys:keyCodes(action.keys)};}
   else if(type==='hold'){
    if(!Number.isInteger(action.milliseconds)||action.milliseconds<1||action.milliseconds>2000||action.button&&!['left','right','middle'].includes(action.button)||!action.button&&!action.keys?.length)throw Error('Basılı giriş süresi veya tuş/fare seçimi geçersiz.');
    method='hold';params={keys:action.keys?.length?[...new Set(keyCodes(action.keys))]:[],...(action.button?{button:action.button}:{}),milliseconds:action.milliseconds};
   }
   else if(type==='move_relative'){if(!Number.isInteger(action.dx)||!Number.isInteger(action.dy)||Math.abs(action.dx)>2000||Math.abs(action.dy)>2000||!action.dx&&!action.dy)throw Error('Göreli fare hareketi geçersiz.');method='move_relative';params={dx:action.dx,dy:action.dy};}
-  else if(type==='type'){if(typeof action.text!=='string'||!action.text.length||action.text.length>4000)throw Error('Yazılacak metin geçersiz.');method='text';params={text:action.text};}
+  else if(type==='type'){
+   if(typeof action.text!=='string'||!action.text.length||action.text.length>4000)throw Error('Yazılacak metin geçersiz.');
+   if(action.replace!==undefined&&typeof action.replace!=='boolean'||action.submit!==undefined&&typeof action.submit!=='boolean')throw Error('Metin alanı işlemi geçersiz.');
+   const field=focusedField(observed);
+   if(Number.isInteger(action.elementId)&&action.elementId!==field?.id)throw Error('Yazılacak öğe klavye odağında değil. Önce doğru metin alanını seçin.');
+   if((action.replace||action.submit)&&(!field||field.type!=='ControlType.Edit'))throw Error('Değiştir/gönder işlemi için önce metin alanına odaklanın.');
+   method='text';params={text:action.text,...(action.replace?{replace:true}:{}),...(action.submit?{submit:true}:{}),...(field?.runtimeId?{expectedFocus:field.runtimeId}:{})};
+  }
   else if(type==='wait'){const milliseconds=Number(action.milliseconds??500);if(!Number.isFinite(milliseconds)||milliseconds<0||milliseconds>5000)throw Error('Bekleme süresi geçersiz.');method='wait';params={milliseconds};}
   else throw Error('Bilgisayar işlemi desteklenmiyor.');
   }catch(error){error.code='PLANNER_INVALID';throw error;}
   this.observation=null;
+  if(method==='navigate'){
+   const sequence=this.sequence;
+   await this.native.request('keys',{keys:keyCodes(['CTRL','L']),expectedHandle:observed.handle});
+   if(!this.enabled||sequence!==this.sequence)throw Error('Bilgisayar görevi durduruldu.');
+   const fresh=await this.observe({image:false}),field=addressField(fresh);
+   if(!this.enabled||sequence+1!==this.sequence||fresh.handle!==observed.handle||!field?.focused)throw Object.assign(Error('Adres alanının odağı değişti; gezinme uygulanmadı.'),{code:'NATIVE_FOCUS_CHANGED'});
+   return this.perform({action:'type',text:params.url,replace:true,submit:true,elementId:field.id},fresh.id);
+  }
   if(method==='wait'){const sequence=this.sequence,end=Date.now()+params.milliseconds;while(Date.now()<end){if(!this.enabled||this.sequence!==sequence)throw Error('Bilgisayar görevi durduruldu.');await new Promise(r=>setTimeout(r,Math.min(50,end-Date.now())));}if(!this.enabled||this.sequence!==sequence)throw Error('Bilgisayar görevi durduruldu.');return true;}
   if(method==='text'){
    const sequence=this.sequence,characters=Array.from(params.text);
    for(let offset=0;offset<characters.length;offset+=32){
     if(!this.enabled||sequence!==this.sequence)throw Error('Bilgisayar görevi durduruldu.');
-    try{await this.native.request(method,{text:characters.slice(offset,offset+32).join(''),expectedHandle:observed.handle});}
+    try{await this.native.request(method,{text:characters.slice(offset,offset+32).join(''),expectedHandle:observed.handle,...(params.expectedFocus?{expectedFocus:params.expectedFocus}:{}),...(params.replace&&offset===0?{replace:true}:{}),...(params.submit&&offset+32>=characters.length?{submit:true}:{})});}
     catch(error){if(offset>0){error.code='NATIVE_PARTIAL_INPUT';error.message='Metnin bir bölümü yazıldı; tekrar yazmayı önlemek için görev durduruldu. Ekranı kontrol edip yeni görev verebilirsiniz.';}throw error;}
    }
    if(!this.enabled||sequence!==this.sequence)throw Error('Bilgisayar görevi durduruldu.');return true;

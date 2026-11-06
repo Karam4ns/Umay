@@ -1,6 +1,16 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 // The same small module is loaded by the server overlay and the desktop tests.
 const {replyInstructions,publicReply,publicDraft,toolOptions,toolTask}=require('../server/desktop-reply.cjs');
+test('bounded plans survive server handoff validation and malformed plans never execute',()=>{
+ const {plannedTask}=require('../server/desktop-reply.cjs'),options={desktopMode:'context',desktopContext:JSON.stringify({capabilities:{computerControl:true,protocol:'umay-computer-task-v1'}})},item={umayComputerTask:1,goal:'Siteyi aç',acknowledgement:'Açıyorum.',plan:['Tarayıcıyı aç','Adres alanını değiştir ve gönder','Sayfayı doğrula']};
+ assert.deepEqual(plannedTask(JSON.stringify(item),options).plan,item.plan);assert.equal(plannedTask(JSON.stringify({...item,plan:['x'.repeat(181)]}),options),null);assert.equal(plannedTask(JSON.stringify(item),{}),null);
+ const call={tool_calls:[{function:{name:'umay_start_computer_task',arguments:JSON.stringify(item)}}]};assert.deepEqual(JSON.parse(toolTask(call)).plan,item.plan);
+});
+test('planner output is constrained to the action schema with bounded provider fallback',()=>{
+ const {plannerOptions,rejectPlannerFormat}=require('../server/desktop-reply.cjs'),key='isolated-format-test';
+ const format=plannerOptions(key).response_format;assert.equal(format.type,'json_schema');assert.equal(format.json_schema.schema.additionalProperties,false);assert.equal(format.json_schema.schema.properties.target,undefined);assert.ok(format.json_schema.schema.properties.action.enum.includes('type'));
+ assert.equal(rejectPlannerFormat(key),true);assert.equal(plannerOptions(key).response_format.type,'json_object');assert.equal(rejectPlannerFormat(key),true);assert.deepEqual(plannerOptions(key),{});assert.equal(rejectPlannerFormat(key),false);
+});
 test('desktop replies have an explicit public answer or a task, never a claim-only handoff',()=>{
  assert.match(replyInstructions,/umayChatReply/);assert.match(replyInstructions,/umayComputerTask/);
  assert.equal(publicReply('{"umayChatReply":1,"answer":"Selam!"}'),'Selam!');

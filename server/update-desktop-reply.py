@@ -20,7 +20,7 @@ if sys.argv[1] in ['prepare','prepare-worker']:
  states={s:inspect('veriussu21-'+s+'-1') for s in (['chat-worker'] if sys.argv[1]=='prepare-worker' else ['chat-worker','frontend'])};(root/'before.json').write_text(json.dumps(states))
  baseline=json.loads((stage/'baseline.json').read_text()) if (stage/'baseline.json').exists() else states
  red=check(baseline['chat-worker']['Image'],root,'chat-worker','before')
- if red.returncode==0 or not any(reason in red.stderr for reason in ['desktop response contract must be enforced','planner must not replay obsolete observations','fast planner negotiates no-reasoning mode']):raise RuntimeError('Expected contract/context/latency RED not reproduced: '+str(root))
+ if red.returncode==0 or not any(reason in red.stderr for reason in ['desktop response contract must be enforced','planner must not replay obsolete observations','fast planner negotiates no-reasoning mode','computer actions use a constrained schema']):raise RuntimeError('Expected contract/context/latency RED not reproduced: '+str(root))
  print('PASS RED current worker lacks enforced reply contract',flush=True)
  for kind,state in states.items():
   directory=root/kind;directory.mkdir()
@@ -30,7 +30,7 @@ if sys.argv[1] in ['prepare','prepare-worker']:
   for name in ['patch-desktop-reply.cjs','desktop-reply.cjs']:(directory/name).write_bytes((stage/name).read_bytes())
   (directory/'apply.cjs').write_text("const fs=require('fs'),{patchDesktopReply}=require('/tmp/umay-reply/patch-desktop-reply.cjs');const f='/app/apps/api/dist/chat-execution.js';fs.writeFileSync(f,patchDesktopReply(fs.readFileSync(f,'utf8'),{worker:"+str(kind=='chat-worker').lower()+"}));require(f);console.log('PASS execution overlay loaded');")
   (directory/'Dockerfile').write_text('FROM '+baseline[kind]['Image']+'\nCOPY --chown=node:node patch-desktop-reply.cjs desktop-reply.cjs apply.cjs /tmp/umay-reply/\nCOPY --chown=node:node desktop-reply.cjs /app/apps/api/dist/desktop-reply.cjs\nRUN node /tmp/umay-reply/apply.cjs\n')
-  tag='veriussu-umay-reply-'+kind+':0.5.1';subprocess.run(['docker','build','--pull=false','-t',tag,str(directory)],check=True)
+  tag='veriussu-umay-reply-'+kind+':0.5.2';subprocess.run(['docker','build','--pull=false','-t',tag,str(directory)],check=True)
   image=out(['docker','image','inspect','--format','{{.Id}}',tag]);(directory/'candidate-image').write_text(image)
   green=check(image,root,kind,'candidate')
   if green.returncode or 'PASS' not in green.stdout:raise RuntimeError('Candidate failed: '+str(root))
