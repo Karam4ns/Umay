@@ -502,7 +502,7 @@ Detaylar ve dış model/Windows/çoklu monitör test sınırları computer-model
 - [x] Kullanıcı tarafından yetkilendirilmiş yönetici oturumunu koruma, gerektiğinde yüksek yetkili worker, hesap değişimi/çıkış/revoke.
 - [x] Durdurma doğrulanmadan başarı göstermeme; belirsiz durdurmada yeni görev/devamı engelleme ve tekrar deneme.
 - [x] Sunucuda izole HTTP/DB, genel sözleşmeler, ayrı operatör kotası; iki worker/frontend ve 10203 sağlık/bütünlük.
-- [x] 301 otomatik test; gerçek çok adımlı web/dosya/süreç, test uygulaması kur/aç/kullan/kaldır, gerçek modellerle dosya ve devam, Windows/F8, STT/TTS, ayarlar.
+- [x] 316 otomatik test; gerçek çok adımlı web/dosya/süreç, test uygulaması kur/aç/kullan/kaldır, gerçek modellerle dosya ve devam, Windows/F8, STT/TTS, ayarlar.
 - [x] Son kaynaklarla 57 uygulama/4 konuşma modülü ve 361 MCP dosyası; gerçek paketlenmiş Umay.exe ile ASAR yönetici worker ve Chrome yeniden bağlantı.
 - [ ] Geniş gerçek uygulama/aygıt/çok monitör/ilk UAC ve p50/p95 kabulü. Bu kutu birkaç başarılı örnekle kapatılmaz.
 

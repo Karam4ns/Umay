@@ -28,7 +28,7 @@ function patchDesktopReply(source,{worker=true}={}){
  replace('let structuredAnswer = false, reasoningEnabled',`const umayConversation = desktop_reply_1.enabled(run.media_options);
                 const umaySpeechDraft = umayConversation && socialQuestion && !memory.clarification && !knowledgePassages.length;
                 if (umaySpeechDraft) await this.db.connection.query("UPDATE chat_runs SET media_options=media_options||'{\\"desktopSpeechDraft\\":true}'::jsonb WHERE id=$1", [run.id]);
-                let desktopRepair = 0, desktopTools = true, draftWrite = Promise.resolve(), draftWrittenAt = 0;
+                let desktopRepair = 0, operatorRepair = 0, desktopTools = true, draftWrite = Promise.resolve(), draftWrittenAt = 0;
                 let structuredAnswer = false, reasoningEnabled`);
  replace('const publishDraft = (content) => {',`const publishDraft = (content) => {
                     if (umaySpeechDraft) {
@@ -72,7 +72,7 @@ function patchDesktopReply(source,{worker=true}={}){
  replace('const message = result.choices?.[0]?.message;',`let message = result.choices?.[0]?.message;
                     if(isDesktop && payload.tools?.some(t=>t.function?.name==='umay_control')) {
                         if(result.choices?.[0]?.finish_reason==='length') message={content:''};
-                        else {let localAction;try{localAction=desktop_reply_1.operatorAction(message,messages.at(-1)?.content,payload.tools);}catch{throw new chat_provider_1.ChatProviderError('INVALID_PROVIDER_RESPONSE');}if(localAction)message={content:localAction};}
+                        else {let localAction;try{localAction=desktop_reply_1.operatorAction(message,messages.at(-1)?.content,payload.tools);}catch(error){if(operatorRepair++>=1)throw new chat_provider_1.ChatProviderError('INVALID_PROVIDER_RESPONSE');trace.stages.push({stage:'desktop_operator_repair',executed:false});conversation.push(...desktop_reply_1.repairOperator(message,error,payload.tools));continue;}if(localAction)message={content:localAction};}
                     }
                     if (isDesktop && typeof message?.content === "string") message={...message,content:desktop_reply_1.plannerReply(message.content, messages.at(-1)?.content)};
                     const desktopTool = umayConversation ? desktop_reply_1.toolTask(message) : null;
