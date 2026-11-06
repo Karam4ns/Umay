@@ -505,6 +505,7 @@ Detaylar ve dış model/Windows/çoklu monitör test sınırları computer-model
 - [x] 316 otomatik test; gerçek çok adımlı web/dosya/süreç, test uygulaması kur/aç/kullan/kaldır, gerçek modellerle dosya ve devam, Windows/F8, STT/TTS, ayarlar.
 - [x] Son kaynaklarla 57 uygulama/4 konuşma modülü ve 361 MCP dosyası; gerçek paketlenmiş Umay.exe ile ASAR yönetici worker ve Chrome yeniden bağlantı.
 - [x] Alfa1.2-vision kimliğini açık doğrulayarak iki ayrı gerçek sohbet/dosya/devam/Chrome formu/POST/dosya zinciri; kullanıcının izniyle bu cihazın bilgisayar rolünü atama.
+- [x] 7 Kasım son gerçek Windows odak/girdi/arka plan izleme/F8; gerçek Alfa1.2/Alfa1.2-vision ile sohbetten sahip olunan Windows alanına click/text ve içerik doğrulama.
 - [x] 0.7.0 test installer'ı, SHA256/SHA512/boyut/blockmap ve son kaynak eşleşmesi; ayrıntılar teslim kaydında.
 - [ ] Geniş gerçek uygulama/aygıt/çok monitör/ilk UAC ve p50/p95 kabulü. Bu kutu birkaç başarılı örnekle kapatılmaz.
 
