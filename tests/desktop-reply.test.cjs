@@ -1,6 +1,15 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 // The same small module is loaded by the server overlay and the desktop tests.
 const {replyInstructions,publicReply,publicDraft,toolOptions,toolTask}=require('../server/desktop-reply.cjs');
+test('browser planners get a separate text-capable contract and only advertised actions',()=>{
+ const {plannerInstructions,plannerOptions}=require('../server/desktop-reply.cjs'),query=JSON.stringify({capabilities:{actions:['browser_tool','done','ask'],browser:{}}});
+ const instructions=plannerInstructions('With no image use Windows keys only',query);assert.match(instructions,/CHROME MCP OPERATOR/);assert.doesNotMatch(instructions,/With no image use Windows keys only/);assert.match(instructions,/NAVIGATE NOW/);assert.deepEqual(plannerOptions('browser-contract-test',query).response_format.json_schema.schema.properties.action.enum,['browser_tool','done','ask']);
+});
+test('Chrome capability opts into web handoff while legacy desktop clients keep their old contract',()=>{
+ const {browserEnabled,plannedTask,browserReplyInstructions,plannerFormat}=require('../server/desktop-reply.cjs'),caps={computerControl:true,protocol:'umay-computer-task-v1'},legacy={desktopMode:'context',desktopContext:JSON.stringify({capabilities:caps})},options={desktopMode:'context',desktopContext:JSON.stringify({capabilities:{...caps,chromeMcp:true,browserProtocol:'umay-browser-mcp-v1'}})};
+ assert.equal(browserEnabled(legacy),false);assert.equal(browserEnabled(options),true);assert.match(browserReplyInstructions,/live online lookups/);assert.ok(plannerFormat.json_schema.schema.properties.action.enum.includes('browser_tool'));assert.equal(plannerFormat.json_schema.schema.properties.toolArguments.type,'string');
+ const source=toolTask({tool_calls:[{function:{name:'umay_start_computer_task',arguments:JSON.stringify({goal:'Webden araştır',acknowledgement:'Araştırıyorum.',executor:'browser'})}}]});assert.equal(plannedTask(source,options).executor,'browser');assert.equal(plannedTask(JSON.stringify({umayComputerTask:1,goal:'x',acknowledgement:'x',executor:'shell'}),options),null);
+});
 test('bounded plans survive server handoff validation and malformed plans never execute',()=>{
  const {plannedTask}=require('../server/desktop-reply.cjs'),options={desktopMode:'context',desktopContext:JSON.stringify({capabilities:{computerControl:true,protocol:'umay-computer-task-v1'}})},item={umayComputerTask:1,goal:'Siteyi aç',acknowledgement:'Açıyorum.',plan:['Tarayıcıyı aç','Adres alanını değiştir ve gönder','Sayfayı doğrula']};
  assert.deepEqual(plannedTask(JSON.stringify(item),options).plan,item.plan);assert.equal(plannedTask(JSON.stringify({...item,plan:['x'.repeat(181)]}),options),null);assert.equal(plannedTask(JSON.stringify(item),{}),null);

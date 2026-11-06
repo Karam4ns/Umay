@@ -10,7 +10,7 @@ function machineProtocol(text){
  if(!source.startsWith('{'))return false;
  let value;try{value=JSON.parse(source);}catch{return false;}
  if(!value||typeof value!=='object'||Array.isArray(value))return false;
- return !!(value.observation&&typeof value.observation==='object'&&('originalUserRequest' in value||'proposedGoal' in value))||['click','double_click','right_click','middle_click','move','drag','scroll','keys','type','wait','focus_window','hold','move_relative','observe','navigate','watch','done','ask','confirm'].includes(value.action);
+ return !!(value.observation&&typeof value.observation==='object'&&('originalUserRequest' in value||'proposedGoal' in value))||['click','double_click','right_click','middle_click','move','drag','scroll','keys','type','wait','focus_window','hold','move_relative','observe','navigate','watch','browser_tool','browser_start','browser_desktop','browser_tools','browser_result','done','ask','confirm'].includes(value.action);
 }
 function conversationalMessage(message){return message.conversation_source!=='computer'&&!/^umay bilgisayar gorevi\s*:/u.test(fold(message.conversation_title))&&!machineProtocol(message.content);}
 function factsFrom(text){
@@ -60,7 +60,7 @@ class LocalMemory{
   // Keep procedural evidence separate from personal facts/conversation recall.
   // Never save typed payloads, coordinates, screenshots or old approvals here.
   const clean=value=>redact(String(value||'')).replace(/https?:\/\/[^\s]+/g,raw=>{try{return new URL(raw).origin;}catch{return '[bağlantı]';}}).slice(0,180);
-  const steps=(task.steps||[]).slice(-24).map(s=>({action:s.action,target:s.target?{title:clean(s.target.title),name:clean(s.target.name),automationId:clean(s.target.automationId),type:s.target.type}:null,...(s.keys?{keys:s.keys}:{}),...(s.destination?{destination:clean(s.destination)}:{}),...(s.characters?{characters:s.characters,replace:!!s.replace,submit:!!s.submit}:{}),outcome:s.outcome||'not_verified',elapsedMs:s.elapsedMs||0}));
+  const steps=(task.steps||[]).slice(-24).map(s=>({action:s.action,target:s.target?{title:clean(s.target.title),name:clean(s.target.name),automationId:clean(s.target.automationId),type:s.target.type}:null,...(s.toolName?{toolName:s.toolName}:{}),...(s.keys?{keys:s.keys}:{}),...(s.destination?{destination:clean(s.destination)}:{}),...(s.characters?{characters:s.characters,replace:!!s.replace,submit:!!s.submit}:{}),outcome:s.outcome||'not_verified',elapsedMs:s.elapsedMs||0}));
   const evidence={version:1,completion:verified?'verified':task.status==='completed'?'model_reported':task.status,elapsedMs:Math.max(0,Date.now()-(task.createdAt||Date.now())-(task.idleMilliseconds||0)),blockedWrites:task.blockedWrites||0,errorCode:clean(errorCode),steps};
   this.require().prepare('INSERT INTO computer_experiences VALUES(?,?,?,?,?) ON CONFLICT(task_id) DO UPDATE SET status=excluded.status,evidence=excluded.evidence').run(task.id,clean(task.origin?.userRequest||task.goal),task.status,JSON.stringify(evidence),this.now());
  }

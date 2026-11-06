@@ -3,11 +3,12 @@ const {randomUUID}=require('node:crypto');
 const {inputSignature,repeatedWrite,noteInput,stepRecord,observeOutcome,focusedField}=require('./computer-progress.cjs');
 const {addressField,simpleNavigation}=require('./computer-navigation.cjs');
 const {watchWindow}=require('./computer-watch.cjs');
-const INPUT_ACTIONS=new Set(['click','double_click','right_click','middle_click','move','drag','scroll','keys','type','wait','focus_window','hold','move_relative','navigate']);
+const INPUT_ACTIONS=new Set(['click','double_click','right_click','middle_click','move','drag','scroll','keys','type','wait','focus_window','hold','move_relative','navigate','browser_tool']);
+function browserTask(request){return /https?:\/\/|www\.|chrome|tarayıcı|internet|\bweb\b|site(?:yi|ye|de|den|si)?\b|sekme|sayfa|\burl\b/iu.test(request)&&!/(?:chrome|tarayıcı).{0,30}(?:kaldır|yükle|kurulum|uninstall|install)/iu.test(request);}
 function parseAction(text){
  const source=String(text||'').trim().replace(/^```(?:json)?\s*|\s*```$/gi,'');let value;
  try{value=JSON.parse(source);}catch{throw Error('Model bilgisayar işlemini geçerli biçimde yanıtlamadı. Başka bir model seçip yeniden deneyebilirsiniz.');}
- if(!value||typeof value!=='object'||Array.isArray(value)||!['done','ask','confirm','observe','watch',...INPUT_ACTIONS].includes(value.action))throw Error('Model desteklenmeyen bir bilgisayar işlemi istedi.');
+ if(!value||typeof value!=='object'||Array.isArray(value)||!['done','ask','confirm','observe','watch','browser_start','browser_desktop','browser_tools','browser_result',...INPUT_ACTIONS].includes(value.action))throw Error('Model desteklenmeyen bir bilgisayar işlemi istedi.');
  if(value.action==='done'&&!value.message&&typeof value.summary==='string'&&value.summary.trim())value.message=value.summary;
  if(['done','ask'].includes(value.action)&&(!value.message||typeof value.message!=='string'))throw Error('Modelin görev açıklaması eksik.');
  if(value.action==='focus_window'&&!Number.isInteger(value.windowHandle))throw Error('focus_window için güncel observation.windows listesinden windowHandle gerekli. Önceki adım kaydını kopyalama; sonraki gerçek işlemi seç.');
@@ -15,7 +16,7 @@ function parseAction(text){
 }
 function visionModel(model){return (model.categories||[]).some(c=>/^(vision|multimodal|image[-_ ]to[-_ ]text|görsel anlama)$/i.test(typeof c==='string'?c:c?.name||c?.slug||''));}
 class ComputerAgent{
- constructor({control,api,memory,publish=()=>{},onStart=()=>{},onFinish=()=>{},verifyCompletion=async()=>null,onObservation=()=>{},sessionContext=()=>null,now=()=>Date.now(),delay=ms=>new Promise(r=>setTimeout(r,ms))}){Object.assign(this,{control,api,memory,publish,onStart,onFinish,verifyCompletion,onObservation,sessionContext,now,delay});this.task=null;this.sequence=0;this.inputDrain=Promise.resolve();}
+ constructor({control,browser=null,api,memory,publish=()=>{},onStart=()=>{},onFinish=()=>{},verifyCompletion=async()=>null,onObservation=()=>{},sessionContext=()=>null,now=()=>Date.now(),delay=ms=>new Promise(r=>setTimeout(r,ms))}){Object.assign(this,{control,browser,api,memory,publish,onStart,onFinish,verifyCompletion,onObservation,sessionContext,now,delay});this.task=null;this.sequence=0;this.inputDrain=Promise.resolve();}
  state(){const task=this.task;return task?{id:task.id,status:task.status,goal:task.goal,origin:task.origin||null,step:task.steps.length,message:task.message||'',requiresInput:task.requiresInput||null}:null;}
  check(task){if(this.task!==task||task.sequence!==this.sequence||task.epoch!==this.memory.epoch||!this.control.enabled)throw Error('Bilgisayar görevi durduruldu.');}
  emit(){this.publish({event:'computer-task',task:this.state()});}
@@ -24,11 +25,11 @@ class ComputerAgent{
   if(!this.control.enabled)throw Error('Ayarlar bölümünden bilgisayar kontrolünü açın.');
   if(typeof goal!=='string'||!goal.trim()||goal.length>12000||!model?.id||!['PERSONAL','SUBSCRIPTION'].includes(model.source))throw Error('Görev veya seçilen model geçersiz.');
   if(origin&&(typeof origin.userRequest!=='string'||!origin.userRequest.trim()))throw Error('Asıl kullanıcı isteği doğrulanamadı.');
-  const task=this.task={id:randomUUID(),sequence:++this.sequence,epoch:this.memory.epoch,goal:goal.trim(),model,origin,steps:[],status:'running',createdAt:this.now(),recoveries:0,messageTimes:[],lastRun:null,selectedDisplay:null};
-  this.memory.archiveConversation({id:task.id,title:goal.slice(0,100),localSource:'computer'},[{id:randomUUID(),role:'user',content:goal}]);
+  const task=this.task={id:randomUUID(),sequence:++this.sequence,epoch:this.memory.epoch,goal:goal.trim(),model,origin,mode:this.browser&&(origin?.executor==='browser'||!origin?.executor&&(browserTask(origin?.userRequest||goal)||browserTask(goal)))?'browser':'desktop',steps:[],status:'running',createdAt:this.now(),recoveries:0,messageTimes:[],lastRun:null,selectedDisplay:null};
+  this.browser?.beginTask?.();this.memory.archiveConversation({id:task.id,title:goal.slice(0,100),localSource:'computer'},[{id:randomUUID(),role:'user',content:goal}]);
   this.memory.log('computer-task',goal,{status:'running',details:{taskId:task.id}});return task.work=this.loop(task,true);
  }
- drainInput(){const current=this.control.stop();this.inputDrain=Promise.all([this.inputDrain,current]).then(()=>{});return this.inputDrain;}
+ drainInput(){const current=this.control.stop(),browser=this.browser?.stop();this.inputDrain=Promise.all([this.inputDrain,current,browser]).then(()=>{});return this.inputDrain;}
  async pause(){
   const task=this.task;if(!task||!['running','question','confirmation','permission'].includes(task.status))return this.state();
   const sequence=++this.sequence,drained=this.drainInput();task.pauseStartedAt=this.now();task.pausedStatus=task.status;task.pausedMessage=task.message;task.status='paused';task.message='Durdum. Devam et dediğinde güncel ekranla sürdüreceğim.';this.emit();this.memory.log('computer-task',task.message,{status:'paused',details:{taskId:task.id}});
@@ -63,8 +64,8 @@ class ComputerAgent{
   }
  }
  recover(task,error){
-  this.check(task);if(!['PLANNER_INVALID','NATIVE_FOCUS_CHANGED','NATIVE_WINDOW_UNAVAILABLE'].includes(error.code)||task.recoveries>=2)return false;
-  task.recoveries++;task.forceImage=true;task.feedback='Önceki işlem uygulanmadı: '+error.message+'. Güncel gözlemi incele; geçerli tek bir işlem seç. Başarı iddia etme.';
+  this.check(task);if(!['PLANNER_INVALID','NATIVE_FOCUS_CHANGED','NATIVE_WINDOW_UNAVAILABLE','BROWSER_TOOL_FAILED'].includes(error.code)||task.recoveries>=2)return false;
+  task.recoveries++;task.forceImage=true;task.feedback=(error.code==='BROWSER_TOOL_FAILED'?'Önceki Chrome işlemi kısmen uygulanmış olabilir. Tekrar etmeden güncel sonucu incele: ':'Önceki işlem uygulanmadı: ')+error.message+'. Güncel gözlemi incele; geçerli tek bir işlem seç. Başarı iddia etme.';
   task.message='Ekran değişti; yeniden inceleniyor…';this.emit();return true;
  }
  complete(task,message,verified=false){this.check(task);task.status='completed';task.message=message;this.memory.archiveConversation({id:task.id,title:task.goal.slice(0,100),localSource:'computer'},[{id:randomUUID(),role:'assistant',content:message}]);this.memory.log('computer-task',message,{details:{taskId:task.id,steps:task.steps.length,verified}});this.memory.saveComputerExperience?.(task,{verified});this.emit();this.onFinish();return this.state();}
@@ -77,8 +78,8 @@ class ComputerAgent{
    if(start){task.initialCompletion=await this.verifyCompletion(task);this.check(task);if(task.initialCompletion?.verified===true)return this.complete(task,task.initialCompletion.message,true);await this.onStart();this.check(task);this.emit();}
    if(!task.conversation){const created=await this.api('/site/chat/conversations',{source:task.model.source,modelId:task.model.id,title:'Umay bilgisayar görevi: '+task.goal.slice(0,110),requestId:randomUUID()});this.check(task);task.conversation=created.conversation;}
    while(task.steps.length<120&&this.now()-task.createdAt-(task.idleMilliseconds||0)<30*60000){
-    this.check(task);task.message='Ekran inceleniyor…';this.emit();
-    let observed;try{observed=await this.control.observe({image:visionModel(task.model),preferText:view=>!task.forceImage&&simpleNavigation(task.origin?.userRequest||task.goal)&&!!addressField(view)});}catch(error){if(this.recover(task,error))continue;throw error;}this.check(task);observeOutcome(task,observed);if(task.steps.length)this.memory.saveComputerExperience?.(task);this.onObservation(task,observed);
+    this.check(task);task.message=task.mode==='browser'?'Chrome sayfası inceleniyor…':'Ekran inceleniyor…';this.emit();
+    let observed;try{observed=task.mode==='browser'?await this.browser.observe({image:!!task.forceImage&&visionModel(task.model)}):await this.control.observe({image:visionModel(task.model),preferText:view=>!task.forceImage&&simpleNavigation(task.origin?.userRequest||task.goal)&&!!addressField(view)});}catch(error){if(this.recover(task,error))continue;throw error;}this.check(task);observeOutcome(task,observed);if(task.steps.length)this.memory.saveComputerExperience?.(task);this.onObservation(task,observed);
     const images=observed.screenshots;
     const selected=images.find(s=>s.displayId===task.selectedDisplay)||images.find(s=>observed.elements.some(e=>{const p=this.control.screen.screenToDipPoint?.({x:Math.round(e.bounds.x+e.bounds.width/2),y:Math.round(e.bounds.y+e.bounds.height/2)})||e.bounds;return this.control.screen.getDisplayNearestPoint?.(p)?.id==s.displayId;}))||images[0];
     task.inspectedDisplays??=new Set();if(selected&&visionModel(task.model))task.inspectedDisplays.add(selected.displayId);
@@ -88,7 +89,16 @@ class ComputerAgent{
     else prompt.capabilities.navigation={action:'navigate',url:'full HTTP/HTTPS URL',effect:'Focus the actual browser address bar, replace its content once, submit with Enter, then re-observe. Prefer this single operation for visiting a site.'};
     prompt.experience=(this.memory.computerExperience?.(task.origin?.userRequest||task.goal)||[]).filter(e=>e.taskId!==task.id);
     prompt.inputRules={type:'Appends by default. Never type the same text again if already sent. Use replace:true only on a freshly focused Edit field to select all and replace. submit:true presses Enter after typing. Check the next observation to verify submission.',repeat:'If a write is blocked, inspect the field and choose the missing next action, e.g. Enter; never keep typing the URL.'};
+    if(this.browser){
+     if(task.mode==='browser'){
+      prompt.capabilities={actions:['browser_tool','browser_tools','browser_result','browser_desktop','done','ask','confirm'],browser:this.browser.capabilities()};prompt.observation.browser=observed.browser;
+      delete prompt.inputRules;
+     }else{prompt.capabilities.actions=prompt.capabilities.actions.filter(a=>!['navigate','browser_tool'].includes(a));prompt.capabilities.actions.push('browser_start');prompt.capabilities.browserAvailable=true;delete prompt.capabilities.navigation;}
+    }
     task.feedback=null;
+    while(JSON.stringify(prompt).length>11200&&prompt.observation.browser?.pages.length>6)prompt.observation.browser.pages.pop();
+    while(JSON.stringify(prompt).length>11000&&prompt.observation.browser?.snapshot.length>700)prompt.observation.browser.snapshot=prompt.observation.browser.snapshot.slice(0,-400);
+    while(JSON.stringify(prompt).length>11500&&prompt.capabilities.browser?.tools.length>2)prompt.capabilities.browser.tools.pop();
     while(JSON.stringify(prompt.experience).length>2200&&prompt.experience.length)prompt.experience.pop();
     while(JSON.stringify(prompt).length>11900&&prompt.experience.length)prompt.experience.pop();
     while(JSON.stringify(prompt).length>11200&&prompt.observation.elements.length>5)prompt.observation.elements.pop();
@@ -109,6 +119,36 @@ class ComputerAgent{
     const detail=await this.api('/site/chat/conversations/'+task.conversation.id);this.check(task);task.conversation=detail.conversation;if(retryPlanner)continue;
     const response=terminal.assistantMessageId?detail.messages.find(m=>m.id===terminal.assistantMessageId&&String(m.role).toLowerCase()==='assistant'):[...detail.messages].reverse().find(m=>String(m.role).toLowerCase()==='assistant');let action;try{action=parseAction(response?.content);}catch(error){error.code='PLANNER_INVALID';if(this.recover(task,error))continue;throw error;}
     task.message=String(action.summary||'İşlem uygulanıyor…').slice(0,500);this.emit();
+    if(this.browser&&['browser_start','browser_desktop','browser_tools','browser_result','browser_tool','navigate'].includes(action.action)){
+     if(action.action==='browser_start'||action.action==='browser_desktop'){
+      task.mode=action.action==='browser_start'?'browser':'desktop';task.forceImage=false;task.steps.push({action:action.action,summary:task.message,outcome:'executor_changed'});continue;
+     }
+     if(action.action==='browser_result'){
+      try{task.feedback='Chrome MCP result excerpt: '+JSON.stringify(this.browser.readResult(action.toolArguments));}catch(error){if(this.recover(task,error))continue;throw error;}
+      task.steps.push({action:'browser_result',outcome:'mcp_result_read'});continue;
+     }
+     if(action.action==='browser_tools'){
+      try{task.feedback='Chrome tool schema: '+JSON.stringify(this.browser.describe(action.toolName));}catch(error){if(this.recover(task,error))continue;throw error;}
+      task.steps.push({action:'browser_tools',toolName:action.toolName,outcome:'schema_read'});continue;
+     }
+     if(task.mode!=='browser'&&action.action!=='navigate'){const error=Object.assign(Error('Web işlemi için önce browser_start ile Chrome MCP’ye geç.'),{code:'PLANNER_INVALID'});if(this.recover(task,error))continue;throw error;}
+     const began=this.now();let result;
+     try{
+      if(action.action==='navigate'){task.mode='browser';observed=await this.browser.observe();action={action:'browser_tool',summary:task.message,toolName:'navigate_page',toolArguments:JSON.stringify({url:action.url,pageId:observed.browser.pageId,timeout:15000})};}
+      this.check(task);result=await this.browser.perform(action,observed.id);
+     }catch(error){if(this.recover(task,error))continue;throw error;}
+     this.check(task);task.recoveries=0;task.forceImage=action.toolName==='take_screenshot';if(action.toolName==='wait_for')task.idleMilliseconds=(task.idleMilliseconds||0)+Math.max(0,this.now()-began);
+     task.steps.push({action:'browser_tool',toolName:result.toolName,summary:task.message,outcome:result.outcome,elapsedMs:this.now()-began,target:{title:observed.title,type:'ChromeMcpPage'}});
+     this.memory.log('browser-tool',task.message,{details:{taskId:task.id,step:task.steps.length,tool:result.toolName,elapsedMs:this.now()-began}});continue;
+    }
+    if(task.mode==='browser'&&action.action==='observe'){
+     const error=Object.assign(Error('Chrome sayfası zaten observation.browser.snapshot içinde güncel. Gözlem döngüsü yapma; browser_tool ile gerçek işlemi uygula. Görsel gerekirse MCP take_screenshot aracını kullan.'),{code:'PLANNER_INVALID'});if(this.recover(task,error))continue;throw error;
+    }
+    if(task.mode==='browser'&&!['done','ask','confirm'].includes(action.action)){const error=Object.assign(Error('Web sayfasında Windows girişleri kullanılamaz. Geçerli bir browser_tool seç; yalnız Windows dosya penceresi gibi masaüstü işleri için browser_desktop kullan.'),{code:'PLANNER_INVALID'});if(this.recover(task,error))continue;throw error;}
+    const keys=action.keys?.map(k=>String(k).toUpperCase())||[],osShortcut=keys.some(k=>['WIN','META'].includes(k))||keys.includes('ALT')&&keys.some(k=>['TAB','F4'].includes(k));
+    if(this.browser&&task.mode==='desktop'&&/ - (?:Google )?Chrome$/i.test(observed.title)&&INPUT_ACTIONS.has(action.action)&&!['focus_window','wait'].includes(action.action)&&!osShortcut){
+     task.mode='browser';task.feedback='Chrome üzerinde Windows girişi uygulanmadı. Web işlemlerini yalnız Chrome MCP browser_tool ile yap; güncel sekme ve sayfa öğelerini incele.';task.steps.push({action:'browser_start',outcome:'native_browser_input_redirected'});continue;
+    }
     if(action.action==='watch'){
      task.message='Uygulamadaki ilerlemeyi izliyorum. Dur diyerek ara verebilirsin.';this.emit();const began=this.now();let result;
      try{result=await watchWindow(action,observed,{read:handle=>this.control.inspectWindow(handle),check:()=>this.check(task),now:this.now,delay:this.delay});}catch(error){if(this.recover(task,error))continue;throw error;}finally{task.idleMilliseconds=(task.idleMilliseconds||0)+Math.max(0,Math.min(this.now(),task.pauseStartedAt??this.now())-began);}
@@ -146,9 +186,9 @@ class ComputerAgent{
    throw Error('Görev adım veya süre sınırına ulaştı. Son yapılanlar işlem günlüğüne kaydedildi.');
   }catch(error){
    if(task.sequence===this.sequence&&task.epoch===this.memory.epoch&&['NATIVE_ELEVATION_REQUIRED','NATIVE_INPUT_DENIED'].includes(error.code)){task.status='permission';task.message='Bu işlem için Windows yönetici izni gerekiyor. Onayladıktan sonra aynı göreve devam edeceğim.';task.requiresInput={reason:error.message};this.emit();this.onFinish();return this.state();}
-   if(task.sequence===this.sequence&&task.epoch===this.memory.epoch){task.status='failed';task.message=String(error.message);this.memory.log('computer-task',task.message,{status:'failed',details:{taskId:task.id}});this.memory.saveComputerExperience?.(task,{errorCode:error.code||error.message});this.emit();}
+   if(task.sequence===this.sequence&&task.epoch===this.memory.epoch){task.status='failed';task.message=error.code==='BROWSER_TOOL_FAILED'?'Chrome işlemi tamamlanamadı. Sayfadaki durumu kontrol edip yeniden deneyebilirsin.':String(error.message);this.memory.log('computer-task',task.message,{status:'failed',details:{taskId:task.id,errorCode:error.code||null}});this.memory.saveComputerExperience?.(task,{errorCode:error.code||error.message});this.emit();}
    if(this.task===task&&task.sequence===this.sequence)this.onFinish();return this.state();
   }
  }
 }
-module.exports={ComputerAgent,parseAction,visionModel};
+module.exports={ComputerAgent,parseAction,visionModel,browserTask};

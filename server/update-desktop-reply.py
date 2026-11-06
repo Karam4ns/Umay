@@ -30,7 +30,7 @@ if sys.argv[1] in ['prepare','prepare-worker']:
   for name in ['patch-desktop-reply.cjs','desktop-reply.cjs']:(directory/name).write_bytes((stage/name).read_bytes())
   (directory/'apply.cjs').write_text("const fs=require('fs'),{patchDesktopReply}=require('/tmp/umay-reply/patch-desktop-reply.cjs');const f='/app/apps/api/dist/chat-execution.js';fs.writeFileSync(f,patchDesktopReply(fs.readFileSync(f,'utf8'),{worker:"+str(kind=='chat-worker').lower()+"}));require(f);console.log('PASS execution overlay loaded');")
   (directory/'Dockerfile').write_text('FROM '+baseline[kind]['Image']+'\nCOPY --chown=node:node patch-desktop-reply.cjs desktop-reply.cjs apply.cjs /tmp/umay-reply/\nCOPY --chown=node:node desktop-reply.cjs /app/apps/api/dist/desktop-reply.cjs\nRUN node /tmp/umay-reply/apply.cjs\n')
-  tag='veriussu-umay-reply-'+kind+':0.5.2';subprocess.run(['docker','build','--pull=false','-t',tag,str(directory)],check=True)
+  tag='veriussu-umay-reply-'+kind+':0.6.0';subprocess.run(['docker','build','--pull=false','-t',tag,str(directory)],check=True)
   image=out(['docker','image','inspect','--format','{{.Id}}',tag]);(directory/'candidate-image').write_text(image)
   green=check(image,root,kind,'candidate')
   if green.returncode or 'PASS' not in green.stdout:raise RuntimeError('Candidate failed: '+str(root))

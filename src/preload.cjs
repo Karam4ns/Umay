@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('umay',{
  local:(method,input)=>ipcRenderer.invoke('local-memory',method,input),
  environment:(method,input)=>ipcRenderer.invoke('environment',method,input),
  computer:(method,input)=>ipcRenderer.invoke('computer',method,input),
+ browser:(method,input)=>ipcRenderer.invoke('browser',method,input),
  modelRoles:(method,input)=>ipcRenderer.invoke('model-roles',method,input),
  onEvent:callback=>ipcRenderer.on('event',(_event,data)=>callback(data))
 });

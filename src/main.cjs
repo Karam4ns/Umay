@@ -59,9 +59,9 @@ function trusted(event){if(event.sender!==win?.webContents)throw Error('Güvenil
 app.whenReady().then(()=>{
  site=session.fromPartition('persist:veriussu');
  if(process.platform==='win32')app.setAppUserModelId('com.veriussu.umay');
- const notify=({title,body,url})=>{if(!Notification.isSupported())return;const note=new Notification({title,body});note.on('click',()=>{if(win&&!win.isDestroyed()){win.show();win.focus();}if(url&&/^https:\/\//.test(url))void shell.openExternal(url);});note.show();};
+ const notify=({title,body,url})=>{if(!Notification.isSupported())return;const note=new Notification({title,body});note.on('click',()=>{if(win&&!win.isDestroyed()){win.show();win.focus();}if(url&&/^https:\/\//.test(url))void deviceServices?.browserAction('open-url',{url}).catch(error=>publish({event:'device-warning',message:error.message}));});note.show();};
  const computerShortcut=new ComputerShortcut(globalShortcut,()=>void deviceServices.agent.stop());
- deviceServices=new DeviceServices({native:new DesktopAccess({publish:state=>publish({event:'computer-access',state})}),directory:app.getPath('userData'),api:rawApi,screen,publish,notify,openSource:url=>shell.openExternal(url),
+ deviceServices=new DeviceServices({native:new DesktopAccess({publish:state=>publish({event:'computer-access',state})}),directory:app.getPath('userData'),api:rawApi,screen,publish,notify,openSource:url=>deviceServices.browserAction('open-url',{url}),
   encrypt:async text=>{if(!await safeStorage.isAsyncEncryptionAvailable())throw Error('Windows güvenli saklama kullanılamıyor.');return safeStorage.encryptStringAsync(text);},
   decrypt:async encrypted=>(await safeStorage.decryptStringAsync(encrypted)).result,
   defaultRoots:['desktop','documents','downloads'].map(key=>app.getPath(key)),
@@ -100,6 +100,7 @@ app.whenReady().then(()=>{
  handle('local-memory',(method,input)=>deviceServices.local(method,input));
  handle('environment',(method,input)=>deviceServices.environmentAction(method,input));
  handle('computer',(method,input)=>deviceServices.computer(method,input));
+ handle('browser',(method,input)=>deviceServices.browserAction(method,input));
  handle('model-roles',(method,input)=>deviceServices.modelRoles(method,input));
  handle('system-status',()=>systemStatus(app.getPath('userData'),require('../package.json').version));
  handle('window-action',action=>windowAction(win,action));
@@ -160,4 +161,4 @@ app.whenReady().then(()=>{
  autoUpdater.on('update-downloaded',()=>{updateReady=true;if(!running&&!computerRunning)publish({event:'update-ready'});});
  if(app.isPackaged){autoUpdater.checkForUpdatesAndNotify();setInterval(()=>autoUpdater.checkForUpdatesAndNotify(),21600000).unref();}
 });
-app.on('before-quit',()=>{browserAuth?.cancel();globalShortcut.unregisterAll();computerBar?.destroy();deviceServices?.close();if(worker)worker.kill();});app.on('window-all-closed',()=>app.quit());
+let quitting=false;app.on('before-quit',event=>{if(quitting)return;event.preventDefault();quitting=true;browserAuth?.cancel();globalShortcut.unregisterAll();void Promise.resolve(deviceServices?.shutdown()).catch(()=>{}).finally(()=>{computerBar?.destroy();if(worker)worker.kill();app.quit();});});app.on('window-all-closed',()=>app.quit());

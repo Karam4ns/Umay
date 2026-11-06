@@ -1,6 +1,6 @@
 {
   "name": "umay",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "private": true,
   "description": "Umay Windows Turkish voice assistant",
   "author": "Karam4ns",
@@ -15,10 +15,12 @@
     "prebuild:signed": "electron scripts/export-icon.cjs"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
     "electron-updater": "^6.6.2",
     "fast-xml-parser": "5.12.0"
   },
   "devDependencies": {
+    "chrome-devtools-mcp": "1.12.0",
     "electron": "^45.2.1",
     "electron-builder": "^26.18.0"
   },
@@ -43,6 +45,16 @@
       {
         "from": "runtime",
         "to": "runtime"
+      },
+      {
+        "from": "node_modules/chrome-devtools-mcp",
+        "to": "browser/chrome-devtools-mcp",
+        "filter": [
+          "build/**/*",
+          "package.json",
+          "LICENSE",
+          "THIRD_PARTY_NOTICES*"
+        ]
       }
     ],
     "win": {

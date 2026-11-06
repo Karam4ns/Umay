@@ -25,3 +25,5 @@
 
 /* Computer tasks are part of the conversation. */
 .message.computer-task{border:1px solid var(--border);background:var(--panel);padding:18px 20px;border-radius:14px;max-width:100%;white-space:normal}.computer-task>strong{color:var(--cyan);font-weight:600}.computer-task p{line-height:1.65;margin:10px 0;white-space:pre-wrap;overflow-wrap:anywhere}.computer-task-goal{color:var(--muted);font-size:12px}.computer-task .button-row{flex-wrap:wrap;gap:10px;margin-top:14px}.computer-task .button{font-size:12px}
+
+.browser-settings-card{margin-top:20px}

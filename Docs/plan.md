@@ -781,3 +781,7 @@ Gerçek kayıtlarla geçici STT iptali, eski yanıta bağlanma, teknik hafızan�
 ## [2026-11-06] Tekrar koruması, hızlı görev devri ve işlem öğrenmesi — 0.5.2
 
 Gerçek Netflix tekrar kaydı esas alınır. Sıra: gerçek kayıt → metin tekrarı/odak düzeltmesi → kısa plan aktarımı ve işlem şeması → kalıcı kaynaklı deneyim → ses gecikmesi ölçümü → gerçek Chrome kabulü → paket bütünlüğü. `Docs/computer-progress-learning.md` kapsam, kanıt ve sınırları açıklar. Deneyim hafızası model ağırlığı eğitimi değildir; güncel ekran, gerçek kullanıcı isteği ve izinler her görevde yeniden geçerlidir.
+
+## [2026-11-06] Uygulamaya kurulu Chrome MCP — 0.6.0
+
+Kullanıcının Chrome/web işlemlerinin MCP ile yapılması talebi uygulanır. Sıra: resmî MCP/SDK sürümünü sabitle ve paketle → hesaba özel görünür Chrome profili ve isteğe bağlı mevcut Chrome bağlantısı → sohbet/ses görev devrinde tarayıcı yürütücüsü → güncel sayfa/UID, izin, durdurma ve deneyim kayıtları → ayrı sunucu kabulü → gerçek bulut modelleriyle gezinme/form → paketlenmiş çalıştırıcı ve ses regresyonu → installer, son denetim ve GitHub. Ayrı kontrol sayfası eklenmez. Masaüstü yürütücüsü, varsayılan tarayıcıyla giriş ve altyapı HTTP bağlantıları korunur. Uygulama ve doğrulama ayrıntıları `Docs/chrome-mcp.md` içindedir.

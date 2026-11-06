@@ -2,9 +2,9 @@
  const $=id=>document.getElementById(id),key=m=>m?m.source+':'+m.id:'',ref=value=>{const model=models.find(m=>key(m)===value);return model?{id:model.id,source:model.source}:null;};
  let roles={chat:null,computer:null},epoch=0,request=0;
  const vision=model=>(model?.categories||[]).some(c=>/^(vision|multimodal|image[-_ ]to[-_ ]text|görsel anlama)$/i.test(typeof c==='string'?c:c?.name||c?.slug||''));
- function tab(name){const showing=name==='models';$('settings-models').hidden=!showing;$('settings-speech').hidden=showing;$('settings-models-tab').setAttribute('aria-selected',String(showing));$('settings-speech-tab').setAttribute('aria-selected',String(!showing));if(showing)void load().catch(showError);}
+ function tab(name){const showing=name==='models';$('settings-models').hidden=!showing;$('settings-speech').hidden=showing;$('settings-models-tab').setAttribute('aria-selected',String(showing));$('settings-speech-tab').setAttribute('aria-selected',String(!showing));if(showing)void Promise.all([load(),window.umayBrowser?.load()]).catch(showError);}
  function showError(error){$('model-roles-status').textContent=String(error.message||error).replace(/^Error invoking remote method '[^']+': (?:Error: )?/,'');}
- function detail(role){const model=models.find(m=>key(m)===$('role-'+role).value);$('role-'+role+'-detail').textContent=!model?'Bir model seç.':role==='computer'?(vision(model)?'Ekran görüntüsü, fare ve klavye ile çalışır.':'Bu model görsel desteklemiyor. Yalnızca Windows erişilebilirlik bilgileriyle çalışır.'):(model.source==='PERSONAL'?'Kişisel modelin.':'Aboneliğine bağlı model.');}
+ function detail(role){const model=models.find(m=>key(m)===$('role-'+role).value);$('role-'+role+'-detail').textContent=!model?'Bir model seç.':role==='computer'?(vision(model)?'Ekran görüntüsü, fare ve klavye ile çalışır.':'Bu model görsel desteklemiyor. Chrome MCP ve Windows erişilebilirlik bilgileriyle çalışır.'):(model.source==='PERSONAL'?'Kişisel modelin.':'Aboneliğine bağlı model.');}
  function paint(){
   for(const role of ['chat','computer']){
    const select=$('role-'+role);select.replaceChildren(new Option('Model seç…',''));

@@ -27,7 +27,7 @@ function patchDesktopReply(source,{worker=true}={}){
                     }`);
  // Declarations are before inference/callback invocation; the callback closure
  // is only called after umayConversation/umaySpeechDraft initialize above.
- replace(': message),\n                        stream: streamingEnabled,',`: message).concat(umayConversation ? [{role:"system",content:desktop_reply_1.replyInstructions}] : []),
+ replace(': message),\n                        stream: streamingEnabled,',`: message).concat(umayConversation ? [{role:"system",content:desktop_reply_1.replyInstructions+(desktop_reply_1.browserEnabled(run.media_options)?"\\n"+desktop_reply_1.browserReplyInstructions:"")}] : []),
                         stream: streamingEnabled,`);
  replace('...(toolRecovery || textOnly ? { tool_choice: "none" } : {}),','...(toolRecovery || textOnly ? { tool_choice: "none" } : {}),\n                        ...(umayConversation && !socialQuestion && desktopTools ? desktop_reply_1.toolOptions : {}),');
  replace('if (knownOptions?.effort === "low")\n                    reasoningEffort = "low";',`if (knownOptions?.effort === "low")
@@ -42,7 +42,7 @@ function patchDesktopReply(source,{worker=true}={}){
  // Start with the explicit contract plus strict parsing; use schema mode only
  // for the single bounded repair, preserving native streaming on the fast path.
  replace('...(structuredAnswer\n                            ? { response_format:', '...((structuredAnswer || umayConversation && desktopRepair > 0)\n                            ? { response_format:');
- replace('max_tokens: responseBudget,','max_tokens: responseBudget,\n                        ...(isDesktop ? desktop_reply_1.plannerOptions(optionKey) : {}),');
+ replace('max_tokens: responseBudget,','max_tokens: responseBudget,\n                        ...(isDesktop ? desktop_reply_1.plannerOptions(optionKey, messages.at(-1)?.content) : {}),');
  replace('// Clear previous tool/partial attempts before processing another round.','// Clear previous tool/partial attempts before processing another round.\n                    await draftWrite;');
  replace('const text = (isDesktop || desktop_context_1.desktopChatTask(message?.content, run.media_options)) ?', 'const text = (isDesktop || umayConversation || desktop_context_1.desktopChatTask(message?.content, run.media_options)) ?');
  replace('const message = result.choices?.[0]?.message;',`let message = result.choices?.[0]?.message;
@@ -56,7 +56,7 @@ function patchDesktopReply(source,{worker=true}={}){
                     answer = umayConversation ? (desktop_reply_1.publicReply(text) ?? text) : text;
                     {`);
  source=source.replaceAll('desktop_context_1.desktopChatTask(', 'desktop_reply_1.plannedTask(');
- source=source.replaceAll('desktop_context_1.computerInstructions', '(desktop_context_1.computerInstructions + "\\n" + desktop_reply_1.progressInstructions)');
+ source=source.replaceAll('desktop_context_1.computerInstructions', 'desktop_reply_1.plannerInstructions(desktop_context_1.computerInstructions, messages.at(-1)?.content)');
  return source;
 }
 module.exports={patchDesktopReply};

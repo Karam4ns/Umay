@@ -452,3 +452,18 @@ Detaylar ve dış model/Windows/çoklu monitör test sınırları computer-model
 - [x] İzole HTTP/PostgreSQL kabulü sonrası iki worker; mevcut portlar/ortam/mount'lar ve model rolleri korundu.
 - [x] 0.5.2 final kurulumunun 44 kaynak/native/konuşma karşılaştırması, paket üzerinden gerçek Windows testi, dağıtılan Python ile STT karşılaştırması, installer SHA512/uzunluğu ve son rapor.
 - [ ] Seçili sağlayıcılarda anlık denebilecek model yanıtı ve geniş çok uygulamalı performans kabulü; 29–31 saniyelik tek URL testi bu ölçütü karşılamıyor.
+
+## [2026-11-06] Chrome MCP — 0.6.0
+
+- [x] Resmî Chrome DevTools MCP 1.12.0 ve SDK 1.32.2'yi sabitle; Node/npm istemeyen paket çalışma ortamı.
+- [x] Hesaba özel kalıcı görünür Chrome profili; Ayarlar/Modeller içinde mevcut Chrome bağlantısı ve bağlantı denetimi.
+- [x] Aynı yazılı/sesli sohbetten gerçek MCP araçları; web/masaüstü devri, güncel öğe/sekme doğrulaması, sayfalı sonuçlar ve tekrar yazma koruması.
+- [x] Durdur/hesap/kapanış yaşam döngüsü ve MCP yardımcısının çıkışı; mevcut izin ve işlem deneyimi kayıtları.
+- [x] 211 Node +60 Python testi; gerçek MCP/Chrome, ajan durdurma ve Electron ayarlar testleri.
+- [x] İzole sunucu HTTP/PostgreSQL kabulü; iki worker'a tarayıcıya özel planlayıcı ve yetenek bazlı şema. Mevcut port/ortam/model rolleri korunur.
+- [x] Gerçek seçili Alfa1.2/Qwen3-VL ile Netflix ve form doldur/tıkla/geri oku. Windows giriş erişimi sıfır; toplam süreler 25,0/34,7 saniye.
+- [x] Son pakette 47 kaynak, native/konuşma ve 361 MCP dosyasının doğrulanması; çalışma klasörü dışında gerçek Umay.exe ile MCP/Chrome kabulü.
+- [x] Gerçek STT→sohbet→görev devri→TTS regresyonu; mikrofon açık, kontrollü yanıttan ilk ses 128 ms / çalma 205 ms.
+- [x] Son kaynak SHA256/izole HTTP/DB denetimi; iki worker ve 10203 sağlıklı, diğer API/public dosyaları aynı. Geçici doğrulama oturumu iptal edildi.
+- [x] 0.6.0 installer, blockmap, SHA512/uzunluk denetimi ve yerel teslim; ayrıntılar `Docs/chrome-mcp.md` içinde.
+- [x] Kaynak ve doğrulama belgelerinin GitHub teslimi: `codex/computer-model-roles` dalı.

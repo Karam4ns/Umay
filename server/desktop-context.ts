@@ -36,7 +36,8 @@ export function desktopChatTask(value: unknown, options: Record<string, unknown>
   try {
     const item = JSON.parse(value.trim().replace(/^```(?:json)?\s*|\s*```$/gi, ""));
     if (item?.umayComputerTask !== 1 || typeof item.goal !== "string" || !item.goal.trim() || item.goal.length > 6000 || typeof item.acknowledgement !== "string" || item.acknowledgement.length > 500) return null;
+    if (item.executor !== undefined && !['browser','desktop','mixed'].includes(item.executor)) return null;
     if (item.plan !== undefined && (!Array.isArray(item.plan) || item.plan.length > 6 || item.plan.some((s: unknown) => typeof s !== 'string' || !s.trim() || s.length > 180))) return null;
-    return {version: 1, goal: item.goal.trim(), acknowledgement: item.acknowledgement.trim() || "Bilgisayarında bu görev için çalışıyorum.", ...(item.plan ? {plan: item.plan} : {})};
+    return {version: 1, goal: item.goal.trim(), acknowledgement: item.acknowledgement.trim() || "Bilgisayarında bu görev için çalışıyorum.", ...(item.plan ? {plan: item.plan} : {}), ...(item.executor ? {executor: item.executor} : {})};
   } catch { return null; }
 }

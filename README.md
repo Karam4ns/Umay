@@ -40,11 +40,25 @@ GitHub bağlantısı `.github/workflows` yazmasını reddettiği için Actions h
 4. Kulaklıkla konuşmayı başlatın veya yazılı soru gönderin. Mikrofon iznini verin.
 5. MP3 seçerek klon profil oluşturun, sesi seçin ve önizleyin.
 
-İndirmeler/yerel modeller kullanıcı AppData alanında; sohbet/hafıza veriussu.com'dadır.
+İndirmeler/yerel modeller kullanıcı AppData alanındadır. Merkezi sohbet/hafıza
+Veriüssü'den gelir; hesaba özel yerel arşiv ve işlem deneyimi de tutulur.
 “Çıkış yap” Umay oturumunu temizler ve varsayılan tarayıcıda Veriüssü çıkış onayı açar.
 Tarayıcıdaki Veriüssü oturumunu da kapatmak için bu onayı tamamlayın.
-Hafıza çıkarımı mevcut sunucunun ChatMemory iş kuyruğu ve kullanıcının hafıza ayarlarıyla
-yürür; istemci ikinci bir hafıza DB'si oluşturmaz.
+Merkezi hafıza çıkarımı sunucunun ChatMemory iş kuyruğu ve kullanıcının hafıza
+ayarlarıyla yürür. Yerel hafıza ve işlem kayıtları için `Docs/device-features.md`
+ve `Docs/computer-progress-learning.md` dosyalarına bakın.
+
+### Chrome MCP (0.6.0)
+
+Web görevleri normal yazılı/sesli sohbetten Chrome DevTools MCP ile yürür.
+Chrome cihazda kurulu olmalıdır; MCP, SDK ve çalışma ortamı installer'a dahildir,
+son kullanıcı Node.js/npm kurmaz. İlk web görevinde Umay'a ait görünür ve kalıcı
+Chrome profili açılır. Bu profilde sitelerinize giriş yapabilirsiniz.
+**Ayarlar → Modeller → Chrome MCP** bölümünde bağlantıyı deneyebilir veya mevcut
+Chrome oturumuna bağlanmayı seçebilirsiniz. İkinci seçenek Chrome 144+ içinde
+`chrome://inspect/#remote-debugging` ve Chrome'un bağlantı onayını gerektirir.
+Hesap bağlama sistemin varsayılan tarayıcısında kalır. Tarayıcı görevleri, izinler,
+durdurma, paket ve gerçek model testleri: `Docs/chrome-mcp.md`.
 
 Varsayılan tarayıcı girişi için `server/desktop-auth.controller.ts` ve
 `server/desktop-auth-policy.ts` sunucu API'sine eklenir; `DesktopAuthController`
