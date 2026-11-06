@@ -487,3 +487,10 @@ Detaylar ve dış model/Windows/çoklu monitör test sınırları computer-model
 - [x] Gerçek Netflix: devir 614 ms / toplam 9.283 ms; genel form: 28.741 ms. Yerel soğuk/açık/kapalı Chrome, gerçek Windows/F8 ve ses regresyonları. Bulut masaüstü testindeki odak sınırı ayrıca kayıtlıdır.
 - [x] Son 49 kaynak/native/konuşma ve 361 MCP dosyası eşleşmesi; proje dışında gerçek exe ile Chrome yenileme ve sıfır planlayıcı turlu gezinme.
 - [x] Son installer SHA512/boyut ve GitHub teslimi (`codex/computer-model-roles`); `Docs/control-performance.md` içinde kayıtlıdır.
+
+## [2026-11-06] Örneklerden bağımsız genel kontrol kapsamı
+
+- [x] Kullanıcının düzeltmesini bağlayıcı kapsam olarak kaydet: site/uygulama/dosya adları sınır değildir.
+- [x] Mevcut kontrol altyapısıyla eksikleri ayır; 0.6.2'nin basit testlerini genel başarı gibi sunma.
+- [x] Genel ve birleşik görev, dosya/aygıt, uygulama kurulumu/yönetimi, yönetici ve p50/p95 performans kabul matrisini yaz: `Docs/general-assistant-scope.md`.
+- [ ] Görev güvenilirliği → genel araç sözleşmesi/işlem grupları → dosya/uygulama araçları → çapraz yürütücü kabulü → kullanıcı yetkilendirmeli yönetici aracısı → geniş performans kabulü sırasını uygula.

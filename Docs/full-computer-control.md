@@ -1,5 +1,7 @@
 # Sesle genel bilgisayar kullanımı — tasarım ve uygulama planı
 
+> 6 Kasım kapsam teyidi: örnek isimler/komutlar ürün sınırı değildir. Genel web, uygulama, dosya/aygıt, birleşik görev, yönetici ve hız kabul çerçevesi: `Docs/general-assistant-scope.md`. Önceki birkaç başarılı senaryo genel kapsamın tamamlandığı anlamına gelmez.
+
 > Uygulama: `superpowers:executing-plans` ile bu oturumda sırayla; her davranış için RED→GREEN testi ve sonunda bağımsız bütün değişiklik incelemesi.
 
 **Goal:** Kullanıcı normal sohbette sesli/yazılı talimat verir; Umay uygulama listelerine bağlı kalmadan ekranı inceleyip gerçek Windows fare/klavye girişleriyle çalışır, kullanıcı işlemleri canlı görür ve yerel durdurma komutu model yanıtını beklemez.

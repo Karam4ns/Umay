@@ -793,3 +793,7 @@ Son iki gerçek Netflix görevinin ilk gözlemde başarısız olması incelenir.
 ## [2026-11-06] Chrome ve bilgisayar kontrol hızlandırması — 0.6.2
 
 Önce model, kuyruk, gözlem ve giriş sürelerini ayır. Kesin bağımsız site açma isteğinde model beklemeden mevcut görev devri ve doğrulanmış MCP gezinmesi; genel görevlerde daha kısa yönlendirme, kullanılmayan hafıza aramasının kaldırılması ve erişilebilir arayüzde önce metin. Gerçek pencere kimliği, tek işlem, görsele dönüş, izin, durdurma ve tekrar koruması korunur. İzole HTTP/DB → gerçek Chrome/form/Windows/ses → son paket → installer/GitHub sırası ve ölçülen sınırlar `Docs/control-performance.md` içindedir.
+
+## [2026-11-06] Genel kişisel asistan kapsamının yeniden teyidi
+
+Netflix/Chrome/dosya örnekleri tekil hedefler değildir. Bütün siteler, Windows uygulamaları, yetkili disk/aygıt dosyaları ve bunların arasında kesintisiz çok adımlı işler genel kapsamdır. Hız çalışması birkaç kesin kısa yolla sınırlanmaz. Kapsam, gerçek mevcut eksikler, yönetici yetkilendirmesi ve geniş kabul matrisi `Docs/general-assistant-scope.md` dosyasına işlendi. Bu kayıtla yeni araç veya yönetici servisinin tamamlandığı iddia edilmez; sonraki uygulama sırası o belgede tanımlıdır.
