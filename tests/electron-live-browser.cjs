@@ -16,6 +16,11 @@ app.whenReady().then(async()=>{try{
  mcp.call=async(name,args,generation)=>{calls.push(name);return call(name,args,generation);};
  service=new DeviceServices({directory,api,screen,browser:mcp,background:false,native:{async request(method){nativeCalls.push(method);throw Error('Native desktop access is forbidden in the MCP acceptance test');},cancel(){},close(){}},capture:async()=>{throw Error('Native screen capture is forbidden in the MCP acceptance test');}});
  service.activate((await api('/site/auth/me')).id);const {models}=await api('/site/chat/models');
+ if(process.env.UMAY_LIVE_CHROME_RECONNECT==='1'){
+  await mcp.observe();const child=mcp.browser.child;assert.ok(child,'the disposable Chrome is owned by this test');
+  mcp.browser.close();if(child.exitCode===null)await new Promise(r=>child.once('exit',r));
+  console.log('Closed only the test-owned Chrome; the existing MCP client is intentionally retained');
+ }
  const chat=models.find(m=>m.id===(process.env.UMAY_LIVE_CHAT_MODEL_ID||'9076520e-1151-4fcc-9f5a-109f0c651bea')),computer=models.find(m=>m.id===(process.env.UMAY_LIVE_COMPUTER_MODEL_ID||'eadbac23-9cbf-4d94-9a89-13fe0bd54d97'));assert.ok(chat&&computer,'current assigned models available');console.log(JSON.stringify({chat:chat.name,computer:computer.name,categories:computer.categories}));await service.modelRoles('save',{chat,computer});
  const start=Date.now(),{conversation}=await service.siteApi('/site/chat/conversations',{source:chat.source,modelId:chat.id,title:'Umay Chrome MCP acceptance',requestId:randomUUID()});
  const request=form?fixtureUrl+' adresindeki Deneme metni alanına UMAY_CANLI_060 yaz ve Kaydet düğmesine bas. Sonucu doğrula.':'Yalnızca Umay için açılan Chrome profilinde https://www.netflix.com adresini aç. Diğer pencerelere dokunma.';

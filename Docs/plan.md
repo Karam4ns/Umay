@@ -785,3 +785,7 @@ Gerçek Netflix tekrar kaydı esas alınır. Sıra: gerçek kayıt → metin tek
 ## [2026-11-06] Uygulamaya kurulu Chrome MCP — 0.6.0
 
 Kullanıcının Chrome/web işlemlerinin MCP ile yapılması talebi uygulanır. Sıra: resmî MCP/SDK sürümünü sabitle ve paketle → hesaba özel görünür Chrome profili ve isteğe bağlı mevcut Chrome bağlantısı → sohbet/ses görev devrinde tarayıcı yürütücüsü → güncel sayfa/UID, izin, durdurma ve deneyim kayıtları → ayrı sunucu kabulü → gerçek bulut modelleriyle gezinme/form → paketlenmiş çalıştırıcı ve ses regresyonu → installer, son denetim ve GitHub. Ayrı kontrol sayfası eklenmez. Masaüstü yürütücüsü, varsayılan tarayıcıyla giriş ve altyapı HTTP bağlantıları korunur. Uygulama ve doğrulama ayrıntıları `Docs/chrome-mcp.md` içindedir.
+
+## [2026-11-06] Kapalı Chrome bağlantısının yenilenmesi — 0.6.1
+
+Son iki gerçek Netflix görevinin ilk gözlemde başarısız olması incelenir. Sıra: yerel log/sohbet → kurulu MCP'den gerçek bağlantı hatası → önce başarısız birim ve gerçek Chrome kapat/aç testi → gözlem öncesi uç nokta doğrulaması ve güvenli yardımcı yenileme → gerçek modeller ve paketlenmiş exe ile tekrar → installer ve GitHub. Ayrıntılar `Docs/chrome-reconnect-fix.md` içinde.

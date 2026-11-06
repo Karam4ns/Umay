@@ -58,3 +58,7 @@ Canlı iki worker'ın planlayıcı yardımcıları kaynak SHA256 özetiyle eşle
 `dist/Umay Setup 0.6.0.exe`: **351.717.420 bayt**, SHA256 `0ea7f5b5fee0e0fb40051f17e96d5eb08bf31dbb3baeabcc1873a37e318811c2`. Installer SHA512 ve uzunluğu `latest.yml` ile eşleşir; blockmap da üretildi. Doğrulanmış uygulama dizini `dist/chrome-mcp-0.6.0/win-unpacked`; installer bu dizinden `--prepackaged` ile üretildi. Kaynak, native ve konuşma dosyaları paketleme sonrasında tekrar karşılaştırıldı.
 
 Çalışan kullanıcı uygulaması kapatılıp kurulum kendiliğinden yapılmadı. Yeni istemci davranışı için 0.6.0 kurulmalıdır. Kaynak değişiklikleri `codex/computer-model-roles` dalına teslim edilir. Yerel installer üretimi, genel güncelleme sunucusuna yayımlandığı anlamına gelmez; bu çalışmada kurulum dosyası yerel teslim edilir.
+
+## 0.6.1 bağlantı düzeltmesi
+
+0.6.0'da Chrome kapandıktan sonra MCP'nin eski porta bağlı kalması, kullanıcının gerçek Netflix denemelerinde bulundu ve düzeltildi. Kapalı Chrome aynı hesap profiliyle yeniden açılır; bağlantı ve gözlem yenilenir. Önceki sayfa işlemi otomatik tekrarlanmaz. Güncel kurulum ve test kaydı: `Docs/chrome-reconnect-fix.md`.

@@ -467,3 +467,12 @@ Detaylar ve dış model/Windows/çoklu monitör test sınırları computer-model
 - [x] Son kaynak SHA256/izole HTTP/DB denetimi; iki worker ve 10203 sağlıklı, diğer API/public dosyaları aynı. Geçici doğrulama oturumu iptal edildi.
 - [x] 0.6.0 installer, blockmap, SHA512/uzunluk denetimi ve yerel teslim; ayrıntılar `Docs/chrome-mcp.md` içinde.
 - [x] Kaynak ve doğrulama belgelerinin GitHub teslimi: `codex/computer-model-roles` dalı.
+
+## [2026-11-06] Chrome kapat/aç regresyonu — 0.6.1
+
+- [x] Son iki Netflix isteğinde ilk gözlem hatasını doğrula; kurulu MCP'den gerçek ECONNREFUSED nedenini al.
+- [x] Önce hata veren birim ve gerçek Chrome kapat/aç testi; sonra salt okunur uç nokta yenilemesi, eski gözlemi reddetme ve işlemi tekrar etmeme.
+- [x] Başlıklı sekme listesinden gerçek URL; 215 Node testi.
+- [x] Gerçek Chrome/ajan ve seçili bulut modelleriyle kapalı Chrome'u açıp Netflix başlık/adresini doğrula; geçici oturumu iptal et.
+- [x] Son 0.6.1 paketinin kaynak/MCP bütünlüğü; proje dışında gerçek exe ile Chrome kapat/yeniden bağlan/form ve yardımcı çıkışı.
+- [x] Installer SHA512/boyut kaydı ve GitHub teslimi (`codex/computer-model-roles`); sonuçlar `Docs/chrome-reconnect-fix.md` içinde.
