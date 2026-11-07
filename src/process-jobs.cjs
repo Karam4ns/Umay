@@ -67,7 +67,7 @@ class ProcessJobs{
    context.signal?.removeEventListener('abort',abort);job.resolve();this.notify({type:'process',phase:job.state,jobId:job.id,taskId:job.taskId,exitCode:code});
   };
   const abort=()=>{void this.stop(job.id,{taskId:job.taskId}).catch(error=>{job.error={code:error.code||'PROCESS_STOP_FAILED',message:error.message};});};
-  context.signal?.addEventListener('abort',abort,{once:true});
+  job.abort=abort;job.abortSignal=context.signal;context.signal?.addEventListener('abort',abort,{once:true});
   child.once('close',(code,signal)=>finish(code,signal));
   const started=new Promise((resolve,reject)=>{child.once('spawn',resolve);child.once('error',error=>{finish(null,null,error);reject(error);});});
   if(context.signal?.aborted)abort();
@@ -81,7 +81,7 @@ class ProcessJobs{
    const deadline=Date.now()+waitMs;
    while(!job.endedAt&&Date.now()<deadline){
     let timer;await Promise.race([job.done,new Promise(resolve=>{timer=setTimeout(resolve,Math.min(100,deadline-Date.now()));})]);clearTimeout(timer);
-    try{checkContext(options);}catch(error){await this.stop(jobId,{taskId:job.taskId});throw error;}
+    try{checkContext(options);}catch(error){if(!options.preserveOnCancel?.())await this.stop(jobId,{taskId:job.taskId});throw error;}
    }
   }
   checkContext(options);return this.view(job,options);
@@ -106,6 +106,7 @@ class ProcessJobs{
    if(!job.endedAt)throw failure('Sürecin durduğu henüz doğrulanamadı.','PROCESS_STOP_UNCONFIRMED');return this.view(job);
   })();try{return await job.stopping;}finally{job.stopping=null;}
  }
+ detachTask(taskId){assertText(taskId,'taskId',{max:200});for(const job of this.jobs.values())if(job.taskId===taskId&&!job.endedAt){job.abortSignal?.removeEventListener('abort',job.abort);job.abortSignal=null;}}
  async cancelTask(taskId){assertText(taskId,'taskId',{max:200});const results=await Promise.allSettled([...this.jobs.values()].filter(j=>j.taskId===taskId&&!j.endedAt).map(j=>this.stop(j.id,{taskId})));const failed=results.find(r=>r.status==='rejected');if(failed)throw failed.reason;}
  async reset(){
   if(this.resetting)return this.resetting;

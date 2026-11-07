@@ -17,7 +17,7 @@ async function revokeSessionToken(token){
  const response=await fetch(ORIGIN+'/site/auth/logout',{method:'POST',headers:{'Origin':ORIGIN,'Content-Type':'application/json','Cookie':'veriussu_web='+token},body:'{}',signal:AbortSignal.timeout(15000),redirect:'error'});
  if(!response.ok&&response.status!==401)throw Error('Önceki oturum iptali doğrulanamadı.');
 }
-function publish(value){if(value.event==='computer-watchers'&&computerShortcut){if(value.active)computerShortcut.start();else computerShortcut.finish(deviceServices?.agent.state());}if(win&&!win.isDestroyed())win.webContents.send('event',value);if(value.event==='computer-task'&&computerBar&&!computerBar.isDestroyed())computerBar.webContents.send('task-status',value.task);}
+function publish(value){if(value.event==='computer-watchers'&&computerShortcut){if(value.active||deviceServices?.system?.parked.size)computerShortcut.start();else computerShortcut.finish(deviceServices?.agent.state());}if(win&&!win.isDestroyed())win.webContents.send('event',value);if(value.event==='computer-task'&&computerBar&&!computerBar.isDestroyed())computerBar.webContents.send('task-status',value.task);}
 function startWorker(){
  if(worker)return;
  const python=app.isPackaged?path.join(process.resourcesPath,'runtime','python.exe'):path.join(__dirname,'..','.venv','Scripts','python.exe');
@@ -78,7 +78,7 @@ app.whenReady().then(()=>{
    if(!computerBar||computerBar.isDestroyed()){const area=screen.getPrimaryDisplay().workArea;computerBar=new BrowserWindow({width:360,height:64,x:area.x+12,y:area.y+area.height-80,frame:false,resizable:false,alwaysOnTop:true,skipTaskbar:true,show:false,webPreferences:{preload:path.join(__dirname,'computer-bar-preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});computerBar.removeMenu();computerBar.loadFile(path.join(__dirname,'ui','computer-bar.html'));computerBar.webContents.on('will-navigate',e=>e.preventDefault());computerBar.webContents.setWindowOpenHandler(()=>({action:'deny'}));computerBar.once('ready-to-show',()=>{computerBar.webContents.send('task-status',deviceServices?.agent.state());computerBar.showInactive();});}else computerBar.showInactive();
    if(win&&!win.isDestroyed())win.minimize();
   },
-  onComputerFinish:()=>{computerRunning=false;computerShortcut.finish(deviceServices?.agent.state(),deviceServices?.watchers.hasActive());const task=deviceServices?.agent.state();if(computerBar&&!computerBar.isDestroyed()){if(task?.status==='paused')computerBar.showInactive();else computerBar.hide();}if(win&&!win.isDestroyed()&&['question','confirmation','failed','stopped','permission'].includes(task?.status)){win.show();win.focus();}else if(task?.status==='completed')notify({title:'Umay — Görev tamamlandı',body:task.message.slice(0,200)});},
+  onComputerFinish:()=>{computerRunning=false;computerShortcut.finish(deviceServices?.agent.state(),deviceServices?.hasBackgroundWork());const task=deviceServices?.agent.state();if(computerBar&&!computerBar.isDestroyed()){if(task?.status==='paused')computerBar.showInactive();else computerBar.hide();}if(win&&!win.isDestroyed()&&['question','confirmation','failed','stopped','permission'].includes(task?.status)){win.show();win.focus();}else if(task?.status==='completed')notify({title:'Umay — Görev tamamlandı',body:task.message.slice(0,200)});},
  });
  ipcMain.handle('computer-emergency-stop',event=>{if(event.sender!==computerBar?.webContents)throw Error('Güvenilmeyen pencere.');return deviceServices.emergencyStop();});
 
@@ -165,7 +165,7 @@ app.whenReady().then(()=>{
  });
  handle('update',async()=>{if(!app.isPackaged)return {development:true};return autoUpdater.checkForUpdates();});
  handle('busy',busy=>{running=!!busy;if(!running&&!computerRunning&&updateReady)publish({event:'update-ready'});});
- handle('restart-update',()=>{if(running||computerRunning)throw Error('Önce etkin konuşmayı veya bilgisayar görevini bitirin.');if(updateReady)autoUpdater.quitAndInstall(false,true);});
+ handle('restart-update',()=>{if(running||computerRunning||deviceServices?.hasBackgroundWork())throw Error('Önce etkin konuşmayı veya bilgisayar görevini bitirin.');if(updateReady)autoUpdater.quitAndInstall(false,true);});
  autoUpdater.autoDownload=true;autoUpdater.autoInstallOnAppQuit=true;
  autoUpdater.on('error',()=>publish({event:'update-error',message:'Güncelleme sunucusu henüz hazır değil veya paket doğrulanamadı.'}));
  autoUpdater.on('update-downloaded',()=>{updateReady=true;if(!running&&!computerRunning)publish({event:'update-ready'});});

@@ -26,7 +26,7 @@ class ComputerAgent{
   if(this.system?.stopError||this.task?.stopUnconfirmed||this.task&&['running','paused','question','confirmation','permission'].includes(this.task.status))throw Error('Önce etkin görevin girdi sahipliği bırakılmalı.');
   if((previous.watchResumes||0)>=32)throw Error('Bu işte izleme aşaması sınırına ulaşıldı. Son durumu inceleyip açıkça devam edin.');
   const task=this.task={...previous,sequence:++this.sequence,status:'running',steps:[...previous.steps],watchContinuation:watch,watchResumes:(previous.watchResumes||0)+1,feedback:'İzleme koşulu kararlı olarak gerçekleşti. Aynı asıl kullanıcı isteğinin yalnız eksik kalan adımlarını güncel hedefte tamamla; önceki yazma/gönderme/ödeme işlemlerini tekrarlama.',idleMilliseconds:(previous.idleMilliseconds||0)+Math.max(0,this.now()-(previous.watchStartedAt||this.now())),lastRun:null,recoveries:0,repeated:0,lastFingerprint:null,work:null};
-  this.suspended.delete(taskId);this.browser?.beginTask?.();this.system?.beginTask(task.id);task.work=this.loop(task,true,{refreshConversation:true});task.work.catch(()=>{});return detached?{status:'started',task:this.state()}:task.work;
+  delete task.pauseStartedAt;delete task.pausedStatus;this.inputDrain=Promise.all([this.inputDrain,Promise.resolve(previous.work).catch(()=>{})]).then(()=>{});this.suspended.delete(taskId);this.browser?.beginTask?.();this.system?.beginTask(task.id);task.work=this.loop(task,true,{refreshConversation:true});task.work.catch(()=>{});return detached?{status:'started',task:this.state()}:task.work;
  }
  check(task){if(this.task!==task||task.sequence!==this.sequence||task.epoch!==this.memory.epoch||!this.control.enabled)throw Error('Bilgisayar görevi durduruldu.');}
  emit(){this.publish({event:'computer-task',task:this.state()});}
@@ -40,10 +40,10 @@ class ComputerAgent{
   this.browser?.beginTask?.();this.system?.beginTask(task.id);this.memory.archiveConversation({id:task.id,title:goal.slice(0,100),localSource:'computer'},[{id:randomUUID(),role:'user',content:goal}]);
   this.memory.log('computer-task',goal,{status:'running',details:{taskId:task.id}});return task.work=this.loop(task,true);
  }
- drainInput(){const current=this.control.stop(),browser=this.browser?.stop(),system=this.system?.stop();this.inputDrain=Promise.all([this.inputDrain.catch(()=>{}),current,browser,system]).then(()=>{});return this.inputDrain;}
- async pause(){
+ drainInput({keepBackground=false}={}){const current=this.control.stop(),browser=keepBackground&&this.browser?.quiesce?this.browser.quiesce():this.browser?.stop(),system=this.system?.stop({includeParked:!keepBackground});this.inputDrain=Promise.all([this.inputDrain.catch(()=>{}),current,browser,system]).then(()=>{});return this.inputDrain;}
+ async pause({keepBackground=false}={}){
   const task=this.task;if(!task||!['running','watching','question','confirmation','permission'].includes(task.status))return this.state();
-  const sequence=++this.sequence,drained=this.drainInput();task.pauseStartedAt=this.now();task.pausedStatus=task.status;task.pausedMessage=task.message;task.status='paused';task.message='İşlemler duraklatılıyor…';this.emit();
+  const sequence=++this.sequence,drained=this.drainInput({keepBackground});task.pauseStartedAt=this.now();task.pausedStatus=task.status;task.pausedMessage=task.message;task.status='paused';task.message='İşlemler duraklatılıyor…';this.emit();
   try{await drained;}catch(error){this.stopFailed(task,sequence,error);throw error;}if(this.task===task&&sequence===this.sequence){task.message='Durdum. Devam et dediğinde güncel ekranla sürdüreceğim.';this.emit();this.memory.log('computer-task',task.message,{status:'paused',details:{taskId:task.id}});this.onFinish();}return this.state();
  }
  stopFailed(task,sequence,error){if(!task||this.task!==task||sequence!==this.sequence)return;task.status='paused';task.stopUnconfirmed=true;task.pausedStatus='running';task.pauseStartedAt=this.now();task.message=error.message||'İşlemin durduğu doğrulanamadı. Durdurmayı yeniden deneyin.';this.emit();this.memory.log('computer-task',task.message,{status:'error',details:{taskId:task.id,stopUnconfirmed:true}});this.onFinish();}
@@ -63,8 +63,8 @@ class ComputerAgent{
   task.userAuthorization??=[];task.userAuthorization.push({kind:task.status,answer:task.status==='question'?String(answer).slice(0,4000):null,approved:task.status==='permission'?elevated:approved,scope:task.status==='confirmation'?task.requiresInput:null});
   task.requiresInput=null;task.status='running';task.recoveries=0;task.lastFingerprint=null;task.repeated=0;return task.work=this.loop(task,true);
  }
- async stop(){
-  const task=this.task,sequence=++this.sequence,drained=this.drainInput();
+ async stop({keepBackground=false}={}){
+  const task=this.task,sequence=++this.sequence,drained=this.drainInput({keepBackground});
   const active=task&&['running','watching','paused','confirmation','question','permission'].includes(task.status);
   if(active){task.status='paused';task.message='İşlemler durduruluyor…';this.emit();}
   try{await drained;}catch(error){this.stopFailed(task,sequence,error);throw error;}

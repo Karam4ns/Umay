@@ -1,11 +1,11 @@
 (()=>{
- const $=id=>document.getElementById(id),api=window.umay,cards=new Map(),watchCards=new Map();let task=null,epoch=0,working=false,watchers=[];
+ const $=id=>document.getElementById(id),api=window.umay,cards=new Map(),watchCards=new Map();let task=null,epoch=0,working=false,watchers=[],resumeChoices=null;
  const active=new Set(['running','watching','paused','question','confirmation','permission']);
  const sameChat=value=>!value?.origin?.conversationId||value.origin.conversationId===conversation?.id;
- function pending(){return task&&sameChat(task)&&['question','confirmation','permission'].includes(task.status)?task:null;}
+ function pending(){if(resumeChoices)return {id:'watch-choice-'+epoch,status:'question',goal:'Hangi işe devam edeyim?',message:resumeChoices.map((w,i)=>(i+1)+'. '+w.goal).join('\n')+'\nSıra numarasını söyleyebilirsin.',requiresInput:{kind:'watch-choice'}};return task&&sameChat(task)&&['question','confirmation','permission'].includes(task.status)?task:null;}
  function element(tag,text,className){const node=document.createElement(tag);if(text!==undefined)node.textContent=text;if(className)node.className=className;return node;}
  function paint(value){
-  task=value;if(!value?.id||!sameChat(value))return;
+  if(value?.requiresInput?.kind!=='watch-choice')task=value;if(!value?.id||!sameChat(value))return;
   let card=cards.get(value.id);if(!card||!card.isConnected){card=element('section',undefined,'message computer-task');card.dataset.taskId=value.id;card.setAttribute('aria-label','Bilgisayar görevi');cards.set(value.id,card);$('messages').append(card);}
   const labels={running:'Bilgisayarında çalışıyorum',watching:'İşini arka planda izliyorum',paused:'Durakladım — devam etmeni bekliyorum',question:'Bir ayrıntıya ihtiyacım var',confirmation:'Bu işlem için onayın gerekiyor',permission:'Windows izni gerekiyor',completed:'Görev tamamlandı',stopped:'Görev durduruldu',failed:'Görev tamamlanamadı'};
   card.replaceChildren(element('strong',value.stopUnconfirmed?'Durdurma doğrulanamadı':labels[value.status]||'Bilgisayar görevi'),element('p',value.goal||'','computer-task-goal'),element('p',value.message||'','computer-task-progress'));
@@ -15,19 +15,23 @@
   if(value.status==='confirmation'){button('Onaylıyorum',()=>send('Onaylıyorum'),true);button('Vazgeç',()=>send('Vazgeç'));}
   if(value.status==='paused'&&!value.stopUnconfirmed)button('Devam et',()=>send('devam et'),true);
   if(value.status==='permission'){card.append(element('p','Windows yönetici onayını kendin tamamla. Erişim bu Umay oturumunda korunur; Ayarlar → Modeller üzerinden kapatabilirsin.','muted'));button('Windows yönetici erişimini aç',()=>send('Windows yönetici onayını aç'),true);button('Vazgeç',()=>send('Vazgeç'));}
-  if(active.has(value.status))button('Durdur · F8',()=>stop());
+  if(active.has(value.status))button('Durdur · F8',()=>send('dur'));
   card.append(buttons);$('input').placeholder=value.status==='question'?'Umay’ın sorusunu yanıtla…':'Umay’a bir şey sor ya da bir iş ver…';
   if(['question','confirmation','permission','failed'].includes(value.status))window.umayShell?.navigate('chat');
  }
  async function dispatch(run){const current=epoch;working=true;try{const result=await api.computer('dispatch',{runId:run.id,conversationId:conversation.id});if(current!==epoch)return null;paint(result);return result;}finally{if(current===epoch)working=false;}}
- function canControl(command){return !!task&&sameChat(task)&&(command==='resume'?task.status==='paused':active.has(task.status));}
- async function control(command,text){if(!canControl(command))return null;const current=epoch,result=await api.computer(command==='resume'?'continue':command,{id:task.id,userReply:text});if(current!==epoch)return null;paint(result);return result;}
+ const backgroundActive=()=>watchers.some(w=>['watching','ready','resuming'].includes(w.status));
+ const pausedWatches=()=>watchers.filter(w=>sameChat(w)&&['paused','expired','target-lost'].includes(w.status));
+ function canControl(command){return command==='resume'?!!task&&sameChat(task)&&task.status==='paused'||pausedWatches().length>0:!!resumeChoices||backgroundActive()||!!task&&sameChat(task)&&active.has(task.status);}
+ async function continueWatch(w){const result=await api.computer('watch-continue',{id:w.id});return result?.taskId?{id:result.taskId,status:'watching',goal:result.goal,origin:result.origin,message:result.message,watchId:result.id}:result;}
+ async function control(command,text){if(!canControl(command))return null;const current=epoch;let result;if(command==='resume'&&(!task||task.status!=='paused'||pausedWatches().some(w=>w.id===task.watchId))){const choices=pausedWatches();if(choices.length!==1){resumeChoices=choices;return pending();}result=await continueWatch(choices[0]);}else{resumeChoices=null;result=await api.computer(command==='resume'?'continue':command,{id:task?.id,userReply:text});}if(current!==epoch)return null;paint(result);return result;}
  async function answer(text){
   const waiting=pending();if(!waiting)throw Error('Yanıt bekleyen bilgisayar görevi bulunamadı.');const current=epoch;
   const folded=text.normalize('NFKD').replace(/\p{M}/gu,'').replace(/ı/g,'i').toLowerCase().replace(/[.,!?:]/g,' ').replace(/\s+/g,' ').trim();
   const yes=/^(?:evet|evet onayliyorum|tamam|onayliyorum|onay veriyorum|bu islemi onayliyorum|devam et|yap|olur|windows yonetici onayini ac|yonetici onayini ac|windows yonetici erisimini ac|yonetici erisimini ac)$/.test(folded),no=/^(?:hayir|iptal|iptal et|vazgec|dur|durdur|yapma|onaylamiyorum)$/.test(folded);
   working=true;try{
-   let result;if(no)result=await api.computer('stop',{id:waiting.id,userReply:text});
+   let result;if(waiting.requiresInput?.kind==='watch-choice'){if(no){resumeChoices=null;return {status:'paused',message:'İş seçimini kapattım.'};}const chosen=window.ComputerCommands.chooseWatch(text,resumeChoices);if(!chosen)return pending();resumeChoices=null;cards.get('watch-choice-'+epoch)?.remove();cards.delete('watch-choice-'+epoch);result=await continueWatch(chosen);}
+   else if(no)result=await api.computer('stop',{id:waiting.id,userReply:text});
    else if(waiting.status==='question'&&waiting.requiresInput?.kind)result=await api.computer('secure-answer',{id:waiting.id,value:text});
    else if(waiting.status==='question')result=await api.computer('resume',{id:waiting.id,answer:text,userReply:text});
    else if(!yes)return {...waiting,message:'Bu işlem için “onaylıyorum” veya “vazgeç” diyebilirsin.'};
@@ -35,8 +39,8 @@
    if(current!==epoch)return null;paint(result);return result;
   }finally{if(current===epoch)working=false;}
  }
- function paintWatchers(values){watchers=values;for(const watcher of values){if(!sameChat(watcher)||['completed','cancelled'].includes(watcher.status)){watchCards.get(watcher.id)?.remove();watchCards.delete(watcher.id);continue;}let card=watchCards.get(watcher.id);if(!card?.isConnected){card=element('section',undefined,'message computer-task');watchCards.set(watcher.id,card);$('messages').append(card);}card.replaceChildren(element('strong','İzlenen iş'),element('p',watcher.goal,'computer-task-goal'),element('p',watcher.message,'computer-task-progress'));const buttons=element('div',undefined,'button-row');for(const [label,method]of watcher.status==='paused'?[['Devam et','watch-continue'],['İptal et','watch-cancel']]:['watching','ready'].includes(watcher.status)?[['Duraklat','watch-pause'],['İptal et','watch-cancel']]:[]){const button=element('button',label,'button small');button.onclick=async()=>{button.disabled=true;try{await api.computer(method,{id:watcher.id});}catch(e){status(e.message);}finally{button.disabled=false;}};buttons.append(button);}card.append(buttons);}}
+ function paintWatchers(values){watchers=values;for(const watcher of values){if(!sameChat(watcher)||['completed','cancelled'].includes(watcher.status)){watchCards.get(watcher.id)?.remove();watchCards.delete(watcher.id);continue;}let card=watchCards.get(watcher.id);if(!card?.isConnected){card=element('section',undefined,'message computer-task');watchCards.set(watcher.id,card);$('messages').append(card);}card.replaceChildren(element('strong','İzlenen iş'),element('p',watcher.goal,'computer-task-goal'),element('p',watcher.message,'computer-task-progress'));const buttons=element('div',undefined,'button-row');for(const [label,method]of ['paused','expired','target-lost'].includes(watcher.status)?[['Devam et','watch-continue'],['İptal et','watch-cancel']]:['watching','ready'].includes(watcher.status)?[['İzlemeyi duraklat','watch-pause'],['İptal et','watch-cancel']]:[]){const button=element('button',label,'button small');button.onclick=async()=>{button.disabled=true;try{await api.computer(method,{id:watcher.id});}catch(e){status(e.message);}finally{button.disabled=false;}};buttons.append(button);}card.append(buttons);}}
  async function refreshWatchers(){const current=epoch,values=await api.computer('watchers');if(current===epoch&&Array.isArray(values))paintWatchers(values);}
- api.onEvent(data=>{if(data.event==='computer-task')paint(data.task);if(data.event==='computer-watchers')paintWatchers(data.watchers);});
- window.umayComputerChat={paint,pending,dispatch,answer,canControl,control,refreshWatchers,needsForegroundLease:()=>working||active.has(task?.status)||watchers.some(w=>['watching','ready','resuming'].includes(w.status)),running:()=>working||active.has(task?.status),reset(){epoch++;task=null;working=false;watchers=[];cards.clear();watchCards.clear();$('input').placeholder='Umay’a bir şey sor ya da bir iş ver…';}};
+ api.onEvent(data=>{if(data.event==='computer-task')paint(data.task);if(data.event==='computer-background-complete'&&sameChat(data.task)&&!responseActive&&!sources.length)void finishComputerReply(data.task).catch(e=>status(e.message));if(data.event==='computer-watchers')paintWatchers(data.watchers);});
+ window.umayComputerChat={paint,pending,dispatch,answer,canControl,control,refreshWatchers,needsForegroundLease:()=>working||active.has(task?.status)||watchers.some(w=>['watching','ready','resuming'].includes(w.status)),running:()=>working||active.has(task?.status)||backgroundActive(),reset(){epoch++;task=null;working=false;watchers=[];resumeChoices=null;cards.clear();watchCards.clear();$('input').placeholder='Umay’a bir şey sor ya da bir iş ver…';}};
 })();
