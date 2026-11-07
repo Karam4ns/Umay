@@ -526,3 +526,15 @@ Detaylar ve dış model/Windows/çoklu monitör test sınırları computer-model
 - [x] Vault içinde Umay/Docs altında 30 güncel Markdown kopyası; proje/kaynak/indeks/günlük bağlantıları ve içerik karşılaştırması.
 
 0.8.0 bir test sürümüdür; mevcut 0.7.0 installer korunur. Uygulananlar, gerçek ölçümler ve tamamlanmamış kabul: `Docs/obsidian-continuity-verification.md`.
+
+## [2026-11-07] 0.8.1 uzun işler
+
+- [x] Kaynak görevli, hesap/bağlantı/PID kimlikli, girdi göndermeyen izleyiciler ve hazır kuyruğu.
+- [x] Yeni istek sırasında yerel sahip olunan süreci koruma; eski komutu tekrar başlatmadan durumuyla devam.
+- [x] Sohbet kartları ve sesle iş seçimi; Dur/F8, iptal/devam yarışı ve üçüncü istek bağlantı koruması.
+- [x] 419 Node/52 konuşma testi; gerçek Windows arka plan okuma/odak/devam, Chrome sekme koruma, gerçek model7tur ve tek etki, UI/IPC ve F8.
+- [x] Bağımsız incelemenin üç önemli bulgusunu testle kapat; doğrulanmamış alanları açık bırak.
+- [x] Son 0.8.1 installer hash/boyut/blockmap, GitHub teslimi ve güncel vault kopyaları.
+- [ ] Gerçek saatler/profesyonel uygulamalar, yönetici/SSH süreç parkı ve geniş ödeme/cihaz kabulü.
+
+Kanıt ve sınırlar: `Docs/long-task-verification.md`.

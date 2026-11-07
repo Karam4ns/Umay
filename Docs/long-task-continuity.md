@@ -10,13 +10,13 @@ Umay'ın etkili görevi ile salt okunur izleme ayrılır. Kullanıcı başka bir
 
 ## Uygulama ve kabul sırası
 
-- [ ] Ayrı salt okunur izleyici kayıtçısı, bounded koşullar, tek uçuş ve uzun süre/epoch denetimi; değişiklik, görünme/kaybolma ve kararlı sonuç.
-- [ ] Kaydedilen bekleme ve hazır kuyruğu; yeni iş esnasında izlemeyi koruma; tek girdi sahibi, açık duraklatma/devam/iptal ve yeniden açılışta seçerek devam.
-- [ ] Native arka plan pencere okuması ve Chrome'da seçili sekmeyi değiştirmeyen okuma; gizli/profil/kapalı hedef sınırları.
-- [ ] Sohbet içinden araçlar ve görünen izleyici durumları; F8/Dur ve hesap çıkışı; bekleyen eski soruya yeni işin yanlışlıkla yanıt sayılmaması.
-- [ ] Saatlerlik sanal zaman, çakışan yeni iş, koşul yarışı, gecikmiş okuma ve gerçek test uygulaması/Chrome kabulü. Gerçek saatlerlik ve profesyonel uygulama kabulü ayrı kalır.
-- [ ] Tam regresyon, sürüm/paket kaynak eşleşmesi, GitHub ve vault belge kopyaları.
+- [x] Ayrı salt okunur izleyici kayıtçısı, bounded koşullar, tek uçuş ve uzun süre/epoch denetimi; değişiklik, görünme/kaybolma ve kararlı sonuç.
+- [x] Kaydedilen bekleme ve hazır kuyruğu; yeni iş esnasında izlemeyi koruma; tek girdi sahibi, açık duraklatma/devam/iptal ve yeniden açılışta seçerek devam.
+- [x] Native arka plan pencere okuması ve Chrome'da seçili sekmeyi değiştirmeyen okuma; gizli/profil/kapalı hedef sınırları.
+- [x] Sohbet içinden araçlar ve görünen izleyici durumları; F8/Dur ve hesap çıkışı; bekleyen eski soruya yeni işin yanlışlıkla yanıt sayılmaması.
+- [x] Saatlerlik sanal zaman, çakışan yeni iş, koşul yarışı, gecikmiş okuma ve gerçek test uygulaması/Chrome kabulü. Gerçek saatlerlik ve profesyonel uygulama kabulü ayrı kalır.
+- [x] Tam regresyon, sürüm/paket kaynak eşleşmesi, GitHub ve vault belge kopyaları.
 
 ## Açık sınırlar
 
-Bu dosyanın oluşturulması özelliğin tamamlandığı anlamına gelmez. 0.8.0 kurulumu ve gerçek kullanıcı oturumu test için değiştirilmez. Ödeme/adres ve diğer geniş kabul maddeleri kendi kayıtlarında açık kalır; birkaç izleme testi bunları kapatmaz.
+0.8.1 uygulaması ve gerçek kabul sonuçları `long-task-verification.md` içindedir. İlk beş adımın listelenen testleri geçti; geniş gerçek saatler/profesyonel uygulama kapsamı tamamlanmış sayılmaz. 0.8.0 kurulumu ve gerçek kullanıcı oturumu test için değiştirilmez. Ödeme/adres ve diğer geniş kabul maddeleri kendi kayıtlarında açık kalır; birkaç izleme testi bunları kapatmaz.
