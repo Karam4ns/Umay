@@ -160,6 +160,16 @@ function summary(id, record) {
 }
 function packageBody(owner, header, revisions) { return { format: FORMAT, owner, header, revisions }; }
 function mac(key, body) { return createHmac('sha256', key).update(encode(body)).digest(); }
+function requirePackageCapacity(owner, header, revisions) {
+  // A SHA-256 MAC always encodes to 43 base64url characters. Include the actual
+  // JSON envelope, header, array commas and MAC field, without allocating 64 MiB.
+  let size = encode({ ...packageBody(owner, header, []), mac: Buffer.alloc(32).toString('base64url') }).length;
+  for (let i = 0; i < revisions.length; i++) {
+    size += encode(revisions[i]).length + (i ? 1 : 0);
+    if (size > PACKAGE_LIMIT) throw fail('TOO_LARGE');
+  }
+  if (size > PACKAGE_LIMIT) throw fail('TOO_LARGE');
+}
 
 class PortableSecretStore {
   #keyDirectory; #protect; #unprotect; #now; #epoch = 0; #account = null; #owner; #directory; #key = null; #vault = null;
@@ -281,24 +291,40 @@ class PortableSecretStore {
     return { header, ...this.#load(header, this.#key) };
   }
   #revisionName(rev) { return hash(rev.id) + '.' + rev.revision + '.json'; }
+  #withWriteLock(operation) {
+    this.#check(this.#epoch); mkdir(this.#directory);
+    // Cooperative processes sharing this filesystem serialize budget checks and
+    // writes. This ephemeral lock is not exported; external raw sync is not atomic.
+    // Never steal a lock: a crash requires explicit recovery after writers stop.
+    const file = path.join(this.#directory, '.write.lock'); safePath(file);
+    let fd;
+    try { fd = fs.openSync(file, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL, 0o600); }
+    catch (error) { if (error.code === 'EEXIST') throw fail('STORE_BUSY', 'Kasa yazma kilidi kullanımda; diğer işlemin tamamlanmasını bekleyin.'); throw error; }
+    try { return operation(); }
+    finally { fs.closeSync(fd); safePath(file); fs.unlinkSync(file); }
+  }
   async list() {
     const epoch = this.#epoch; await Promise.resolve(); this.#check(epoch, true);
     return [...this.#current().records].sort(([a], [b]) => a.localeCompare(b)).map(([id, record]) => summary(id, record));
   }
   #writeRevision(id, body, expectedVersion) {
     idValid(id);
-    const { header, records } = this.#current(), previous = records.get(id);
-    if ((previous?.version ?? null) !== expectedVersion) throw fail('VERSION_CONFLICT', 'Kayıt değişti; güncel sürümleri inceleyin.');
-    const clear = encode(body);
-    try {
-      if (clear.length > RECORD_LIMIT) throw fail('TOO_LARGE');
-      validateBody(parse(clear));
-      const rev = { id, revision: randomBytes(16).toString('hex'), parents: previous?.heads.map(n => n.rev.revision).sort() || [] };
-      rev.box = seal(this.#key, clear, revisionAAD(header, rev));
-      const directory = path.join(this.#directory, 'revisions'); mkdir(directory);
-      immutable(path.join(directory, this.#revisionName(rev)), encode(rev));
-      return summary(id, this.#current().records.get(id));
-    } finally { clear.fill(0); }
+    this.#check(this.#epoch, true);
+    return this.#withWriteLock(() => {
+      const { header, records, revisions } = this.#current(), previous = records.get(id);
+      if ((previous?.version ?? null) !== expectedVersion) throw fail('VERSION_CONFLICT', 'Kayıt değişti; güncel sürümleri inceleyin.');
+      const clear = encode(body);
+      try {
+        if (clear.length > RECORD_LIMIT) throw fail('TOO_LARGE');
+        validateBody(parse(clear));
+        const rev = { id, revision: randomBytes(16).toString('hex'), parents: previous?.heads.map(n => n.rev.revision).sort() || [] };
+        rev.box = seal(this.#key, clear, revisionAAD(header, rev));
+        requirePackageCapacity(this.#owner, header, [...revisions, rev]);
+        const directory = path.join(this.#directory, 'revisions'); mkdir(directory);
+        immutable(path.join(directory, this.#revisionName(rev)), encode(rev));
+        return summary(id, this.#current().records.get(id));
+      } finally { clear.fill(0); }
+    });
   }
   async put({ id, kind, label, public: publicData = {}, secret, expectedVersion = null }) {
     return this.#writeRevision(id, { deleted: false, kind, label, public: publicData, secret, updatedAt: this.#now() }, expectedVersion);
@@ -351,19 +377,22 @@ class PortableSecretStore {
           merged.set(rev.revision, rev);
         }
         const revisions = [...merged.values()];
-        if (encode(packageBody(input.owner, input.header, revisions)).length + 100 > PACKAGE_LIMIT) throw fail('TOO_LARGE');
+        requirePackageCapacity(input.owner, input.header, revisions);
         return graph(input.header, revisions, key);
       };
       prepare();
       const protectedKey = await this.#protectKey(input.header, key, epoch); this.#check(epoch);
-      // Re-read after platform await: another writer may have added immutable revisions.
-      const merged = prepare();
-      mkdir(this.#directory); immutable(path.join(this.#directory, 'header.json'), encode(input.header));
-      const directory = path.join(this.#directory, 'revisions'); mkdir(directory);
-      for (const rev of merged.order) immutable(path.join(directory, this.#revisionName(rev)), encode(rev));
-      this.#writeCache(input.header, protectedKey);
-      this.#key?.fill(0); this.#key = Buffer.from(key); this.#vault = input.header.vault;
-      return this.state();
+      return this.#withWriteLock(() => {
+        // Re-read under the lock after platform await: a writer may have added
+        // revisions. No await separates this final capacity check from the writes.
+        this.#check(epoch); const merged = prepare();
+        immutable(path.join(this.#directory, 'header.json'), encode(input.header));
+        const directory = path.join(this.#directory, 'revisions'); mkdir(directory);
+        for (const rev of merged.order) immutable(path.join(directory, this.#revisionName(rev)), encode(rev));
+        this.#writeCache(input.header, protectedKey);
+        this.#key?.fill(0); this.#key = Buffer.from(key); this.#vault = input.header.vault;
+        return this.state();
+      });
     } finally { key?.fill(0); }
   }
 }

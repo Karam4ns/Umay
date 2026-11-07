@@ -49,6 +49,60 @@ function snapshot(directory) {
 }
 const code = expected => error => error.code === expected;
 
+function recoveryDataKey(header, recoveryKey) {
+  const d = crypto.createDecipheriv('aes-256-gcm', Buffer.from(recoveryKey.slice(16), 'base64url'), Buffer.from(header.wrapped.nonce, 'base64url'));
+  d.setAAD(Buffer.from(JSON.stringify({ format: 1, owner: header.owner, vault: header.vault, id: '$key' })));
+  d.setAuthTag(Buffer.from(header.wrapped.tag, 'base64url'));
+  return Buffer.concat([d.update(Buffer.from(header.wrapped.ciphertext, 'base64url')), d.final()]);
+}
+
+// Build valid encrypted history in O(N), not through N full-history API writes.
+// The real list/unlock/export methods validate this fixture before it is exercised.
+function seedNearLimit(root, header, recoveryKey) {
+  const target = 64 * 1024 * 1024 - 100, key = recoveryDataKey(header, recoveryKey);
+  const directory = path.join(root, header.owner, 'revisions'); fs.mkdirSync(directory);
+  let count = 0;
+  let size = Buffer.byteLength(JSON.stringify({ format: 1, owner: header.owner, header, revisions: [], mac: 'A'.repeat(43) }));
+  function candidate(padding) {
+    const rev = { id: 'seed_' + count, revision: crypto.randomBytes(16).toString('hex'), parents: [] };
+    const clear = Buffer.from(JSON.stringify({ deleted: false, kind: 'account', label: 'Sentetik kayıt', public: {}, secret: { password: 'synthetic-seed', padding: 'x'.repeat(padding) }, updatedAt: '2026-11-07T00:00:00.000Z' }));
+    assert.ok(clear.length <= 64 * 1024);
+    const nonce = crypto.randomBytes(12), cipher = crypto.createCipheriv('aes-256-gcm', key, nonce);
+    cipher.setAAD(Buffer.from(JSON.stringify({ format: 1, owner: header.owner, vault: header.vault, id: rev.id, revision: rev.revision, parents: [] })));
+    rev.box = { nonce: nonce.toString('base64url'), ciphertext: Buffer.concat([cipher.update(clear), cipher.final()]).toString('base64url'), tag: cipher.getAuthTag().toString('base64url') };
+    return { rev, bytes: Buffer.from(JSON.stringify(rev)) };
+  }
+  function append(value) {
+    const file = crypto.createHash('sha256').update(value.rev.id).digest('hex') + '.' + value.rev.revision + '.json';
+    fs.writeFileSync(path.join(directory, file), value.bytes, { flag: 'wx' });
+    size += value.bytes.length + (count ? 1 : 0); count++;
+  }
+  try {
+    for (;;) {
+      const value = candidate(60000);
+      if (size + value.bytes.length + 3000 > target) break;
+      append(value);
+    }
+    let low = 0, high = 65000, last;
+    while (low <= high) {
+      const middle = Math.floor((low + high) / 2), value = candidate(middle);
+      if (size + value.bytes.length + 1 <= target) { last = value; low = middle + 1; }
+      else high = middle - 1;
+    }
+    assert.ok(last); append(last);
+    assert.ok(target - size < 3, 'Fixture must exercise envelope overhead, not only revision bytes');
+    return { count, size };
+  } finally { key.fill(0); }
+}
+
+function diskDigest(directory) {
+  const digest = crypto.createHash('sha256');
+  const files = fs.readdirSync(directory, { recursive: true, withFileTypes: true }).filter(e => e.isFile())
+    .map(e => path.join(e.parentPath || e.path, e.name)).sort();
+  for (const file of files) digest.update(path.relative(directory, file)).update(fs.readFileSync(file));
+  return digest.digest('hex');
+}
+
 test('recovery imports onto a different device without exporting secret or key material', async t => {
   const { root, store } = fixture(t), a = store('a', device()), b = store('b', device());
   const { recoveryKey } = await a.initialize();
@@ -328,4 +382,63 @@ test('valid-looking import paths and invalid record ids are rejected without fil
     assert.deepEqual(snapshot(root), before);
   }
   key.fill(0);
+});
+
+test('near-limit put and remove preserve history and usability when the full export envelope would overflow', async t => {
+  const { root, store } = fixture(t), baseline = store('baseline');
+  const { recoveryKey } = await baseline.initialize(), header = JSON.parse(await baseline.exportEncrypted()).header;
+  const portable = path.join(root, 'baseline', 'portable');
+  const seeded = seedNearLimit(portable, header, recoveryKey), records = await baseline.list();
+  assert.equal(records.length, seeded.count);
+  const version = records.find(r => r.id === 'seed_0').version;
+  let exported = await baseline.exportEncrypted();
+  assert.equal(exported.length, seeded.size);
+  assert.ok(exported.length < 64 * 1024 * 1024);
+  t.diagnostic(`Synthetic history: ${seeded.count} revisions, ${exported.length} export bytes`);
+  const exportDigest = crypto.createHash('sha256').update(exported).digest('hex'); exported = null;
+  const before = diskDigest(portable);
+  for (const action of ['put', 'remove']) await t.test(action, async () => {
+    if (action === 'put') await assert.rejects(baseline.put(record('x'.repeat(65000))), code('TOO_LARGE'));
+    else await assert.rejects(baseline.remove('seed_0', version), code('TOO_LARGE'));
+    assert.equal(diskDigest(portable), before, 'Rejected operation must leave every prior file byte unchanged');
+  });
+  // Both refusals preserve identical bytes; verify every read/reopen route once
+  // against that unchanged history instead of re-reading 64 MiB for each refusal.
+  assert.equal((await baseline.list()).length, seeded.count);
+  assert.equal((await baseline.resolve('seed_0', { fields: ['password'] })).password, 'synthetic-seed');
+  assert.equal(crypto.createHash('sha256').update(await baseline.exportEncrypted()).digest('hex'), exportDigest);
+  baseline.lock(); await baseline.unlock({ recoveryKey });
+  assert.equal((await baseline.resolve('seed_0', { fields: ['password'] })).password, 'synthetic-seed');
+});
+
+test('a cooperating writer lock rejects put, remove and import without changing history', async t => {
+  const { root, store } = fixture(t), a = store('a');
+  const { recoveryKey } = await a.initialize(), saved = await a.put(record()), bytes = await a.exportEncrypted();
+  const header = JSON.parse(bytes).header, lock = path.join(root, 'a', 'portable', header.owner, '.write.lock');
+  fs.writeFileSync(lock, 'other-writer', { flag: 'wx' });
+  const before = snapshot(root);
+  await assert.rejects(a.put({ ...record('new'), expectedVersion: saved.version }), code('STORE_BUSY'));
+  await assert.rejects(a.remove('login', saved.version), code('STORE_BUSY'));
+  await assert.rejects(a.importEncrypted(bytes, { recoveryKey }), code('STORE_BUSY'));
+  assert.deepEqual(snapshot(root), before);
+  assert.equal((await a.resolve('login')).password, 'fake-password-789');
+  assert.equal((await a.list())[0].version, saved.version);
+  assert.deepEqual(await a.exportEncrypted(), bytes);
+  fs.unlinkSync(lock);
+  await a.put({ ...record('new'), expectedVersion: saved.version });
+  assert.equal((await a.resolve('login')).password, 'new');
+});
+
+test('writer lock is released after serialization and stale-version errors as well as successful writes', async t => {
+  const { root, store } = fixture(t), a = store('a');
+  await a.initialize(); const first = await a.put(record()), before = snapshot(root);
+  const cyclic = {}; cyclic.self = cyclic;
+  await assert.rejects(a.put({ ...record(), secret: cyclic, expectedVersion: first.version }), TypeError);
+  assert.deepEqual(snapshot(root), before);
+  await assert.rejects(a.remove('login', 'stale'), code('VERSION_CONFLICT'));
+  assert.deepEqual(snapshot(root), before);
+  const saved = await a.put({ ...record('after-error'), expectedVersion: first.version });
+  assert.equal((await a.resolve('login')).password, 'after-error');
+  await a.remove('login', saved.version);
+  assert.ok(Object.keys(snapshot(root)).every(name => !name.endsWith('.write.lock')));
 });
