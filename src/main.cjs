@@ -8,7 +8,7 @@ const {randomUUID}=require('node:crypto');const readline=require('node:readline'
 const {autoUpdater}=require('electron-updater');const {validateReference}=require('./core.cjs');
 const {BrowserAuth}=require('./browser-auth.cjs');
 const {readSiteResponse}=require('./site-response.cjs');
-let win,worker,site,browserAuth,deviceServices,computerBar;let computerRunning=false;let pending=new Map();let running=false;let updateReady=false;let speechEpoch=0;let authEpoch=0;let authMutation=Promise.resolve();let activeRecognition=null;
+let win,worker,site,browserAuth,deviceServices,computerBar,computerShortcut;let computerRunning=false;let pending=new Map();let running=false;let updateReady=false;let speechEpoch=0;let authEpoch=0;let authMutation=Promise.resolve();let activeRecognition=null;
 if(!app.requestSingleInstanceLock())app.exit(0);app.on('second-instance',()=>{if(win&&!win.isDestroyed()){win.show();win.focus();}});
 function authTask(task){const result=authMutation.then(task,task);authMutation=result.catch(()=>{});return result;}
 const ORIGIN='https://veriussu.com';
@@ -17,7 +17,7 @@ async function revokeSessionToken(token){
  const response=await fetch(ORIGIN+'/site/auth/logout',{method:'POST',headers:{'Origin':ORIGIN,'Content-Type':'application/json','Cookie':'veriussu_web='+token},body:'{}',signal:AbortSignal.timeout(15000),redirect:'error'});
  if(!response.ok&&response.status!==401)throw Error('Önceki oturum iptali doğrulanamadı.');
 }
-function publish(value){if(win&&!win.isDestroyed())win.webContents.send('event',value);if(value.event==='computer-task'&&computerBar&&!computerBar.isDestroyed())computerBar.webContents.send('task-status',value.task);}
+function publish(value){if(value.event==='computer-watchers'&&computerShortcut){if(value.active)computerShortcut.start();else computerShortcut.finish(deviceServices?.agent.state());}if(win&&!win.isDestroyed())win.webContents.send('event',value);if(value.event==='computer-task'&&computerBar&&!computerBar.isDestroyed())computerBar.webContents.send('task-status',value.task);}
 function startWorker(){
  if(worker)return;
  const python=app.isPackaged?path.join(process.resourcesPath,'runtime','python.exe'):path.join(__dirname,'..','.venv','Scripts','python.exe');
@@ -61,7 +61,7 @@ app.whenReady().then(()=>{
  site=session.fromPartition('persist:veriussu');
  if(process.platform==='win32')app.setAppUserModelId('com.veriussu.umay');
  const notify=({title,body,url})=>{if(!Notification.isSupported())return;const note=new Notification({title,body});note.on('click',()=>{if(win&&!win.isDestroyed()){win.show();win.focus();}if(url&&/^https:\/\//.test(url))void deviceServices?.browserAction('open-url',{url}).catch(error=>publish({event:'device-warning',message:error.message}));});note.show();};
- const computerShortcut=new ComputerShortcut(globalShortcut,()=>void deviceServices.agent.stop());
+ computerShortcut=new ComputerShortcut(globalShortcut,()=>void deviceServices.emergencyStop().catch(error=>publish({event:'device-warning',message:error.message})));
  deviceServices=new DeviceServices({native:new DesktopAccess({publish:state=>publish({event:'computer-access',state})}),directory:app.getPath('userData'),api:rawApi,screen,publish,notify,openExternal:url=>{if(!url.startsWith('obsidian://open?path='))throw Error('Geçersiz Obsidian bağlantısı.');return shell.openExternal(url);},openSource:url=>deviceServices.browserAction('open-url',{url}),
   encrypt:async text=>{if(!await safeStorage.isAsyncEncryptionAvailable())throw Error('Windows güvenli saklama kullanılamıyor.');return safeStorage.encryptStringAsync(text);},
   decrypt:async encrypted=>(await safeStorage.decryptStringAsync(encrypted)).result,
@@ -78,9 +78,9 @@ app.whenReady().then(()=>{
    if(!computerBar||computerBar.isDestroyed()){const area=screen.getPrimaryDisplay().workArea;computerBar=new BrowserWindow({width:360,height:64,x:area.x+12,y:area.y+area.height-80,frame:false,resizable:false,alwaysOnTop:true,skipTaskbar:true,show:false,webPreferences:{preload:path.join(__dirname,'computer-bar-preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});computerBar.removeMenu();computerBar.loadFile(path.join(__dirname,'ui','computer-bar.html'));computerBar.webContents.on('will-navigate',e=>e.preventDefault());computerBar.webContents.setWindowOpenHandler(()=>({action:'deny'}));computerBar.once('ready-to-show',()=>{computerBar.webContents.send('task-status',deviceServices?.agent.state());computerBar.showInactive();});}else computerBar.showInactive();
    if(win&&!win.isDestroyed())win.minimize();
   },
-  onComputerFinish:()=>{computerRunning=false;computerShortcut.finish(deviceServices?.agent.state());const task=deviceServices?.agent.state();if(computerBar&&!computerBar.isDestroyed()){if(task?.status==='paused')computerBar.showInactive();else computerBar.hide();}if(win&&!win.isDestroyed()&&['question','confirmation','failed','stopped','permission'].includes(task?.status)){win.show();win.focus();}else if(task?.status==='completed')notify({title:'Umay — Görev tamamlandı',body:task.message.slice(0,200)});},
+  onComputerFinish:()=>{computerRunning=false;computerShortcut.finish(deviceServices?.agent.state(),deviceServices?.watchers.hasActive());const task=deviceServices?.agent.state();if(computerBar&&!computerBar.isDestroyed()){if(task?.status==='paused')computerBar.showInactive();else computerBar.hide();}if(win&&!win.isDestroyed()&&['question','confirmation','failed','stopped','permission'].includes(task?.status)){win.show();win.focus();}else if(task?.status==='completed')notify({title:'Umay — Görev tamamlandı',body:task.message.slice(0,200)});},
  });
- ipcMain.handle('computer-emergency-stop',event=>{if(event.sender!==computerBar?.webContents)throw Error('Güvenilmeyen pencere.');return deviceServices.agent.stop();});
+ ipcMain.handle('computer-emergency-stop',event=>{if(event.sender!==computerBar?.webContents)throw Error('Güvenilmeyen pencere.');return deviceServices.emergencyStop();});
 
  browserAuth=new BrowserAuth({openExternal:url=>shell.openExternal(url),discard:result=>revokeSessionToken(result.sessionToken),exchange:async(input,signal)=>{
   const response=await fetch(ORIGIN+'/site/desktop-auth/exchange',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input),signal:AbortSignal.any([signal,AbortSignal.timeout(30000)]),redirect:'error'});

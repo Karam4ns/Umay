@@ -15,7 +15,7 @@ function message(role,text,record=true){const node=document.createElement('div')
 async function refresh(){
  const epoch=++sessionEpoch;let user;try{user=await api.api('/site/auth/me');}catch(e){if(epoch!==sessionEpoch)return;if(epoch===sessionEpoch){if(accountId!==null){const cleanup=clearAccount(),cleared=sessionEpoch;await cleanup;if(cleared!==sessionEpoch)return;}if(/Oturum doğrulaması gerekli|LOGIN_REQUIRED/.test(e.message)){window.umayShell?.account(null);status('Devam etmek için Veriüssü hesabınla giriş yap.');return;}}throw e;}if(epoch!==sessionEpoch)return;
  if(accountId!==user.id){window.umayBrowser?.reset();await stop();if(epoch!==sessionEpoch)return;conversation=null;$('messages').replaceChildren();$('history').replaceChildren();$('memory-data').textContent='';accountId=user.id;}
- window.umayShell?.account(user);status(`Bağlı hesap: ${user.email||user.firstName||user.id}`);
+ void window.umayComputerChat?.refreshWatchers?.().catch(()=>{});window.umayShell?.account(user);status(`Bağlı hesap: ${user.email||user.firstName||user.id}`);
  const result=await api.api('/site/chat/models');if(epoch!==sessionEpoch)return;models=result.models||[];$('models').replaceChildren();
  for(const m of models){const o=document.createElement('option');o.value=m.id;o.textContent=m.name;o.dataset.source=m.source;$('models').append(o);}
  window.umayDevice?.modelsChanged();await window.umayModelRoles?.load();if(epoch!==sessionEpoch)return;
@@ -126,9 +126,10 @@ async function send(text,fromVoice=false){
   }finally{if(current===ticket){responseActive=false;if(!sources.length)await api.busy(false);}}
   return;
  }
- const current=++ticket;if(window.umayComputerChat?.running())await api.computer('pause-for-new-task');await stop(false,fromVoice,true,false);if(current!==ticket)return;await api.busy(true);if(current!==ticket)return;responseActive=true;message('user',text);status('Yanıt hazırlanıyor…');
+ const current=++ticket,foregroundRequestId=crypto.randomUUID(),needsLease=window.umayComputerChat?.needsForegroundLease?.();
  const output={current,node:null,spoken:'',tail:Promise.resolve()};
  try{
+  if(needsLease)await api.computer('pause-for-new-task',{requestId:foregroundRequestId});await stop(false,fromVoice,true,false);if(current!==ticket)return;await api.busy(true);if(current!==ticket)return;responseActive=true;message('user',text);status('Yanıt hazırlanıyor…');
   const completed=await submitMessage(text,current,output);if(!completed||current!==ticket)return;
   const {run,detail,reply:last}=completed;
     if(!['COMPLETED','SUCCEEDED'].includes(run.status)){
@@ -142,7 +143,7 @@ async function send(text,fromVoice=false){
      const result=await window.umayComputerChat.dispatch(run);if(current!==ticket)return;await acknowledgement;if(result)await finishComputerReply(result,current);
     }else if(last&&$('speak').checked){status('Seslendiriliyor…');await replySpeech(output,last.content,true);}
   if(current===ticket)status('Hazır.');
- }catch(error){if(current===ticket)showChatError(error.message);}finally{if(current===ticket){responseActive=false;if(!sources.length)await api.busy(false);}}
+ }catch(error){if(current===ticket)showChatError(error.message);}finally{if(needsLease)await api.computer('message-finished',{requestId:foregroundRequestId}).catch(()=>{});if(current===ticket){responseActive=false;if(!sources.length)await api.busy(false);}}
 }
 async function finishComputerReply(result,current=ticket){
  if(current!==ticket)return;window.umayComputerChat?.paint(result);
