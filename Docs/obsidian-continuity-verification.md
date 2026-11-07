@@ -39,6 +39,17 @@
 
 ## Teslim ve kalan kabul
 
-Installer, paket kaynak eşleşmesi ve Git teslim kimlikleri aşağıdaki teslim kaydına eklenecek. Otomatik genel güncelleme yayını yapılmaz; 0.7.0 installer'ı korunur. Test oturumları sonlandırıldı; kullanıcı oturumları ve üretim sunucu kurulumu değiştirilmedi.
+Son kaynaklarla 71 uygulama dosyası, unpacked native yardımcı, dört konuşma modülü ve 361 MCP dosyası birebir eşleşti. Son ASAR içinden hafıza/kasa/Obsidian/SSH2 ve araç kayıtçısı, workspace bağımlılığına düşmeden yüklendi. Gerçek paketlenmiş Umay.exe ile Chrome MCP gezinme/okuma/yeniden bağlantı testi geçti. Paket üretimi son kaynak düzeltmeleri sonrasında yeniden başlatıldı; eski ara paketler teslim edilmez. Otomatik genel güncelleme yayını yapılmaz; 0.7.0 installer'ı korunur. Test oturumları sonlandırıldı; kullanıcı oturumları ve üretim sunucu kurulumu değiştirilmedi.
 
 AutoCAD, Unreal, Photoshop, oyunlar, çok monitör/aygıt, birden fazla mail sağlayıcısı, her site için ödeme ve saatler süren çalışma henüz gerçek kabulden geçmedi. Bu maddeler ürün kapsamındadır ve açık kalır. Görev 1 bağımsız kripto/kapasite incelemesinden geçti; sonraki inceleyiciler kullanım kotasında durduğu için entegrasyon çalışması ana ajan tarafından tamamlandı ve test edildi. Bağımsız bütün-dal incelemesi yapılmış gibi işaretlenmez.
+
+### Doğrulanmış 0.8.0 test kurulumu
+
+- Installer: `C:/Users/Karam4n/Desktop/UmayV0.1.0/dist/obsidian-0.8.0/Umay Setup 0.8.0.exe`
+- Boyut: **378.190.883 bayt**; blockmap **392.908 bayt**.
+- SHA256: `4f11cc91420ca1b2a9c0d38557c72fc4ba2838418d312f51eb7b5253a4ddeb0c`
+- SHA512: `y1A8bVKx5ktGt1D1EvSLOjLtjQGZG0LW5BPRDh+nRU5GNFA1g7uO1Ua9l/UshW2Wck9TxmQwlN3Ys/GKD4EbPg==`
+- Kod kimliği: `e0dd038`; kaynak: [codex/obsidian-continuity](https://github.com/Karam4ns/Umay/tree/codex/obsidian-continuity).
+- `latest.yml` sürüm/boyut/SHA512 ve kopyalanan installer SHA256 doğrulandı; `verification.json` aynı klasördedir. İmzasız test sürümüdür. Son NSIS sıkıştırması seviye 3 ile üretildi; uygulama işlevini değiştirmez.
+- 0.7.0 installer'ı korunur. Yeni sürüm bu cihazda otomatik kurulmadı, genel güncelleme kanalına yayımlanmadı.
+- Kullanıcının yeni proje kaydı talebiyle vault içinde `Umay/Docs` altında 30 Markdown belgesinin içerik kopyası tutulur; `Umay/umay.md`, kaynak notu, kök indeks ve append-only günlük bağlantıları eklendi. Güncel kopyalar içerik hashleriyle karşılaştırıldı. Sunucu erişim dosyası dahil edilmez.

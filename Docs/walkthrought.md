@@ -522,6 +522,7 @@ Detaylar ve dış model/Windows/çoklu monitör test sınırları computer-model
 - [x] 395 Node ve 52 mevcut konuşma/klonlama testi; gerçek Electron ayar/form/aktif pencere yakalama, Chrome devam/yerel OTP, Windows safeStorage ve kendi pencere/F8 kabulü.
 - [x] Gerçek Alfa modelleriyle üç ayrı komut devamı, genel web→dosya zinciri ve salt okunur görsel özet; ölçülen sınırlar raporda.
 - [ ] Bağımsız çoklu uzun izleyici, bütün siteler için checkout/adres/ödeme ve profesyonel uygulama/çok monitör/aygıt matrisi.
-- [ ] Son paket eşleşmesi, test installer hash/boyut/blockmap ve GitHub teslimi.
+- [x] 71 uygulama/4 konuşma/361 MCP dosyası eşleşmesi; son ASAR bağımlılık testi; installer SHA256/SHA512/boyut/blockmap ve GitHub kaynak teslimi.
+- [x] Vault içinde Umay/Docs altında 30 güncel Markdown kopyası; proje/kaynak/indeks/günlük bağlantıları ve içerik karşılaştırması.
 
 0.8.0 bir test sürümüdür; mevcut 0.7.0 installer korunur. Uygulananlar, gerçek ölçümler ve tamamlanmamış kabul: `Docs/obsidian-continuity-verification.md`.
