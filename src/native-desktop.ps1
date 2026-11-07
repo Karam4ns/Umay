@@ -39,6 +39,8 @@ public static class UmayInput {
  [DllImport("user32.dll")] static extern uint MapVirtualKey(uint code,uint mapType);
  public class WindowInfo {public long handle;public string title;public bool minimized;public uint processId;}
  public static WindowInfo[] Windows(){var result=new List<WindowInfo>();EnumWindows((window,p)=>{if(IsWindowVisible(window)){var text=new StringBuilder(1024);GetWindowText(window,text,text.Capacity);if(text.Length>0)result.Add(new WindowInfo{handle=window.ToInt64(),title=text.ToString(),minimized=IsIconic(window),processId=ProcessId(window.ToInt64())});}return result.Count<80;},IntPtr.Zero);return result.ToArray();}
+ [DllImport("user32.dll")] static extern bool PostMessage(IntPtr h,uint m,IntPtr w,IntPtr l);
+ public static void Manage(long handle,uint pid,string operation){var h=new IntPtr(handle);if(!IsWindow(h)||ProcessId(handle)!=pid)throw new Exception("NATIVE_WINDOW_UNAVAILABLE");if(operation=="focus"){Focus(handle);return;}if(operation=="close"){if(!PostMessage(h,0x0010,IntPtr.Zero,IntPtr.Zero))throw new Exception("NATIVE_INPUT_DENIED");return;}int command=operation=="minimize"?6:operation=="maximize"?3:operation=="restore"?9:-1;if(command<0)throw new Exception("PLANNER_INVALID");ShowWindowAsync(h,command);}
  public static void Focus(long handle){
   var window=new IntPtr(handle);if(!IsWindow(window)||!IsWindowVisible(window))throw new Exception("NATIVE_WINDOW_UNAVAILABLE");if(IsIconic(window))ShowWindowAsync(window,9);
   SetForegroundWindow(window);if(GetForegroundWindow()==window)return;
@@ -85,6 +87,22 @@ public static class UmayInput {
 }
 '@
 [void][UmayInput]::SetProcessDpiAwarenessContext([IntPtr](-4))
+function Initialize-UmayAudio {
+if(-not ('UmayAudio' -as [type])){Add-Type -TypeDefinition @'
+using System;using System.Runtime.InteropServices;
+[ComImport,Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")] class UmayEnumerator {}
+[Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"),InterfaceType(ComInterfaceType.InterfaceIsIUnknown)] interface IUmayEnumerator {int EnumAudioEndpoints(int f,int s,out IntPtr d);int GetDefaultAudioEndpoint(int f,int r,out IUmayDevice d);}
+[Guid("D666063F-1587-4E43-81F1-B948E807363F"),InterfaceType(ComInterfaceType.InterfaceIsIUnknown)] interface IUmayDevice {int Activate(ref Guid id,int context,IntPtr p,[MarshalAs(UnmanagedType.IUnknown)] out object v);}
+[Guid("5CDF2C82-841E-4546-9722-0CF74078229A"),InterfaceType(ComInterfaceType.InterfaceIsIUnknown)] interface IUmayVolume {
+int RegisterControlChangeNotify(IntPtr p);int UnregisterControlChangeNotify(IntPtr p);int GetChannelCount(out uint c);int SetMasterVolumeLevel(float v,Guid g);int SetMasterVolumeLevelScalar(float v,Guid g);int GetMasterVolumeLevel(out float v);int GetMasterVolumeLevelScalar(out float v);int SetChannelVolumeLevel(uint c,float v,Guid g);int SetChannelVolumeLevelScalar(uint c,float v,Guid g);int GetChannelVolumeLevel(uint c,out float v);int GetChannelVolumeLevelScalar(uint c,out float v);int SetMute([MarshalAs(UnmanagedType.Bool)] bool m,Guid g);int GetMute([MarshalAs(UnmanagedType.Bool)] out bool m);
+}
+public class UmayAudioState {public int level;public bool mute;}
+public static class UmayAudio {
+ public static UmayAudioState Apply(int level,int mute){IUmayEnumerator e=(IUmayEnumerator)new UmayEnumerator();IUmayDevice d=null;object o=null;try{Marshal.ThrowExceptionForHR(e.GetDefaultAudioEndpoint(0,1,out d));Guid id=typeof(IUmayVolume).GUID;Marshal.ThrowExceptionForHR(d.Activate(ref id,23,IntPtr.Zero,out o));IUmayVolume v=(IUmayVolume)o;if(level>=0)Marshal.ThrowExceptionForHR(v.SetMasterVolumeLevelScalar(level/100f,Guid.Empty));if(mute>=0)Marshal.ThrowExceptionForHR(v.SetMute(mute==1,Guid.Empty));float result;bool muted;Marshal.ThrowExceptionForHR(v.GetMasterVolumeLevelScalar(out result));Marshal.ThrowExceptionForHR(v.GetMute(out muted));return new UmayAudioState{level=(int)Math.Round(result*100),mute=muted};}finally{if(o!=null)Marshal.ReleaseComObject(o);if(d!=null)Marshal.ReleaseComObject(d);Marshal.ReleaseComObject(e);}}
+}
+'@}
+
+}
 function Get-Observation {
  param([long]$TargetHandle=0,[uint32]$ExpectedProcessId=0)
  $background=$TargetHandle -ne 0
@@ -145,7 +163,24 @@ while($true){
     $workerInfo.UseShellExecute=$false;$workerInfo.CreateNoWindow=$true;$workerInfo.WindowStyle=[Diagnostics.ProcessWindowStyle]::Hidden;$workerInfo.EnvironmentVariables['ELECTRON_RUN_AS_NODE']='1';$workerInfo.EnvironmentVariables['UMAY_SYSTEM_WORKER_ADMIN']='1'
     $workerProcess=[Diagnostics.Process]::Start($workerInfo);$result=@{pid=$workerProcess.Id;administrator=$true};$workerProcess.Dispose()
    }
-   'foreground' {$result=@{handle=[UmayInput]::GetForegroundWindow().ToInt64();title=[UmayInput]::Title();windows=[UmayInput]::Windows()}}
+   'window_manage' {
+    if([UmayInput]::ProcessId([long]$p.handle) -ne [uint32]$p.processId){throw 'NATIVE_WINDOW_UNAVAILABLE'}
+    if(-not $administrator -and [UmayInput]::ElevatedWindow([IntPtr]([long]$p.handle)) -eq $true){throw 'NATIVE_ELEVATION_REQUIRED'}
+    [UmayInput]::Manage([long]$p.handle,[uint32]$p.processId,[string]$p.operation)
+    $result=@{operation=[string]$p.operation;handle=[long]$p.handle;processId=[uint32]$p.processId;accepted=$true;windows=[UmayInput]::Windows()}
+   }
+   'audio_state' {Initialize-UmayAudio;$result=[UmayAudio]::Apply(-1,-1)}
+   'audio_set' {Initialize-UmayAudio;$level=-1;$mute=-1;if($null -ne $p.level){$level=[int]$p.level;if($level -lt 0 -or $level -gt 100){throw 'PLANNER_INVALID'}};if($null -ne $p.mute){$mute=if([bool]$p.mute){1}else{0}};$result=[UmayAudio]::Apply($level,$mute)}
+   'display_list' {$result=@{displays=@(Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightness -ErrorAction SilentlyContinue | ForEach-Object {@{displayId=$_.InstanceName;level=$_.CurrentBrightness}})}}
+   'display_brightness' {
+    if([int]$p.level -lt 0 -or [int]$p.level -gt 100){throw 'PLANNER_INVALID'}
+    $target=Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightnessMethods | Where-Object {$_.InstanceName -eq [string]$p.displayId}
+    if($null -eq $target){throw 'Bu ekran parlaklık denetimini desteklemiyor.'}
+    $applied=Invoke-CimMethod -InputObject $target -MethodName WmiSetBrightness -Arguments @{Timeout=[uint32]1;Brightness=[byte]$p.level}
+    if($applied.ReturnValue -ne 0){throw 'Parlaklık değiştirilemedi.'}
+    $result=@{displays=@(Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightness | Where-Object {$_.InstanceName -eq [string]$p.displayId} | ForEach-Object {@{displayId=$_.InstanceName;level=$_.CurrentBrightness}})}
+   }
+   'foreground' {$result=@{processId=[UmayInput]::ProcessId([UmayInput]::GetForegroundWindow().ToInt64());handle=[UmayInput]::GetForegroundWindow().ToInt64();title=[UmayInput]::Title();windows=[UmayInput]::Windows()}}
    'observe' {$result=Get-Observation}
    'observe_window' {$result=Get-Observation -TargetHandle ([long]$p.handle) -ExpectedProcessId ([uint32]$p.expectedProcessId)}
    'click' {[UmayInput]::Click([int]$p.x,[int]$p.y,[string]$p.button,[int]$p.count)}

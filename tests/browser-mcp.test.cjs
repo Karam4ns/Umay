@@ -11,6 +11,7 @@ function fixture(){
  const browser=new BrowserMcp({directory:'unused',browser:{activate(){},ensure:async()=> 'http://127.0.0.1:1234',cancelPending(){},close(){}},clientFactory:()=>({async connect(){},async listTools(){return {tools};},async callTool(input){calls.push(input);if(custom)return custom(input);if(input.name==='list_pages')return text('## Pages\n1: https://example.org/ [selected]\n2: https://other.org/');if(input.name==='take_snapshot')return text('uid=1_0 RootWebArea "Fixture"\nuid=1_1 textbox "Name"\nuid=1_2 button "Save"');return text('Done');},async close(){closed++;}}),transportFactory:input=>(options=input,{async close(){closed++;}})});
  browser.activate('alice');return {browser,calls,options:()=>options,closed:()=>closed,set:fn=>custom=fn};
 }
+test('unchanged page cannot receive endless Enter or click repetitions',async()=>{const f=fixture();for(let i=0;i<3;i++){const view=await f.browser.observe();await f.browser.perform({toolName:'press_key',toolArguments:'{"key":"Enter"}'},view.id);}const view=await f.browser.observe();await assert.rejects(f.browser.perform({toolName:'press_key',toolArguments:'{"key":"Enter"}'},view.id),/NO_VISIBLE_PROGRESS/);assert.equal(f.calls.filter(c=>c.name==='press_key').length,3);await f.browser.stop();});
 test('pinned MCP starts without npx and exposes actual tools, snapshots and redacted URLs',async()=>{
  const f=fixture(),view=await f.browser.observe();assert.equal(view.browser.pageId,1);assert.match(view.browser.snapshot,/textbox/);assert.ok(f.browser.capabilities().availableTools.includes('fill'));assert.equal(f.options().env.ELECTRON_RUN_AS_NODE,'1');assert.ok(f.options().args.includes('--no-usage-statistics'));assert.ok(!f.options().args.includes('npx'));assert.doesNotMatch(safeUrl('https://user:pass@example.org/?code=private&query=hello'),/private|user:pass/);await f.browser.stop();
 });
@@ -38,6 +39,10 @@ test('stale/cross-tab element ids and concurrent mutations never reach the MCP s
 });
 test('repeated append is blocked, while fill remains an idempotent field replacement',async()=>{
  const f=fixture();let view=await f.browser.observe();await f.browser.perform({toolName:'type_text',toolArguments:'{"text":"example.org"}'},view.id);view=await f.browser.observe();await assert.rejects(f.browser.perform({toolName:'type_text',toolArguments:'{"text":"example.org"}'},view.id),/WRITE_ALREADY_APPLIED/);await f.browser.perform({toolName:'fill',toolArguments:'{"uid":"1_1","value":"Name"}'},view.id);assert.equal(f.calls.filter(c=>c.name==='type_text').length,1);await f.browser.stop();
+});
+test('actual current value prevents another fill and preserves the search submit step',async()=>{
+ const f=fixture();await f.browser.observe();f.set(input=>input.name==='list_pages'?text('1: https://example.org/ [selected]'):input.name==='take_snapshot'?text('uid=3_0 RootWebArea "Search"\nuid=3_1 textbox "Search" value="test query"'):text('Done'));
+ const view=await f.browser.observe();await assert.rejects(f.browser.perform({toolName:'fill',toolArguments:JSON.stringify({pageId:1,uid:'3_1',value:'test query'})},view.id),/WRITE_ALREADY_APPLIED/);assert.equal(f.calls.filter(c=>c.name==='fill').length,0);await f.browser.stop();
 });
 test('settings/account switch invalidates old browser observations and unsafe URL schemes',async()=>{
  const f=fixture(),view=await f.browser.observe();await assert.rejects(f.browser.perform({toolName:'navigate_page',toolArguments:'{"url":"javascript:alert(1)"}'},view.id),/adres türü/);f.browser.activate('bob');await assert.rejects(f.browser.perform({toolName:'click',toolArguments:'{"uid":"1_2"}'},view.id),/güncel değil/);await f.browser.stop();

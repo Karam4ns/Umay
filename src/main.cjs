@@ -9,6 +9,7 @@ const {autoUpdater}=require('electron-updater');const {validateReference}=requir
 const {BrowserAuth}=require('./browser-auth.cjs');
 const {readSiteResponse}=require('./site-response.cjs');
 let win,worker,site,browserAuth,deviceServices,computerBar;let computerRunning=false;let pending=new Map();let running=false;let updateReady=false;let speechEpoch=0;let authEpoch=0;let authMutation=Promise.resolve();let activeRecognition=null;
+if(!app.requestSingleInstanceLock())app.exit(0);app.on('second-instance',()=>{if(win&&!win.isDestroyed()){win.show();win.focus();}});
 function authTask(task){const result=authMutation.then(task,task);authMutation=result.catch(()=>{});return result;}
 const ORIGIN='https://veriussu.com';
 async function revokeSessionToken(token){
@@ -43,7 +44,7 @@ function speech(method,params={}){
 }
 async function rawApi(route,body){
  const allowed=/^\/site\/(auth\/(me|logout)|chat\/(models|conversations(?:\/[a-f0-9-]+(?:\/(messages|model))?)?|runs\/[a-f0-9-]+(?:\/cancel)?)|user-memory(?:\/(summary|notes))?)$/;
- if(!allowed.test(route)&&!/^\/site\/chat\/conversations\/[a-f0-9-]+\?before=[a-f0-9-]+$/.test(route))throw Error('İzin verilmeyen API yolu.');
+  if(!allowed.test(route)&&!/^\/site\/chat\/conversations\/[a-f0-9-]+(?:\?before=[a-f0-9-]+|\/archive)$/.test(route))throw Error('İzin verilmeyen API yolu.');
  let response;try{response=await site.fetch(ORIGIN+route,{method:body===undefined?'GET':'POST',headers:{'Origin':ORIGIN,'Content-Type':'application/json',...require('./operator-channel.cjs').operatorHeaders(body)},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(30000),redirect:'error'});}catch(error){throw Error(['TimeoutError','AbortError'].includes(error.name)?'REQUEST_TIMEOUT':'NETWORK_ERROR');}
  return readSiteResponse(response);
 }
@@ -61,13 +62,14 @@ app.whenReady().then(()=>{
  if(process.platform==='win32')app.setAppUserModelId('com.veriussu.umay');
  const notify=({title,body,url})=>{if(!Notification.isSupported())return;const note=new Notification({title,body});note.on('click',()=>{if(win&&!win.isDestroyed()){win.show();win.focus();}if(url&&/^https:\/\//.test(url))void deviceServices?.browserAction('open-url',{url}).catch(error=>publish({event:'device-warning',message:error.message}));});note.show();};
  const computerShortcut=new ComputerShortcut(globalShortcut,()=>void deviceServices.agent.stop());
- deviceServices=new DeviceServices({native:new DesktopAccess({publish:state=>publish({event:'computer-access',state})}),directory:app.getPath('userData'),api:rawApi,screen,publish,notify,openSource:url=>deviceServices.browserAction('open-url',{url}),
+ deviceServices=new DeviceServices({native:new DesktopAccess({publish:state=>publish({event:'computer-access',state})}),directory:app.getPath('userData'),api:rawApi,screen,publish,notify,openExternal:url=>{if(!url.startsWith('obsidian://open?path='))throw Error('Geçersiz Obsidian bağlantısı.');return shell.openExternal(url);},openSource:url=>deviceServices.browserAction('open-url',{url}),
   encrypt:async text=>{if(!await safeStorage.isAsyncEncryptionAvailable())throw Error('Windows güvenli saklama kullanılamıyor.');return safeStorage.encryptStringAsync(text);},
   decrypt:async encrypted=>(await safeStorage.decryptStringAsync(encrypted)).result,
   trashItem:target=>shell.trashItem(target),openPath:target=>shell.openPath(target),
   defaultRoots:['desktop','documents','downloads'].map(key=>app.getPath(key)),
   chooseRoots:async()=>{const selected=await dialog.showOpenDialog(win,{title:'Dosya hafızasına klasör ekle',properties:['openDirectory','multiSelections']});return selected.canceled?null:selected.filePaths;},
   saveFile:async()=>{const selected=await dialog.showSaveDialog(win,{title:'Hafızayı Markdown olarak dışa aktar',defaultPath:'Umay Hafızası.md',filters:[{name:'Markdown',extensions:['md']}]});return selected.canceled?null:selected.filePath;},
+  captureWorkspace:async(view,signal)=>{signal?.throwIfAborted();const sources=await desktopCapturer.getSources({types:['window'],thumbnailSize:{width:1400,height:1000}});signal?.throwIfAborted();const source=sources.find(s=>s.id.split(':')[1]===String(view.handle));return source&&!source.thumbnail.isEmpty()?'data:image/jpeg;base64,'+source.thumbnail.toJPEG(65).toString('base64'):null;},
   capture:async displays=>{const sources=await desktopCapturer.getSources({types:['screen'],thumbnailSize:{width:1600,height:1000}});return sources.map(source=>{const display=displays.find(d=>String(d.id)===source.display_id);if(!display)return null;const image=source.thumbnail,size=image.getSize();return {displayId:String(display.id),name:source.name,width:size.width,height:size.height,image:'data:image/jpeg;base64,'+image.toJPEG(65).toString('base64')};}).filter(Boolean);},
   excludedWindowHandles:()=>computerBar&&!computerBar.isDestroyed()?[Number(computerBar.getNativeWindowHandle().readBigUInt64LE())]:[],
   onComputerStart:()=>{
@@ -103,6 +105,13 @@ app.whenReady().then(()=>{
  handle('computer',(method,input)=>deviceServices.computer(method,input));
  handle('browser',(method,input)=>deviceServices.browserAction(method,input));
  handle('model-roles',(method,input)=>deviceServices.modelRoles(method,input));
+ handle('plugins',async(method,input={})=>{
+  const epoch=deviceServices.memory.epoch;deviceServices.memory.require();
+  if(method==='choose-vault'){const result=await dialog.showOpenDialog(win,{title:'Obsidian vault klasörünü seç',properties:['openDirectory']});deviceServices.memory.check(epoch);return result.canceled?null:deviceServices.plugins.action('connect',{vaultPath:result.filePaths[0]});}
+  if(method==='recovery-export'){const result=await dialog.showSaveDialog(win,{title:'Şifreli kasa yedeği',defaultPath:'Umay Şifreli Kasa.umay',filters:[{name:'Şifreli Umay kasası',extensions:['umay']}]});deviceServices.memory.check(epoch);if(result.canceled)return null;const bytes=await deviceServices.plugins.action(method);deviceServices.memory.check(epoch);await fs.promises.writeFile(result.filePath,bytes,{flag:'wx',mode:0o600});return {saved:true};}
+  if(method==='recovery-import'){const result=await dialog.showOpenDialog(win,{title:'Şifreli kasa yedeğini seç',properties:['openFile'],filters:[{name:'Şifreli kasa',extensions:['umay','umay-encrypted']}]});deviceServices.memory.check(epoch);if(result.canceled)return null;const file=result.filePaths[0],stat=await fs.promises.lstat(file);if(!stat.isFile()||stat.isSymbolicLink()||stat.size>64*1024*1024)throw Error('Kasa dosyası geçersiz veya çok büyük.');const bytes=await fs.promises.readFile(file);deviceServices.memory.check(epoch);return deviceServices.plugins.action(method,{bytes,recoveryKey:input.recoveryKey});}
+  return deviceServices.plugins.action(method,input);
+ });
  handle('system-status',()=>systemStatus(app.getPath('userData'),require('../package.json').version));
  handle('window-action',action=>windowAction(win,action));
  handle('cancel-login',()=>{++authEpoch;browserAuth.cancel();return true;});

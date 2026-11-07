@@ -112,20 +112,21 @@ function currentReply(messages,before,run,text){
 }
 async function send(text,fromVoice=false){
  if(!text.trim())return;
+ const explicitNew=/^\s*yeni\s+(?:görev|iş)\s*:/iu.test(text);if(explicitNew)text=text.replace(/^\s*yeni\s+(?:görev|iş)\s*:\s*/iu,'');
  clearTimeout(computerControlTimer);computerControlTimer=null;
  const localCommand=window.ComputerCommands?.computerCommand(text);
  if(localCommand&&window.umayComputerChat?.canControl?.(localCommand)){
   const current=++ticket,operation=window.umayComputerChat.control(localCommand,text);await stop(false,fromVoice,true);message('user',text);
   const result=await operation;if(result&&current===ticket)await finishComputerReply(result,current);return;
  }
- if(window.umayComputerChat?.pending()){
+ if(!explicitNew&&window.umayComputerChat?.pending()){
   const current=++ticket;await stop(false,fromVoice,true);if(current!==ticket)return;
-  message('user',text);await api.busy(true);responseActive=true;
+  message('user',window.umayComputerChat.pending()?.requiresInput?.kind==='otp'?'[Tek kullanımlık kod yerelde iletildi]':text);await api.busy(true);responseActive=true;
   try{const result=await window.umayComputerChat.answer(text);if(current===ticket&&result)await finishComputerReply(result,current);
   }finally{if(current===ticket){responseActive=false;if(!sources.length)await api.busy(false);}}
   return;
  }
- const current=++ticket;await stop(false,fromVoice,false,false);if(current!==ticket)return;await api.busy(true);if(current!==ticket)return;responseActive=true;message('user',text);status('Yanıt hazırlanıyor…');
+ const current=++ticket;if(window.umayComputerChat?.running())await api.computer('pause-for-new-task');await stop(false,fromVoice,true,false);if(current!==ticket)return;await api.busy(true);if(current!==ticket)return;responseActive=true;message('user',text);status('Yanıt hazırlanıyor…');
  const output={current,node:null,spoken:'',tail:Promise.resolve()};
  try{
   const completed=await submitMessage(text,current,output);if(!completed||current!==ticket)return;

@@ -10,17 +10,40 @@ const {ComputerSession}=require('./computer-session.cjs');
 const {BrowserMcp}=require('./browser-mcp.cjs');
 const {SystemTools}=require('./system-tools.cjs');
 const {SystemWorkerClient}=require('./system-worker-client.cjs');
+const {MemoryPlugin}=require('./memory-plugin.cjs');
+const {WorkspaceContext}=require('./workspace-context.cjs');
 class DeviceServices{
- constructor({directory,api,encrypt,decrypt,screen,capture,notify,publish=()=>{},onComputerStart=()=>{},onComputerFinish=()=>{},excludedWindowHandles=()=>[],chooseRoots,saveFile,openSource=()=>{},defaultRoots=[],native=new NativeDesktop(),background=true,browser,system,trashItem,openPath}){
+ constructor({directory,api,encrypt,decrypt,screen,capture,captureWorkspace,notify,publish=()=>{},onComputerStart=()=>{},onComputerFinish=()=>{},excludedWindowHandles=()=>[],chooseRoots,saveFile,openSource=()=>{},openExternal=()=>{},defaultRoots=[],native=new NativeDesktop(),background=true,browser,system,trashItem,openPath}){
   Object.assign(this,{api,publish,chooseRoots,saveFile,openSource,defaultRoots,background});this.indexCancelled=false;this.indexing=null;this.bridgeSupported=null;
   this.memory=new LocalMemory(path.join(directory,'memory'),{encrypt,decrypt});
   this.environment=new EnvironmentService({memory:this.memory,locate:()=>native.request('location'),notify,publish});
   this.control=new ComputerControl({native,capture,screen,excludedWindowHandles});
   this.browser=browser||new BrowserMcp({directory:path.join(directory,'browser'),...(__dirname.includes('app.asar')?{entry:path.join(process.resourcesPath,'browser','chrome-devtools-mcp','build','src','bin','chrome-devtools-mcp.js')}:{})});
   const roots=[require('node:os').homedir(),...defaultRoots];
-  this.system=system===null?null:system||new SystemTools({roots,trash:trashItem,openPath,publish:event=>{if(event.event==='system-artifacts'&&this.memory.account&&this.agent?.task?.id===event.taskId)this.memory.rememberSystemArtifacts(event.artifacts);publish(event);},remote:new SystemWorkerClient({native,roots})});
+  this.system=system===null?null:system||new SystemTools({roots,trash:trashItem,openPath,publish:event=>{if(event.event==='system-artifacts'&&this.memory.account&&this.agent?.task?.id===event.taskId){this.memory.rememberSystemArtifacts(event.artifacts);this.plugins?.rememberArtifacts(event.artifacts);}publish(event);},remote:new SystemWorkerClient({native,roots})});
+  this.browserSessions=new (require('./browser-sessions.cjs').BrowserSessions)({memory:this.memory});
   this.computerSession=new ComputerSession();
   this.agent=new ComputerAgent({control:this.control,browser:this.browser,system:this.system,api,memory:this.memory,onObservation:(_task,view)=>this.computerSession.observe(view),sessionContext:()=>this.computerSession.context(true),verifyCompletion:task=>verifyComputerCompletion(task.origin?task.origin.userRequest:task.goal,{desktop:this.defaultRoots[0]}),publish:event=>{if(event.event==='computer-task'){const task=this.agent.task;this.computerSession.update(task);if(task&&task.status!=='running')this.recordComputerLine(task,'assistant',task.message);}publish(event);},onStart:onComputerStart,onFinish:()=>{const status=this.agent.task?.status;if(!status||['completed','failed','stopped'].includes(status))void (native.finishTask?native.finishTask():native.release?.());onComputerFinish();}});
+  this.workspace=new WorkspaceContext({session:this.computerSession,publish,isBusy:()=>this.agent.task?.status==='running',readForeground:async({reason}={})=>{const view=await native.request(reason==='timer'?'observe':'foreground');return {...view,processId:view.processId||(view.windows||[]).find(w=>w.handle===view.handle)?.processId};},readBrowser:async({view}={})=>{const state=this.browser.passiveState?.();return this.browser.mode==='managed'&&this.browser.browser?.ownsProcess?.(view?.processId)?state:{connected:false};},isSensitive:view=>!!view?.requiresElevation||!!this.secretBroker?.active||!!this.secretBroker?.protected.size||this.waits?.state()?.kind==='otp'||/1password|keepass|bitwarden|parola|password|kimlik doğrulama/i.test(view?.title||'')});
+  this.plugins=new MemoryPlugin({directory:path.join(directory,'plugins'),memory:this.memory,encrypt,decrypt,openExternal,publish,workspace:this.workspace});
+  if(captureWorkspace){const {PassiveAnalysis}=require('./passive-analysis.cjs');this.passiveAnalysis=new PassiveAnalysis({api,resolveModel:async()=>{const model=await this.modelRoles('resolve',{role:'computer'});if(!require('./computer-agent.cjs').visionModel(model))throw Error('Ekran özeti için görsel model gerekiyor.');return model;}});this.workspace.capture=captureWorkspace;this.workspace.analyze=async input=>this.secretBroker.redact(await this.passiveAnalysis.analyze(input));}
+  const browserIdentity=async()=>{const current=this.browser.passiveState?.();if(!current?.connected)return null;const listed=require('./browser-mcp.cjs').parsePages(await this.browser.call('list_pages'));const page=listed.find(p=>p.selected);if(!page||page.id!==current.pageId)return null;try{return {...current,origin:new URL(page.url).origin};}catch{return null;}};
+  this.browserIdentity=browserIdentity;
+  this.secretBroker=new (require('./secret-broker.cjs').SecretBroker)({store:this.plugins.store,publish,identity:browserIdentity,authorize:async({taskId,recordId,target})=>{const task=this.agent.task;if(task?.id!==taskId||task.epoch!==this.memory.epoch)return false;const entry=(await this.plugins.store.list()).find(r=>r.id===recordId);return entry?.public?.origin===target.origin&&/giriş|hesap|parola|şifre|kart|ödeme|satın|alışveriş|login|sign in/i.test(task.origin?.userRequest||task.goal);},fill:async({target,fields,secret,submitTarget})=>{const view=this.browser.observation;if(!view||view.browser.pageId!==target.pageId)throw Error('Gizli alan için güncel sekme gerekiyor.');for(const uid of [...Object.values(fields),...(submitTarget?[submitTarget]:[])])if(typeof uid!=='string'||!this.browser.fullSnapshot.includes('uid='+uid+' '))throw Error('Gizli alan kimliği güncel değil.');for(const [field,uid]of Object.entries(fields)){if(typeof secret[field]!=='string')throw Error('Kasadaki alan bulunamadı.');await this.browser.call('fill',{pageId:target.pageId,uid,value:secret[field]});}if(submitTarget)await this.browser.call('click',{pageId:target.pageId,uid:submitTarget});this.browser.lastResult='Gizli alanlar yerelde uygulandı; gizli değerler döndürülmedi.';this.browser.resultSource=null;this.browser.fullSnapshot='';}});
+  this.browser.secretBroker=this.secretBroker;
+  this.control.allowCapture=view=>this.waits?.state()?.kind!=='otp'&&!this.secretBroker.active&&(!this.secretBroker.protected.size||!/(?:chrome|tarayıcı)/i.test(view.title||''));this.control.sanitize=value=>this.secretBroker.redact(value);this.plugins.secretFinish=()=>this.secretBroker.invalidate();
+  this.waits=new (require('./interaction-waits.cjs').InteractionWaits)();
+  this.checkpoints=new (require('./task-workspace.cjs').TaskWorkspace)({memory:this.memory});
+  this.agent.pendingInteraction=()=>this.waits.state();
+  this.plugins.savedTasks=()=>this.checkpoints.list();this.plugins.restoreTask=async id=>{const epoch=this.memory.epoch;await this.agent.stop();this.memory.check(epoch);const previous=this.checkpoints.restore(id),model=await this.modelRoles('resolve',{role:'computer'});this.memory.check(epoch);this.control.enable(true);return this.agent.run(previous.goal,model,{...(previous.origin||{}),userRequest:previous.origin?.userRequest||previous.goal,checkpoint:previous,anchorMessageId:previous.origin?.anchorMessageId||'local-resume'});};
+  const originalPublish=this.agent.publish;this.agent.publish=event=>{if(event.event==='computer-task'&&this.memory.account){try{this.checkpoints.checkpoint(this.agent.task);}catch{}}originalPublish(event);};
+  this.plugins.interactions={definitions:()=>[{name:'interaction_wait',description:'Wait for OTP/address/shipping confirmation in this task. OTP is filled locally and never returned to the model. Shipping address must be confirmed for every order. Use current pageId/profile and current field uid; never provide a secret.',inputSchema:{type:'object',properties:{kind:{type:'string',enum:['otp','address','shipping-confirm','payment-choice']},question:{type:'string'},uid:{type:'string'},submitUid:{type:'string'}},required:['kind','question'],additionalProperties:false}}],perform:async(name,args,context)=>{context.check();const target=await browserIdentity();if(!target?.profileTrusted)throw Error('Kullanıcı katkısı için doğru tarayıcı profilini seçin.');if(args.kind==='otp'&&(!args.uid||!this.browser.fullSnapshot.includes('uid='+args.uid+' ')))throw Error('OTP alanı güncel değil.');const result=this.waits.wait({taskId:context.taskId,kind:args.kind,target:{origin:target.origin,profileKey:target.profileKey,pageId:target.pageId,uid:args.uid,submitUid:args.submitUid},question:args.question});return {waiting:true,kind:result.kind,question:result.question};}};
+
+  this.plugins.useSecret=async(args,context)=>{context.check();const target=await browserIdentity();const lease=await this.secretBroker.begin({taskId:context.taskId,...args,target});return this.secretBroker.perform(lease.id);};
+  if(this.system){this.system.guard=(name,args)=>{this.secretBroker.assertToolAllowed(name);if(name.startsWith('files_'))for(const key of ['path','source','destination'])if(args[key]){const target=path.resolve(args[key]),privateRoot=path.join(directory,'plugins');if(target===privateRoot||target.startsWith(privateRoot+path.sep)||['files_copy','files_move'].includes(name)&&privateRoot.startsWith(target+path.sep))throw Error('Şifreli kasa dosyaları genel dosya aracından okunamaz; Eklentiler içindeki aktarımı kullan.');}};this.system.sanitize=value=>this.secretBroker.redact(value);}
+  this.ssh=new (require('./ssh-tools.cjs').SshTools)({store:this.plugins.store,memory:this.memory});
+  if(this.system){this.system.adapters.push(this.plugins,this.plugins.interactions,this.ssh,new (require('./windows-tools.cjs').WindowsTools)({native,excluded:excludedWindowHandles}));this.system.authorization=()=>this.agent.task?.userAuthorization||[];}
+  this.agent.onStart=async()=>{await onComputerStart();await this.workspace.refresh({reason:'command'});const task=this.agent.task,reference=this.workspace.resolve(task?.origin?.userRequest||task?.goal||'');if(task&&reference.reference&&reference.needsTarget&&reference.reason)throw Object.assign(Error(reference.reason),{code:'BROWSER_TARGET_REQUIRED'});if(task&&reference.reference&&!reference.needsTarget){task.activeTarget=reference;task.mode=reference.executor==='browser'&&this.browser?'browser':'desktop';}};
  }
  recordComputerLine(task,role,content){
   const id=task?.origin?.conversationId;if(!id||!content||task.epoch!==this.memory.epoch||!this.memory.account)return;
@@ -32,7 +55,9 @@ class DeviceServices{
  }
  activate(account){
   if(String(account??'')===String(this.memory.account??''))return;
-  this.indexCancelled=true;void this.agent.stop().catch(()=>{});this.agent.task=null;this.control.enable(false);void this.control.native.release?.()?.catch(()=>{});this.system?.activate(account);this.environment.stop();this.environment.cache.clear();this.environment.sourceState.clear();this.memory.activate(account);this.browser.activate(account,account?this.memory.setting('browserMode','managed'):'managed');this.computerSession.reset();this.bridgeSupported=null;
+  this.secretBroker?.invalidate();this.ssh?.activate(null);this.plugins?.activate(null);this.workspace?.activate(null);
+  this.indexCancelled=true;void this.agent.stop().catch(()=>{});this.agent.task=null;this.control.enable(false);void this.control.native.release?.()?.catch(()=>{});this.system?.activate(account);this.environment.stop();this.environment.cache.clear();this.environment.sourceState.clear();this.memory.activate(account);this.browser.activate(account,account?(this.browserSessions.current().id==='default'?this.memory.setting('browserMode','managed'):this.browserSessions.current().mode):'managed',account?this.browserSessions.current():{id:'default'});this.computerSession.reset();this.bridgeSupported=null;
+  this.workspace?.activate(account);this.plugins?.activate(account);this.ssh?.activate(account);if(account)this.checkpoints.activate();this.waits.cancel();
   if(account&&this.background){this.environment.start();const epoch=this.memory.epoch;if(!this.memory.setting('location'))void this.environment.detectLocation().then(()=>{if(epoch===this.memory.epoch)this.publish({event:'environment-updated',state:this.environment.state()});}).catch(()=>{});void this.syncHistory(epoch).catch(()=>{});if(!this.memory.setting('indexInitialized',false))void Promise.resolve(this.indexing).catch(()=>{}).then(()=>{this.memory.check(epoch);return this.index(this.defaultRoots);}).then(result=>{if(!result.cancelled&&epoch===this.memory.epoch)this.memory.setSetting('indexInitialized',true);}).catch(error=>{if(epoch===this.memory.epoch)this.publish({event:'device-warning',message:error.message});});}
  }
  async syncHistory(epoch){
@@ -48,7 +73,8 @@ class DeviceServices{
  async prepareContext(query){
   const epoch=this.memory.epoch;
   const context={capabilities:{computerControl:true,protocol:'umay-computer-task-v1',chromeMcp:true,browserProtocol:'umay-browser-mcp-v1',controlPerformance:'v1',systemTools:'umay-system-tools-v1'},memory:this.memory.context(query),environment:this.environment.context(query),computerExperience:this.memory.computerExperience(query),browser:this.browser.state()};
-  if(this.control.enabled){try{const foreground=await this.control.native.request('foreground');this.memory.check(epoch);this.computerSession.observe(foreground);}catch(error){if(epoch!==this.memory.epoch)throw error;}context.computer=this.computerSession.context();}
+  if(this.control.enabled){await this.workspace.refresh({reason:'command'});this.memory.check(epoch);context.computer=this.computerSession.context();context.activeWorkspace=this.workspace.resolve(query);}
+  context.personalMemory=this.plugins.catalog.context(query);
   if(/hava|sıcaklık|yağmur|kar yağ|şemsiye|rüzgâr|rüzgar/i.test(query)){
    try{context.environment.weather=await this.environment.weather();}catch(error){context.environment.weather={available:false,message:error.message};}
   }
@@ -144,7 +170,13 @@ class DeviceServices{
  }
  async computer(method,input={}){
   this.memory.require();switch(method){
+   case 'pause-for-new-task':{const previous=await this.checkpoints.pauseForNewTask(this.agent);this.waits.cancel();return {paused:!!previous,task:previous};}
+   case 'saved-tasks':return this.checkpoints.list();
    case 'state':return {enabled:this.control.enabled,task:this.agent.state(),access:this.control.native.state?.()||{administrator:false,pending:false}};
+   case 'secure-answer':{
+    const epoch=this.memory.epoch,task=this.agent.task,pending=this.waits.state();if(!task||pending?.taskId!==task.id||task.id!==input.id)throw Error('Yanıt bekleyen görev değişti.');const target=await this.browserIdentity();this.memory.check(epoch);const value=input.value;
+    await this.waits.answer({taskId:task.id,value,target},async(text,wait)=>{if(wait.kind==='otp'){this.secretBroker.values.add(text);this.secretBroker.protected.add(target.profileKey+':'+target.pageId);await this.browser.call('fill',{pageId:target.pageId,uid:wait.target.uid,value:text});if(wait.target.submitUid)await this.browser.call('click',{pageId:target.pageId,uid:wait.target.submitUid});this.browser.lastResult='Tek kullanımlık kod yerelde uygulandı.';this.browser.fullSnapshot='';}else if(wait.kind==='address'){this.plugins.catalog.upsert({type:'address',title:'Kullanıcının verdiği kargo adresi',content:text,source:{kind:'user',id:task.id}});task.feedback='Kullanıcı adresi yerelde kaydetti; bu sipariş için adresi kullanıcıya teyit et.';}else task.feedback='Kullanıcının bu görev için yanıtı: '+text;});this.memory.check(epoch);task.requiresInput=null;task.status='question';return this.agent.resume(task.id,{answer:pending.kind==='otp'?'Tek kullanımlık kod yerelde uygulandı; değer saklanmadı.':task.feedback});
+   }
    case 'pause':if(this.agent.task&&input.userReply)this.recordComputerLine(this.agent.task,'user',input.userReply);return this.agent.pause();
    case 'continue':if(input.id&&input.id!==this.agent.task?.id)throw Error('Devam ettirilecek görev değişti.');if(this.agent.task&&input.userReply)this.recordComputerLine(this.agent.task,'user',input.userReply);return this.agent.resumePaused();
    case 'enable':if(!input.enabled)await this.agent.stop();this.memory.log('computer-permission',input.enabled?'Bilgisayar kontrolü açıldı':'Bilgisayar kontrolü kapatıldı');return {enabled:this.control.enable(input.enabled)};
@@ -165,23 +197,25 @@ class DeviceServices{
    }
    case 'release-admin':await this.agent.stop();this.system?.releaseAdministrator();await this.control.native.release?.();return {administrator:false,pending:false};
    case 'elevate':{const task=this.agent.task;if(!task||task.id!==input.id||task.status!=='permission')throw Error('Yönetici izni bekleyen etkin görev bulunamadı.');this.agent.check(task);if(!this.control.native.elevate)throw Error('Windows yönetici izni bu ortamda kullanılamıyor.');this.recordComputerLine(task,'user',input.userReply||'Windows yönetici onayını aç');await this.control.native.elevate();this.memory.check(task.epoch);this.control.native.retainAdministrator?.();this.agent.check(task);this.memory.log('computer-elevation','Kullanıcı Windows yönetici onayını verdi',{details:{taskId:task.id}});if(this.system)await this.system.elevate();this.memory.check(task.epoch);this.agent.check(task);return this.agent.resume(task.id,{approved:true,elevated:true});}
-   case 'stop':if(this.agent.task?.id===input.id&&input.userReply)this.recordComputerLine(this.agent.task,'user',input.userReply);return this.agent.stop();
+   case 'stop':this.waits.cancel();if(this.agent.task?.id===input.id&&input.userReply)this.recordComputerLine(this.agent.task,'user',input.userReply);return this.agent.stop();
    case 'resume':{const task=this.agent.task;if(task?.id===input.id)this.recordComputerLine(task,'user',input.userReply||input.answer||(input.approved?'Onaylıyorum.':'Vazgeçtim.'));return this.agent.resume(input.id,input);}
    default:throw Error('Bilgisayar kontrol işlemi geçersiz.');
   }
  }
  async browserAction(method,input={}){
   this.memory.require();const epoch=this.memory.epoch;
-  if(method==='state')return this.browser.state();
+  if(method==='state')return {...this.browser.state(),sessions:this.browserSessions.state()};
   if(this.agent.task&&['running','paused','confirmation','question','permission'].includes(this.agent.task.status))throw Error('Tarayıcı bağlantısını değiştirmeden önce etkin görevi durdurun.');
+  if(method==='profiles-save'){const result=this.browserSessions.save(input);return result;}
+  if(method==='profile-select'){await this.browser.stop();this.memory.check(epoch);const profile=this.browserSessions.select(input.id);this.browser.activate(this.memory.account,profile.mode,profile);return this.browser.state();}
   if(method==='settings'){
-   if(!['managed','existing'].includes(input.mode))throw Error('Chrome bağlantı seçimi geçersiz.');await this.browser.stop();this.memory.check(epoch);this.memory.setSetting('browserMode',input.mode);this.browser.activate(this.memory.account,input.mode);return this.browser.state();
+   if(!['managed','existing'].includes(input.mode))throw Error('Chrome bağlantı seçimi geçersiz.');await this.browser.stop();this.memory.check(epoch);this.memory.setSetting('browserMode',input.mode);const profile=this.browserSessions.current();this.browserSessions.save({...profile,mode:input.mode});this.browser.activate(this.memory.account,input.mode,{...profile,mode:input.mode});return this.browser.state();
   }
   if(method==='connect'){await this.browser.observe();this.memory.check(epoch);return this.browser.state();}
   if(method==='open-url'){const view=await this.browser.observe();this.memory.check(epoch);await this.browser.perform({toolName:'new_page',toolArguments:JSON.stringify({url:input.url,background:false})},view.id);return this.browser.state();}
   throw Error('Chrome işlemi geçersiz.');
  }
- async shutdown(){this.indexCancelled=true;this.environment.stop();await this.agent.stop();this.system?.close();await this.browser.stop();this.browser.close();this.control.close();this.memory.close();}
- close(){this.indexCancelled=true;this.environment.stop();void this.agent.stop().catch(()=>{});this.system?.close();this.browser.close();this.control.close();this.memory.close();}
+ async shutdown(){this.indexCancelled=true;this.waits.cancel();this.secretBroker.invalidate();this.ssh.close();this.plugins.close();this.workspace.stop();this.environment.stop();await this.agent.stop();this.system?.close();await this.browser.stop();this.browser.close();this.control.close();this.memory.close();}
+ close(){this.indexCancelled=true;this.waits.cancel();this.secretBroker.invalidate();this.ssh.close();this.plugins.close();this.workspace.stop();this.environment.stop();void this.agent.stop().catch(()=>{});this.system?.close();this.browser.close();this.control.close();this.memory.close();}
 }
 module.exports={DeviceServices};

@@ -1,6 +1,6 @@
 {
   "name": "umay",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "description": "Umay Windows Turkish voice assistant",
   "author": "Karam4ns",
@@ -17,7 +17,8 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",
     "electron-updater": "^6.6.2",
-    "fast-xml-parser": "5.12.0"
+    "fast-xml-parser": "5.12.0",
+    "ssh2": "1.17.0"
   },
   "devDependencies": {
     "chrome-devtools-mcp": "1.12.0",

@@ -2,7 +2,7 @@
  const $=id=>document.getElementById(id),key=m=>m?m.source+':'+m.id:'',ref=value=>{const model=models.find(m=>key(m)===value);return model?{id:model.id,source:model.source}:null;};
  let roles={chat:null,computer:null},epoch=0,request=0;
  const vision=model=>(model?.categories||[]).some(c=>/^(vision|multimodal|image[-_ ]to[-_ ]text|görsel anlama)$/i.test(typeof c==='string'?c:c?.name||c?.slug||''));
- function tab(name){const showing=name==='models';$('settings-models').hidden=!showing;$('settings-speech').hidden=showing;$('settings-models-tab').setAttribute('aria-selected',String(showing));$('settings-speech-tab').setAttribute('aria-selected',String(!showing));if(showing)void Promise.all([load(),window.umayBrowser?.load(),loadAccess()]).catch(showError);}
+ function tab(name){for(const page of ['speech','models','plugins']){const panel=$('settings-'+page),button=$('settings-'+page+'-tab');if(panel)panel.hidden=page!==name;if(button)button.setAttribute('aria-selected',String(page===name));}if(name==='models')void Promise.all([load(),window.umayBrowser?.load(),loadAccess()]).catch(showError);if(name==='plugins')void window.umayPlugins?.load().catch(showError);}
  async function loadAccess(){if(!api.computer||!$('admin-state'))return;const current=epoch,data=await api.computer('state');if(current!==epoch)return;const active=!!data?.access?.administrator;$('admin-state').textContent=active?'Yönetici erişimi açık · bu Umay oturumunda kullanılabilir.':'Yönetici erişimi kapalı.';$('admin-revoke').disabled=!active;}
  if($('admin-revoke'))$('admin-revoke').onclick=async()=>{try{await api.computer('release-admin');await loadAccess();}catch(error){showError(error);}};
  api.onEvent?.(event=>{if(event.event==='computer-access')void loadAccess().catch(()=>{});});
@@ -20,7 +20,7 @@
  }
  async function load(){if(!api.modelRoles)return;const current=epoch,id=++request,result=await api.modelRoles('state');if(current!==epoch||id!==request)return;roles=result.roles;paint();return result;}
  async function save(input){const current=epoch,result=await api.modelRoles('save',input);if(current!==epoch)return false;roles=result.roles;paint();return true;}
- $('settings-models-tab').onclick=()=>tab('models');$('settings-speech-tab').onclick=()=>tab('speech');
+ $('settings-plugins-tab').onclick=()=>tab('plugins');$('settings-models-tab').onclick=()=>tab('models');$('settings-speech-tab').onclick=()=>tab('speech');
  for(const role of ['chat','computer'])$('role-'+role).onchange=()=>detail(role);
  $('model-roles-save').onclick=async()=>{const current=epoch;$('model-roles-save').disabled=true;try{
   if(!$('role-chat').value||!$('role-computer').value)throw Error('Sohbet ve bilgisayar kontrolü için birer model seç.');
@@ -28,5 +28,5 @@
   const old=key(roles.chat);if(await save(input)){if(old!==key(roles.chat)){await stop();conversation=null;$('messages').replaceChildren();window.umayShell?.reset();}$('model-roles-status').textContent='Sohbet ve bilgisayar model rolleri kaydedildi.';}
  }catch(error){if(current===epoch)showError(error);}finally{$('model-roles-save').disabled=false;}};
  $('model-roles-refresh').onclick=async()=>{try{await refresh();await load();$('model-roles-status').textContent='Modeller güncellendi.';}catch(error){showError(error);}};
- window.umayModelRoles={load,paint,async selectChat(model){if(api.modelRoles&&model)await save({chat:{id:model.id,source:model.source}});},reset(){epoch++;request++;roles={chat:null,computer:null};for(const id of ['role-chat','role-computer'])$(id).replaceChildren();$('model-roles-status').textContent='';tab('speech');}};
+ window.umayModelRoles={load,paint,async selectChat(model){if(api.modelRoles&&model)await save({chat:{id:model.id,source:model.source}});},reset(){window.umayPlugins?.reset();epoch++;request++;roles={chat:null,computer:null};for(const id of ['role-chat','role-computer'])$(id).replaceChildren();$('model-roles-status').textContent='';tab('speech');}};
 })();

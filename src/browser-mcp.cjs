@@ -20,14 +20,15 @@ class BrowserMcp{
  constructor({directory,entry=path.join(__dirname,'..','node_modules','chrome-devtools-mcp','build','src','bin','chrome-devtools-mcp.js'),command=process.execPath,clientFactory=()=>new Client({name:'umay',version:require('../package.json').version}),transportFactory=options=>new StdioClientTransport(options),browser,now=()=>Date.now(),publish=()=>{}}={}){
   Object.assign(this,{entry,command,clientFactory,transportFactory,now,publish});this.browser=browser||new ChromeBrowser({directory});this.account=null;this.generation=0;this.client=null;this.transport=null;this.connecting=null;this.drain=Promise.resolve();this.tools=[];this.mode='managed';this.observation=null;this.pageId=null;this.extraTools=new Set();this.lastResult='';
  }
- activate(account,mode='managed'){if(this.account===account&&this.mode===mode)return;void this.stop();this.account=account;this.mode=mode;this.pageId=null;this.pages=[];this.lastResult='';this.resultSource=null;this.resultOffset=0;this.snapshotOffset=0;this.resultLength=1400;this.snapshotWindowLength=3200;this.lastWrite=null;this.fullSnapshot='';this.extraTools.clear();this.browser.activate(account);}
- state(){return {mode:this.mode,connected:!!this.client&&!!this.ready,engine:'Chrome DevTools MCP',version:'1.12.0'};}
- beginTask(){this.lastWrite=null;this.snapshotOffset=0;this.resultOffset=0;this.resultLength=1400;this.snapshotWindowLength=3200;this.observation=null;}
+ activate(account,mode='managed',profile={id:'default'}){if(this.account===account&&this.mode===mode&&this.profile?.id===profile.id&&this.profile?.endpoint===profile.endpoint)return;this.profile=profile;void this.stop();this.account=account;this.mode=mode;this.pageId=null;this.pages=[];this.lastResult='';this.resultSource=null;this.resultOffset=0;this.snapshotOffset=0;this.resultLength=1400;this.snapshotWindowLength=3200;this.lastWrite=null;this.fullSnapshot='';this.extraTools.clear();this.browser.activate(profile.id==='default'?account:account==null?null:account+'|'+profile.id);}
+ state(){return {mode:this.mode,connected:!!this.client&&!!this.ready,engine:'Chrome DevTools MCP',version:'1.12.0',profileId:this.profile?.id||'default',profileName:this.profile?.name||'Umay Chrome profili'};}
+ passiveState(){return {connected:!!this.client&&!!this.ready,profileKey:this.mode+':'+(this.profile?.id||'default')+':'+createHash('sha256').update(String(this.account)).digest('hex'),profileTrusted:this.mode==='managed',pageId:this.pageId,pages:this.pages||[],snapshot:redact(this.fullSnapshot||''),observedAt:this.observation?.createdAt};}
+ beginTask(){this.stagnant=null;this.lastWrite=null;this.snapshotOffset=0;this.resultOffset=0;this.resultLength=1400;this.snapshotWindowLength=3200;this.observation=null;}
  check(generation){if(generation!==this.generation||!this.account)throw Object.assign(Error('Tarayıcı işlemi durduruldu.'),{code:'BROWSER_CANCELLED'});}
  async connect({refresh=false}={}){
   if(this.connecting)return this.connecting;if(this.client&&(!refresh||this.mode!=='managed'))return this.client;const generation=this.generation;
   const connecting=this.connecting=(async()=>{
-   await this.drain;this.check(generation);const endpoint=this.mode==='managed'?await this.browser.ensure():null;this.check(generation);
+   await this.drain;this.check(generation);const endpoint=this.mode==='managed'?await this.browser.ensure():this.profile?.endpoint||null;this.check(generation);
    if(this.client){
     if(this.endpoint===endpoint)return this.client;
     // Only read-side refresh replaces a dead Chrome session. Never replay an
@@ -53,10 +54,12 @@ class BrowserMcp{
  async exclusive(work){if(this.operation)throw Object.assign(Error('Önceki Chrome işlemi sürüyor.'),{code:'BROWSER_BUSY'});const operation=this.operation={};try{return await work();}finally{if(this.operation===operation)this.operation=null;}}
  observe(options){return this.exclusive(()=>this.observePage(options));}
  async observePage({image=false}={}){
+  if(this.secretBroker&&!this.secretBroker.canObserve(this.passiveState()))throw Object.assign(Error('Gizli alan işlemi tamamlanana kadar ekran okunmuyor.'),{code:'SECRET_HANDOFF_REQUIRED'});
+  if(this.secretBroker&&!this.secretBroker.canObserve(this.passiveState(),{image:true}))image=false;
   const generation=this.generation;let pages=parsePages(await this.call('list_pages'));this.check(generation);
   if(!pages.length){await this.call('new_page',{url:'about:blank'},generation);pages=parsePages(await this.call('list_pages',{},generation));}
   const selected=pages.find(p=>p.selected)||pages.find(p=>p.id===this.pageId)||pages[0];if(!selected)throw Error('Chrome sekmesi bulunamadı.');this.pageId=selected.id;this.pages=pages;
-  const snapshot=textOf(await this.call('take_snapshot',{pageId:this.pageId},generation));this.check(generation);this.fullSnapshot=snapshot.slice(0,60000);if((this.snapshotOffset||0)>=this.fullSnapshot.length)this.snapshotOffset=0;const screenshots=[];
+  const rawSnapshot=textOf(await this.call('take_snapshot',{pageId:this.pageId},generation)),snapshot=this.secretBroker?this.secretBroker.redact(rawSnapshot):rawSnapshot;this.check(generation);this.fullSnapshot=snapshot.slice(0,60000);if((this.snapshotOffset||0)>=this.fullSnapshot.length)this.snapshotOffset=0;const screenshots=[];
   if(image){const shot=await this.call('take_screenshot',{pageId:this.pageId,format:'jpeg'},generation),item=shot.content?.find(c=>c.type==='image');if(item)screenshots.push({displayId:'browser',image:'data:'+item.mimeType+';base64,'+item.data});}
   this.check(generation);
   const offset=this.snapshotOffset||0,resultOffset=this.resultOffset||0,windowLength=this.snapshotWindowLength||3200;
@@ -65,11 +68,14 @@ class BrowserMcp{
  }
  perform(action,observationId){return this.exclusive(async()=>{const generation=this.generation;try{return await this.performAction(action,observationId);}catch(error){if(generation===this.generation){this.lastResult=JSON.stringify({error:{code:error.code||'BROWSER_TOOL_FAILED',message:redact(error.message)},effect:'unknown; inspect current page before retrying'});this.resultOffset=0;this.resultLength=1400;this.resultSource={tool:action.toolName,argumentsHash:createHash('sha256').update(String(action.toolArguments||'{}')).digest('hex'),status:'failed'};}throw error;}});}
  async performAction(action,observationId){
+  this.secretBroker?.assertToolAllowed(action.toolName);
   const view=this.observation;if(!view||view.id!==observationId||this.now()-view.createdAt>90000)throw Object.assign(Error('Chrome gözlemi güncel değil. Yeniden inceleme gerekiyor.'),{code:'PLANNER_INVALID'});
   const generation=this.generation,tool=this.tools.find(t=>t.name===action.toolName);if(!tool)throw Object.assign(Error('Geçerli Chrome aracı seçilmeli.'),{code:'PLANNER_INVALID'});
   let args;try{args=JSON.parse(action.toolArguments||'{}');if(!args||typeof args!=='object'||Array.isArray(args))throw Error();}catch{throw Object.assign(Error('Chrome aracının toolArguments alanı geçerli bir JSON nesnesi olmalı.'),{code:'PLANNER_INVALID'});}
   if(tool.inputSchema?.properties?.pageId){args.pageId??=this.pageId;if(!(this.pages||view.browser.pages).some(p=>p.id===args.pageId))throw Object.assign(Error('İşlem sekmesi güncel Chrome gözleminde yok.'),{code:'PLANNER_INVALID'});}
   const checkUids=value=>{if(!value||typeof value!=='object')return;for(const [key,item]of Object.entries(value)){if(/^(?:uid|from_uid|to_uid)$/.test(key)&&typeof item==='string'&&(!this.fullSnapshot.includes('uid='+item+' ')||args.pageId!==view.browser.pageId))throw Object.assign(Error('Chrome öğesi güncel sekme görüntüsünde yok. Önce doğru sekmeyi seçip yeniden incele.'),{code:'PLANNER_INVALID'});if(typeof item==='object')checkUids(item);}};checkUids(args);
+  if(tool.name==='fill'&&typeof args.value==='string'&&args.uid){const line=this.fullSnapshot.split('\n').find(line=>line.includes('uid='+args.uid+' '));const value=line?.match(/\bvalue="((?:\\.|[^"\\])*)"/);let actual;try{if(value)actual=JSON.parse('"'+value[1]+'"');}catch{}if(actual===args.value)throw Object.assign(Error('WRITE_ALREADY_APPLIED: Alanın gerçek güncel değeri istenen metinle aynı. Yeniden fill yapma. Arama/gönderim için güncel düğmeyi veya press_key ile Enter seç; sonucu doğrula.'),{code:'PLANNER_INVALID'});}
+  if(tool.name==='click'||tool.name==='press_key'&&/^(?:Enter|Return)$/i.test(args.key||'')){const signature=createHash('sha256').update(JSON.stringify([tool.name,args,this.fullSnapshot.replace(/uid=\S+/g,'uid')])).digest('hex');const count=this.stagnant?.signature===signature?this.stagnant.count+1:1;this.stagnant={signature,count};if(count>3)throw Object.assign(Error('NO_VISIBLE_PROGRESS: Aynı giriş güncel sayfada ilerleme olmadan üç kez uygulandı. Yeniden gönderme; sonucu/gerçek odağı incele, gerekiyorsa bekle veya somut eksik bilgiyi sor.'),{code:'PLANNER_INVALID'});}else if(!['take_snapshot','list_pages'].includes(tool.name))this.stagnant=null;
   if(['navigate_page','new_page'].includes(tool.name)&&args.url){const url=new URL(args.url);if(!['http:','https:','about:','chrome:','file:'].includes(url.protocol))throw Object.assign(Error('Bu adres türüyle gezinme yapılamıyor.'),{code:'PLANNER_INVALID'});}
   if(tool.name==='navigate_page')args.handleBeforeUnload??='dismiss';
   if(tool.inputSchema?.properties?.timeout){const maximum=tool.name==='wait_for'?600000:30000;args.timeout=Number.isInteger(args.timeout)&&args.timeout>0?Math.min(args.timeout,maximum):15000;}
@@ -79,7 +85,7 @@ class BrowserMcp{
   if(tool.name==='select_page')args.bringToFront=true;
   this.observation=null;
   if(args.pageId!==undefined&&args.pageId!==view.browser.pageId&&tool.annotations?.readOnlyHint!==true&&tool.name!=='select_page')await this.call('select_page',{pageId:args.pageId,bringToFront:true},generation);
-  const result=await this.call(tool.name,args,generation);this.check(generation);this.lastResult=redact(textOf(result)).slice(0,60000);this.resultOffset=0;this.resultLength=1400;this.resultSource={tool:tool.name,argumentsHash:createHash('sha256').update(String(action.toolArguments||'{}')).digest('hex'),status:'completed',pageId:args.pageId??null,url:view.browser.pages.find(p=>p.id===args.pageId)?.url||null};if(write)this.lastWrite=write;
+  const result=await this.call(tool.name,args,generation);this.check(generation);this.lastResult=(this.secretBroker?this.secretBroker.redact(redact(textOf(result))):redact(textOf(result))).slice(0,60000);this.resultOffset=0;this.resultLength=1400;this.resultSource={tool:tool.name,argumentsHash:createHash('sha256').update(String(action.toolArguments||'{}')).digest('hex'),status:'completed',pageId:args.pageId??null,url:view.browser.pages.find(p=>p.id===args.pageId)?.url||null};if(write)this.lastWrite=write;
   if(['navigate_page','new_page','select_page'].includes(tool.name))this.snapshotOffset=0;
   if(['select_page','navigate_page'].includes(tool.name)&&Number.isInteger(args.pageId))this.pageId=args.pageId;
   if(tool.name==='new_page'){const pages=parsePages(result),selected=pages.find(p=>p.selected);this.pageId=selected?.id??null;}

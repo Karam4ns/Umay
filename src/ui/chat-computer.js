@@ -28,6 +28,7 @@
   const yes=/^(?:evet|evet onayliyorum|tamam|onayliyorum|onay veriyorum|bu islemi onayliyorum|devam et|yap|olur|windows yonetici onayini ac|yonetici onayini ac|windows yonetici erisimini ac|yonetici erisimini ac)$/.test(folded),no=/^(?:hayir|iptal|iptal et|vazgec|dur|durdur|yapma|onaylamiyorum)$/.test(folded);
   working=true;try{
    let result;if(no)result=await api.computer('stop',{id:waiting.id,userReply:text});
+   else if(waiting.status==='question'&&waiting.requiresInput?.kind)result=await api.computer('secure-answer',{id:waiting.id,value:text});
    else if(waiting.status==='question')result=await api.computer('resume',{id:waiting.id,answer:text,userReply:text});
    else if(!yes)return {...waiting,message:'Bu işlem için “onaylıyorum” veya “vazgeç” diyebilirsin.'};
    else result=await api.computer(waiting.status==='permission'?'elevate':'resume',{id:waiting.id,approved:true,userReply:text});

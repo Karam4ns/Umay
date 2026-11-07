@@ -9,8 +9,8 @@ class ComputerSession{
  }
  observe(data){
   if(data?.system){this.system={roots:data.system.roots||[],artifacts:data.system.artifacts?.slice(-12)||[],pendingJobs:data.system.pendingJobs||[],observedAt:new Date().toISOString()};return;}
-  if(data?.browser){this.browser={pageId:data.browser.pageId,pages:data.browser.pages?.slice(0,6),observedAt:new Date().toISOString()};return;}
-  if(!data)return;this.windows=(data.windows||[]).slice(0,8).map(w=>({handle:w.handle,title:text(w.title,160),minimized:!!w.minimized}));
+  if(data?.browser){this.browser={pageId:data.browser.pageId,pages:data.browser.pages?.slice(0,6),summary:String(data.browser.snapshot||'').replace(/uid=\S+\s*/g,'').slice(0,1500),observedAt:new Date().toISOString()};return;}
+  if(!data)return;this.windows=(data.windows||[]).slice(0,8).map(w=>({handle:w.handle,processId:w.processId,title:text(w.title,160),minimized:!!w.minimized}));
   if(data.isForeground!==false&&data.handle&&data.title&&!/^Umay(?: bilgisayar görevi)?$/i.test(data.title))this.foreground={handle:data.handle,title:text(data.title,240),observedAt:new Date().toISOString()};
  }
  context(compact=false){

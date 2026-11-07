@@ -11,5 +11,6 @@ contextBridge.exposeInMainWorld('umay',{
  computer:(method,input)=>ipcRenderer.invoke('computer',method,input),
  browser:(method,input)=>ipcRenderer.invoke('browser',method,input),
  modelRoles:(method,input)=>ipcRenderer.invoke('model-roles',method,input),
+ plugins:(method,input)=>ipcRenderer.invoke('plugins',method,input),
  onEvent:callback=>ipcRenderer.on('event',(_event,data)=>callback(data))
 });
