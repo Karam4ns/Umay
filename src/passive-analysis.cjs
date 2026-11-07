@@ -2,7 +2,7 @@
 const {randomUUID}=require('node:crypto');
 // Observations may describe state only. This service has no input/tool executor.
 class PassiveAnalysis{
- constructor({api,resolveModel,now=()=>Date.now(),delay=ms=>new Promise(r=>setTimeout(r,ms)),deadlineMs=20000}={}){Object.assign(this,{api,resolveModel,now,delay,deadlineMs});}
+ constructor({api,resolveModel,publish=()=>{},now=()=>Date.now(),delay=ms=>new Promise(r=>setTimeout(r,ms)),deadlineMs=20000}={}){Object.assign(this,{api,resolveModel,publish,now,delay,deadlineMs});}
  async analyze({image,target,signal}){
   let conversation,run;const deadline=this.now()+this.deadlineMs,check=()=>{signal?.throwIfAborted();if(this.now()>deadline)throw Error('Salt okunur ekran analizi zaman aşımına uğradı.');};
   try{
@@ -17,7 +17,7 @@ class PassiveAnalysis{
   }finally{
    // Cleanup uses only IDs created here; never archive a user's conversation.
    if(run&&['QUEUED','RUNNING'].includes(run.status))await this.api('/site/chat/runs/'+run.id+'/cancel',{}).catch(()=>{});
-   if(conversation){const detail=await this.api('/site/chat/conversations/'+conversation.id).catch(()=>null);if(detail?.conversation)await this.api('/site/chat/conversations/'+conversation.id+'/archive',{archived:true,expectedVersion:detail.conversation.version}).catch(()=>{});}
+   if(conversation){let archived=false;for(let attempt=0;attempt<4&&!archived;attempt++){try{const detail=await this.api('/site/chat/conversations/'+conversation.id);if(!detail?.conversation)throw Error('Kayıt okunamadı.');await this.api('/site/chat/conversations/'+conversation.id+'/archive',{archived:true,expectedVersion:detail.conversation.version});archived=true;}catch{if(attempt<3)await this.delay(250);}}if(!archived)this.publish({event:'device-warning',message:'Çalışma gözleminin geçici sohbeti arşivlenemedi. Sunucu bağlantısını kontrol edin.'});}
   }
  }
 }

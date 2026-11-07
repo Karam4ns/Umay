@@ -4,7 +4,7 @@ const hash=value=>createHash('sha256').update(value).digest('hex');
 const error=(code,message)=>Object.assign(Error(message),{code});
 const blocked=new Set(['raw','.obsidian','.git']);
 function checked(root,relative,{mkdir=false}={}){
- if(typeof relative!=='string'||!relative||path.isAbsolute(relative)||relative.split(/[\\/]/).some(p=>p==='..'||blocked.has(p.toLowerCase())||/[. ]$/.test(p)))throw error('VAULT_PATH','Bu klasör Obsidian hafızası için kullanılamaz.');
+ if(typeof relative!=='string'||!relative||path.isAbsolute(relative)||relative.split(/[\\/]/).some(p=>p==='..'||/[<>:"|?*\x00-\x1f]/.test(p)||blocked.has(p.toLowerCase())||/[. ]$/.test(p)))throw error('VAULT_PATH','Bu klasör Obsidian hafızası için kullanılamaz.');
  const target=path.resolve(root,relative),rel=path.relative(root,target);if(rel.startsWith('..')||path.isAbsolute(rel))throw error('VAULT_PATH','Vault dışına yazılamaz.');
  let current=path.parse(root).root;for(const part of path.resolve(target).slice(current.length).split(path.sep).filter(Boolean)){
   current=path.join(current,part);if(fs.existsSync(current)){const s=fs.lstatSync(current);if(s.isSymbolicLink()||s.isFile()&&s.nlink>1)throw error('VAULT_LINK','Bağlantılı dosya veya klasör kullanılamaz.');}
