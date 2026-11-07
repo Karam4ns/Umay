@@ -1,6 +1,6 @@
 # Obsidian hafızası ve kesintisiz çalışma taslağı
 
-7 Kasım 2026 — **taslak, uygulama onayı bekliyor**. Bu belge yeni özelliklerin tamamlandığını söylemez. Dayanak: kullanıcının yeni hafıza/tutarlılık isteği, `general-assistant-scope.md`, mevcut kaynak ve son gerçek kayıtlar. Mevcut 0.7.0 kodu bu taslak nedeniyle değiştirilmedi.
+7 Kasım 2026 — **uygulama kapsamı**. Kullanıcı hafıza/devamlılık değişikliklerini yapmayı istedi ve kurtarma anahtarıyla taşınabilir kasayı seçti. Bu belge yeni özelliklerin tamamlandığını söylemez. Dayanak: kullanıcının isteği/seçimi, `general-assistant-scope.md`, mevcut kaynak ve son gerçek kayıtlar. Yeni çalışma 0.7.0 temelli izole `codex/obsidian-continuity` dalındadır.
 
 ## Amaç
 
@@ -21,7 +21,7 @@ Umay kullanıcının yönlendirmesiyle aynı iş, uygulama, tarayıcı profili v
 2. **Özel Obsidian eklentisi/yerel köprü.** Obsidian `Vault.process` üzerinden uygulama içi güncellemeyi atomik yapabilir. Her cihazda eklentinin kurulup etkinleştirilmesi gerekir; Obsidian kapalıyken ayrı yol gerekir. Sonradan eklenebilecek adaptör, ilk sürümün zorunlu bağımlılığı değil.
 3. **Üçüncü taraf REST eklentisi veya yalnız ekran otomasyonu.** Ek API anahtarı/eklenti bağımlılığı ya da her not için pencere/girdi gecikmesi oluşturur. İlk uygulama yolu olarak önerilmez.
 
-Öneri 1 henüz kullanıcı tarafından seçilmiş teknik karar diye kaydedilmez; tasarım onayı bu tercihi de kapsar. Obsidian notları düz metindir: [veri saklama](https://obsidian.md/help/data-storage). Notu doğru vault içinde açma: [resmî URI](https://obsidian.md/help/uri). CLI varlığı/etkinliği çalışma anında sınanır; her Obsidian kurulumunda hazır varsayılmaz: [resmî CLI](https://obsidian.md/help/cli). [Vault.process](https://docs.obsidian.md/Plugins/Vault) uygulama içi okuma/değiştirme garantisi sağlar; sıradan dosya sistemi yazısı bu garantiye sahipmiş gibi sunulmaz.
+Yerel dosya adaptörü mevcut mimariye uygun mühendislik tercihidir; kullanıcı tarafından ayrıca belirlenmiş bir uygulama API tercihi diye sunulmaz. Obsidian notları düz metindir: [veri saklama](https://obsidian.md/help/data-storage). Notu doğru vault içinde açma: [resmî URI](https://obsidian.md/help/uri). CLI varlığı/etkinliği çalışma anında sınanır; her Obsidian kurulumunda hazır varsayılmaz: [resmî CLI](https://obsidian.md/help/cli). [Vault.process](https://docs.obsidian.md/Plugins/Vault) uygulama içi okuma/değiştirme garantisi sağlar; sıradan dosya sistemi yazısı bu garantiye sahipmiş gibi sunulmaz.
 
 ## 1. Ayarlar → Eklentiler → Obsidian
 
@@ -65,7 +65,7 @@ Her kayıt sabit kimlik, kaynak, oluşma/güncellenme zamanı, sürüm, doğrula
 
 Parolalar, SSH özel anahtar içeriği, tam kart/banka/kripto sırları normal Markdown, arama indeksi, ekran geçmişi, işlem logu veya model istemine yazılmaz. Obsidian notu anlamlı hesap/kurum/host/son dört hane ve kasa kayıt kimliğini gösterir. Gizli kayıt tipleri genişletilebilir. OTP ve kart doğrulama kodu gibi işlem anına ait değerler kalıcı hafıza yapılmaz; tamamlanma/iptalde bırakılır. Kripto adresi ile cüzdan kurtarma/özel anahtarı birbirinden ayrılır.
 
-**Kullanıcıya sorulan açık seçim:** kasa kurtarma anahtarıyla başka cihaza taşınabilir mi, yoksa yalnız bu Windows hesabına mı bağlı kalmalı? Taşınabilir tercih için rastgele veri anahtarıyla şifreli kayıtlar ve ayrı kurtarma yolu; Windows güvenli saklama yalnız bu cihazdaki kilit açma kolaylığı için kullanılır. Diğer tercih mevcut Windows güvenli saklamayı kullanabilir. Kurtarma sırrı sohbete veya Git'e konulmaz. Doğru kurtarma anahtarı olmadan taşınmış şifreli verinin açılmayacağı bağlantı ekranında açıklanır. Aktif model bu sırları hatırlamakla görevlendirilmez.
+**Kullanıcının seçimi:** kasa kurtarma anahtarıyla başka cihaza taşınabilir olacak. Taşınabilir tercih için rastgele veri anahtarıyla şifreli kayıtlar ve ayrı kurtarma yolu; Windows güvenli saklama yalnız bu cihazdaki kilit açma kolaylığı için kullanılır. Diğer tercih mevcut Windows güvenli saklamayı kullanabilir. Kurtarma sırrı sohbete veya Git'e konulmaz. Doğru kurtarma anahtarı olmadan taşınmış şifreli verinin açılmayacağı bağlantı ekranında açıklanır. Aktif model bu sırları hatırlamakla görevlendirilmez.
 
 Gizli değer **yerel yürütmede** referanstan çözülür. Web doldurmada gerçek origin/profil ve güncel alan doğrulanır; model yalnız kayıt/alan referansını görür. Kimlik bilgisi başka domain'e sayfa talimatıyla taşınmaz. SSH bağlantısına sır doğrudan yerel adaptörden verilir; komut satırı argümanı veya stdout/log'a dökülmez. Kasa kilitliyse kullanıcıdan açması istenir; model anahtar tahmin etmez. Hesap değişimi/çıkış açık referansları ve oturumluk değerleri iptal eder.
 
@@ -135,8 +135,8 @@ Onay sonrası ayrıntılı dosya/arayüz/test planı `Docs/plan.md` ve `Docs/wal
 
 Asgari uçtan uca kabul: herhangi bir test aramasını aç → ayrı komutta arat → ayrı komutta üçüncü sonucu aç; kullanıcı başka uygulama/sekme/profile geçsin → orada devam; uygulamayı saatlerce izleme senaryosunda checkpoint/iptal/yeniden başlatma; sandbox checkout'ta OTP/adres/ödeme tekrarı; bağlı olmayan vault/aygıt/SSH, değişen dosya ve uygulama kapanması. Gerçek banka alışverişi veya kullanıcı verisi silme, test için yapılmaz. Gerçek model ve kontrollü planlayıcı ölçümleri ayrılır; p50/p95 ve doğru tamamlama oranı raporlanır.
 
-## Kullanıcıdan beklenen karar
+## Seçilen kasa ve uygulama kararı
 
-Önerilen yerel Obsidian bağlantısı + şifreli kasa + güncel hedef/komut devamlılığı tasarımının onayı. Kasanın taşınabilirliği sorusu ayrıca açık. Bunlar kararlaştırılmadan parolalar/kartlar gerçek vault'a aktarılmayacak ve yeni izleme etkinleştirilmeyecek. Taslak yeni özelliklerin uygulama onayı değildir.
+Kullanıcının ilk mesajı bu kapsamın uygulanması talimatıdır; son yanıtı kurtarma anahtarıyla taşınabilir kasayı seçer. Kesin uygulama/test planı `obsidian-continuity-implementation.md` içindedir. Gerçek vault bağlantısı, kasa anahtarının kullanıcıya gösterilmesi ve gözlem tercihi görünür yerel onboarding ile kurulur; testler gerçek kişisel verileri kopyalamaz.
 
-Bağımsız planlanabilirlik incelemesi tamamlandı. Sır kullanımından sonraki gözlem/araç sınırı, çok hesap/cihaz sahipliği, belirsiz native profil, eşzamanlı izleme/etkili iş ve not silme/yeniden başlatma davranışları netleştirildi. İkinci okumada kalan önemli planlama sorusu bildirilmedi. Bu teknik inceleme kullanıcı tasarım onayının yerine geçmez.
+Bağımsız planlanabilirlik incelemesi tamamlandı. Sır kullanımından sonraki gözlem/araç sınırı, çok hesap/cihaz sahipliği, belirsiz native profil, eşzamanlı izleme/etkili iş ve not silme/yeniden başlatma davranışları netleştirildi. İkinci okumada kalan önemli planlama sorusu bildirilmedi. Teknik inceleme kullanıcı talimatını genişletmez; mühendislik tercihleri uygulama planında açıkça kaydedilir.
