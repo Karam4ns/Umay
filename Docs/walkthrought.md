@@ -517,7 +517,11 @@ Detaylar ve dış model/Windows/çoklu monitör test sınırları computer-model
 - [x] Gerçek arama/sıra kayıtlarında tekrarlı alan doldurma, click döngüsü ve kullanıcı durdurmasını saptayarak başarıdan ayır.
 - [x] Kapsam, yaklaşım, sır kullanımı, eşitleme/çatışma, aktif hedef, uzun iş ve kabul matrisini taslakta yaz: `Docs/obsidian-continuity-design.md`.
 - [x] Taslağı bağımsız planlanabilirlik incelemesinden geçir; hesap/cihaz sahipliği, sır kullanım sonrası gözlem, görev/OTP bağlama ve silme/yeniden başlatma sınırlarını netleştir.
-- [ ] Kullanıcı tasarım kararını ve kasa taşınabilirliği tercihini netleştir.
-- [ ] Onaylanan tasarımdan kesin uygulama/test planı çıkar; parçaları sırayla uygula ve gerçek kabulünü yap.
+- [x] Kullanıcının mevcut uygulama talebini ve kurtarma anahtarıyla taşınabilir kasa seçimini kaydet.
+- [x] Kesin uygulama/test planını oluştur ve kaynaklı hafıza/kasa/Obsidian/aktif hedef/SSH/pencere/OTP çekirdeklerini uygula.
+- [x] 395 Node ve 52 mevcut konuşma/klonlama testi; gerçek Electron ayar/form/aktif pencere yakalama, Chrome devam/yerel OTP, Windows safeStorage ve kendi pencere/F8 kabulü.
+- [x] Gerçek Alfa modelleriyle üç ayrı komut devamı, genel web→dosya zinciri ve salt okunur görsel özet; ölçülen sınırlar raporda.
+- [ ] Bağımsız çoklu uzun izleyici, bütün siteler için checkout/adres/ödeme ve profesyonel uygulama/çok monitör/aygıt matrisi.
+- [ ] Son paket eşleşmesi, test installer hash/boyut/blockmap ve GitHub teslimi.
 
-Bu bölüm yeni özelliklerin uygulanmış olduğu anlamına gelmez; mevcut 0.7.0 kurulum paketi değişmedi.
+0.8.0 bir test sürümüdür; mevcut 0.7.0 installer korunur. Uygulananlar, gerçek ölçümler ve tamamlanmamış kabul: `Docs/obsidian-continuity-verification.md`.

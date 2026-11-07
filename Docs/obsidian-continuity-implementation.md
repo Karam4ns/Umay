@@ -1,6 +1,6 @@
 # Obsidian hafızası ve çalışma devamlılığı uygulama planı
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task. Tamamlanmış görevleri ledger ve Git üzerinden doğrulamadan yeniden uygulama.
+> Tamamlanmış görevleri ledger ve Git üzerinden doğrulamadan yeniden uygulama. İlk kasa görevi bağımsız incelendi; sonraki alt ajanların kullanım kotası dolunca entegrasyonu ana ajan sürdürdü. Güncel uygulama/test durumu `obsidian-continuity-verification.md` içindedir; aşağıdaki özgün kabul kutuları bütün alt maddeler sağlanmadan kapatılmaz.
 
 **Goal:** Windows Umay'da kaynaklı Obsidian hafızası, kurtarma anahtarıyla taşınabilir şifreli kasa ve güncel hedef üzerinden kesintisiz genel bilgisayar/sunucu kontrolü.
 
