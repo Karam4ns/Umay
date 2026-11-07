@@ -510,3 +510,14 @@ Detaylar ve dış model/Windows/çoklu monitör test sınırları computer-model
 - [ ] Geniş gerçek uygulama/aygıt/çok monitör/ilk UAC ve p50/p95 kabulü. Bu kutu birkaç başarılı örnekle kapatılmaz.
 
 Ölçümler, başarısız denemeler ve teslim: `Docs/general-operator-verification.md`.
+
+## [2026-11-07] Obsidian ve tutarlı çalışma bağlamı
+
+- [x] Mevcut hafıza, özel kayıt, oturum, yürütücü ve ayar entegrasyonlarını incele; kurulu Obsidian vault'unu salt okunur keşfet.
+- [x] Gerçek arama/sıra kayıtlarında tekrarlı alan doldurma, click döngüsü ve kullanıcı durdurmasını saptayarak başarıdan ayır.
+- [x] Kapsam, yaklaşım, sır kullanımı, eşitleme/çatışma, aktif hedef, uzun iş ve kabul matrisini taslakta yaz: `Docs/obsidian-continuity-design.md`.
+- [x] Taslağı bağımsız planlanabilirlik incelemesinden geçir; hesap/cihaz sahipliği, sır kullanım sonrası gözlem, görev/OTP bağlama ve silme/yeniden başlatma sınırlarını netleştir.
+- [ ] Kullanıcı tasarım kararını ve kasa taşınabilirliği tercihini netleştir.
+- [ ] Onaylanan tasarımdan kesin uygulama/test planı çıkar; parçaları sırayla uygula ve gerçek kabulünü yap.
+
+Bu bölüm yeni özelliklerin uygulanmış olduğu anlamına gelmez; mevcut 0.7.0 kurulum paketi değişmedi.
