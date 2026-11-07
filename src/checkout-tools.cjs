@@ -1,0 +1,18 @@
+'use strict';
+class CheckoutTools{
+ constructor({flow,waits,catalog,submit}={}){Object.assign(this,{flow,waits,catalog,submit});}
+ definitions(){const s={type:'string'};return [
+  {name:'checkout_addresses',description:'Read sourced saved shipping addresses. Propose an address; never choose silently. Ask interaction_wait address when missing. Confirm the exact address in checkout_review for EVERY purchase.',inputSchema:{type:'object',properties:{},additionalProperties:false}},
+  {name:'checkout_review',description:'Required before ANY final order/payment: supply exact currently visible items, total including shipping, shipping address, payment label (wallet/card label, never numbers), and final button uid. Shows a LOCAL user confirmation in the same chat. Changed page/total requires a fresh review; model approval cannot authorize it.',inputSchema:{type:'object',properties:{items:{type:'array',items:s,minItems:1,maxItems:40},total:s,address:s,payment:s,submitUid:s},required:['items','total','address','payment','submitUid'],additionalProperties:false}},
+  {name:'checkout_submit',description:'Send the locally confirmed order ONCE using the bound current final control. Never click/type/Enter/script/native to bypass this tool. Even a successful click is pending until checkout_verify or local review. Never repeat an uncertain payment.',inputSchema:{type:'object',properties:{id:s},required:['id'],additionalProperties:false}},
+  {name:'checkout_verify',description:'Read-only verification: provide the exact newly visible non-editable receipt/result text and its order reference (at least 4 chars including a digit) after submit/OTP. Text must occur in the same bound current page. A new page result is evidence of the displayed result, not bank settlement. Report its actual meaning, including errors; never describe rejection as success. No receipt means uncertain, not failure or permission to retry.',inputSchema:{type:'object',properties:{id:s,receipt:s,reference:s},required:['id','receipt','reference'],additionalProperties:false}},
+  {name:'checkout_state',description:'Read persisted order states. uncertain/submitting block a new payment; ask user to inspect site/bank history and resolve locally. Never claim a user-resolved order succeeded.',inputSchema:{type:'object',properties:{},additionalProperties:false}}
+ ];}
+ async perform(name,args,context){context.check();if(name==='checkout_addresses')return {addresses:this.catalog.list({type:'address',limit:10}),requiresPerOrderConfirmation:true};if(name==='checkout_state')return {orders:this.flow.list().slice(-10).map(({reviewId,...item})=>item)};
+  if(name==='checkout_review'){const item=await this.flow.review({...args,taskId:context.taskId});context.check();const s=item.summary,question=`Siparişi teyit eder misin?\nÜrünler: ${s.items.join(', ')}\nToplam (kargo dahil): ${s.total}\nKargo adresi: ${s.address}\nÖdeme: ${s.payment}\nBu adresi ve siparişi onaylıyorsan “onaylıyorum” de.`;this.waits.wait({taskId:context.taskId,kind:'checkout-review',target:item.target,expiresAt:item.expiresAt,question,checkout:{id:item.id,reviewId:item.reviewId}});return {orderId:item.id,waiting:true,question};}
+  if(name==='checkout_submit')return this.flow.submit({id:args.id,taskId:context.taskId},async binding=>{context.check();await this.submit(binding,context);context.check();});
+  if(name==='checkout_verify'){const item=this.flow.get(args.id);if(item.taskId!==context.taskId)throw Error('Sipariş bu göreve ait değil.');const result=await this.flow.verify(args);context.check();return result;}
+  throw Error('Sipariş aracı geçersiz.');
+ }
+}
+module.exports={CheckoutTools};

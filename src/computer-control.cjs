@@ -79,6 +79,7 @@ class ComputerControl{
   const result=await this.native.request('observe_window',{handle,expectedProcessId:target.processId});if(result.requiresElevation&&!result.administrator)throw Object.assign(Error('Bu pencere için Windows yönetici izni gerekiyor.'),{code:'NATIVE_ELEVATION_REQUIRED'});return result;
  }
  async perform(action,observationId){
+  this.guard?.(action.action);
   const observed=this.observation;if(!this.enabled||!observed||observed.id!==observationId||this.now()-observed.createdAt>90000)throw Error('Ekran görüntüsü güncel değil. Yeniden gözlem gerekiyor.');
   const type=String(action.action||'');let method,params={};
   try{

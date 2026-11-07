@@ -815,3 +815,8 @@ Yeni istek: Ayarlar → Eklentiler → Obsidian; kaynaklı ve genişletilebilir 
 Pencere/sekme/yerel süreç izleyicisi etkili görevden ayrıldı. Yeni iş eski yerel süreci iptal etmeden arka plana alabilir; kararlı koşul, boş girdi sahibi ve taze hedefle aynı asıl göreve dönülür. Yerel Dur/F8, hesap çıkışı ve geç sonuç korumaları sınandı. İlk modeldeki araç şeması kaybı ve bağımsız incelemenin üç yaşam döngüsü bulgusu RED/GREEN testleriyle düzeltildi. 419 Node ve 52 konuşma/klonlama testi, gerçek Windows/Chrome/sohbet UI ve gerçek model akışı geçti. Ayrıntılı plan `Docs/long-task-continuity.md`, kabul ve açık kapsam `Docs/long-task-verification.md`. Yönetici/SSH park, fiziksel saatler ve geniş profesyonel uygulama/ödeme kabulü açık.
 
 0.8.1 imzasız test installer: ana checkout içinde `dist/continuity-0.8.1/Umay Setup 0.8.1.exe`. Uygulama commit’i `15c76d3`, hash/boyut ve açık kabul `Docs/long-task-verification.md` içinde. Genel güncelleme yayını yapılmaz; önceki 0.8.0 dosyası korunur.
+
+
+## [2026-11-07] Adres, OTP ve sipariş devamlılığı — 0.8.2
+
+Kalıcı sipariş denemesi, her siparişte yerel adres/toplam/ödeme teyidi, kaynaklı adres önerisi/kaydı, soru kimliği ve iptal nesliyle yerel OTP eklendi. Değişen sayfa veya tutar eski onayı geçersiz kılar; yanıtı kayıp/restart gönderimi model beyanıyla tekrar edilmez. Gerçek Chrome yerel mağazası, gerçek sohbet UI/IPC ve aynı görevde ajan devamı geçti; 440 Node ve 52 konuşma/klonlama regresyonu geçti. Ayrıntılı plan `Docs/checkout-continuity.md`, kanıt ve açık sınırlar `Docs/checkout-verification.md`. 0.8.2 imzasız test paketi kaynak/ASAR/MCP ve hash kontrolleriyle hazır; gerçek mağaza/banka/evrensel model seçimi kabulü ve genel uygulama/aygıt matrisi açık.

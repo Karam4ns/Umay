@@ -538,3 +538,12 @@ Detaylar ve dış model/Windows/çoklu monitör test sınırları computer-model
 - [ ] Gerçek saatler/profesyonel uygulamalar, yönetici/SSH süreç parkı ve geniş ödeme/cihaz kabulü.
 
 Kanıt ve sınırlar: `Docs/long-task-verification.md`.
+
+
+## [2026-11-07] 0.8.2 — Sipariş teyidi ve yerel OTP
+
+1. Kalıcı gönderim kaydını ve hesap/görev/profil/bağlantı/sekme bağını önce başarısız testlerle kurduk. Etki öncesi kayıt, tek gönderim, eski onay ve restart sınandı.
+2. Mevcut kataloğa kaynaklı adres, sohbete sipariş özeti ve kesin soru kimliği eklendi. OTP güncel alana yerelde yazılır; modele değer dönmez. Her yeni siparişte adres teyit edilir.
+3. Bağımsız incelemenin son düğme/OTP, sahte sonuç, tamamlanma, sayısal eşleşme ve snapshot dosya dışa aktarımı bulguları kapatıldı. 440 Node + 52 konuşma/klonlama testi geçti.
+4. Gerçek Chrome'da yerel mağaza, yanlış/doğru OTP, değişen tutar ve click sonrası yanıt kaybı doğrulandı. Gerçek sohbet UI ve arka plan Chrome/Windows regresyonu geçti. Test penceresinin eski UIA metni ürettiği ilk denemeler de kabul kaydında tutulur.
+5. 0.8.2 paket eşleşmesi/hash ve gerçek ASAR/MCP kontrolleri tamamlandı; ana checkout dist/checkout-0.8.2 içine kopyalandı. 0.8.1 hash doğrulamasıyla korunur. Ayrıntı: `Docs/checkout-verification.md`. Sonraki adım yönetici/SSH uzun iş sahipliği; gerçek alışveriş ve evrensel uygulama kabulü tamamlanmış sayılmaz.
