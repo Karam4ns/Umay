@@ -1,6 +1,6 @@
 // Real owned Chrome + MCP + Windows. Controlled provider, no user site/account.
 const {app,screen}=require('electron'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path'),{createServer}=require('node:http');
-const {DeviceServices}=require('../src/device-services.cjs'),{BrowserMcp}=require('../src/browser-mcp.cjs'),{NativeDesktop}=require('../src/computer-control.cjs'),{browserProcessId}=require('../src/chrome-identity.cjs');
+const {DeviceServices}=require('../src/device-services.cjs'),{BrowserMcp}=require('../src/browser-mcp.cjs'),{NativeDesktop}=require('../src/computer-control.cjs'),{browserProcessId,autoConnectEndpoint}=require('../src/chrome-identity.cjs');
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'umay-control-reliability-'));app.setPath('userData',path.join(root,'electron'));let service,native,server,existing,reopened,ownedProcess,ownedPid;const chats=new Map(),packets=[];let url,query='',browserHandle;
 const deadline=setTimeout(()=>{console.error('FAIL control reliability deadline');finish(1);},150000);
 function finish(code){clearTimeout(deadline);existing?.close();reopened?.close();service?.browser.close({closeBrowser:true});ownedProcess?.kill();if(ownedPid)try{process.kill(ownedPid);}catch{}void service?.shutdown().catch(()=>{});native?.close();server?.close();app.exit(code);}
@@ -19,7 +19,8 @@ app.whenReady().then(async()=>{try{
  const synced=await service.browser.syncForeground(current);assert.equal(synced.pageId,otherId);assert.equal(synced.connected,true);
  existing=new BrowserMcp({directory:path.join(root,'existing')});existing.activate('fixture','existing',{id:'explicit',endpoint});const existingState=await existing.syncForeground(current);assert.equal(existingState.pages.find(p=>p.id===existingState.pageId)?.url,url+'/other');existing.close();existing=null;
  reopened=new BrowserMcp({directory:path.join(root,'app','browser')});reopened.activate('fixture');assert.equal(reopened.browser.child,null);const reopenedState=await reopened.syncForeground(current);assert.equal(reopenedState.pages.find(p=>p.id===reopenedState.pageId)?.url,url+'/other');reopened.close();reopened=null;
- console.log('PASS actual visible tab != old MCP selection; explicit existing connection and reused managed profile bind the real Chrome PID/tab');
+ existing=new BrowserMcp({directory:path.join(root,'auto-existing')});existing.activate('fixture','existing',{id:'automatic'});existing.autoEndpoint=()=>autoConnectEndpoint({directory:path.join(service.browser.browser.directory,'profiles',require('node:crypto').createHash('sha256').update('fixture').digest('hex'))});existing.focusWindow=service.browser.focusWindow;assert.equal((await existing.syncForeground(await native.request('foreground'))).connected,true);existing.beginTask();const automaticView=await existing.observe();assert.equal(automaticView.browser.pages.find(p=>p.id===automaticView.browser.pageId)?.url,url+'/other');existing.close();existing=null;
+ console.log('PASS actual visible tab != old MCP selection; explicit + endpoint-free existing connection and reused managed profile bind the real Chrome PID/tab');
  await service.browser.call('select_page',{pageId:firstId,bringToFront:true});
  // Accumulated prior work must not turn this short request into a size error.
  service.computerSession.previous={goal:'Önceki iş',message:'önceki durum '.repeat(1000)};

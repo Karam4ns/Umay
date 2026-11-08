@@ -1,11 +1,16 @@
 'use strict';
+const fs=require('node:fs/promises'),path=require('node:path');
+async function autoConnectEndpoint({directory=process.env.LOCALAPPDATA?path.join(process.env.LOCALAPPDATA,'Google','Chrome','User Data'):null}={}){
+ if(!directory)return null;
+ try{const lines=(await fs.readFile(path.join(directory,'DevToolsActivePort'),'ascii')).trim().split(/\r?\n/),port=Number(lines[0]);if(!/^\d{1,5}$/.test(lines[0])||port<1||port>65535||!/^\/devtools\/browser\/[a-z0-9-]+$/i.test(lines[1]||''))return null;return {endpoint:'http://localhost:'+port,webSocketUrl:'ws://localhost:'+port+lines[1],browserPath:lines[1]};}catch{return null;}
+}
 // Read-only connection identity, never page interaction. All page operations
 // remain in Chrome MCP. Bind the browser endpoint's OS PID to the native HWND.
-async function browserProcessId(endpoint,{fetchImpl=fetch,WebSocketImpl=WebSocket,timeout=1500}={}){
+async function browserProcessId(endpoint,{fetchImpl=fetch,WebSocketImpl=WebSocket,timeout=1500,expectedBrowserPath}={}){
  let base;try{base=new URL(endpoint);if(base.protocol!=='http:'||!['127.0.0.1','localhost','[::1]'].includes(base.hostname)||!base.port||base.username||base.password||base.pathname!=='/'||base.search||base.hash)return null;}catch{return null;}
  try{
   const response=await fetchImpl(base.origin+'/json/version',{redirect:'error',signal:AbortSignal.timeout(timeout)});if(!response.ok)return null;
-  const ws=new URL((await response.json()).webSocketDebuggerUrl);if(ws.protocol!=='ws:'||ws.hostname!==base.hostname||ws.port!==base.port||ws.username||ws.password||!/^\/devtools\/browser\/[a-z0-9-]+$/i.test(ws.pathname)||ws.search||ws.hash)return null;
+  const ws=new URL((await response.json()).webSocketDebuggerUrl);if(ws.protocol!=='ws:'||ws.hostname!==base.hostname||ws.port!==base.port||ws.username||ws.password||!/^\/devtools\/browser\/[a-z0-9-]+$/i.test(ws.pathname)||expectedBrowserPath&&ws.pathname!==expectedBrowserPath||ws.search||ws.hash)return null;
   return await new Promise(resolve=>{
    let socket,finished=false;const finish=value=>{if(finished)return;finished=true;clearTimeout(timer);try{socket?.close();}catch{}resolve(value);};
    const timer=setTimeout(()=>finish(null),timeout);
@@ -13,4 +18,4 @@ async function browserProcessId(endpoint,{fetchImpl=fetch,WebSocketImpl=WebSocke
   });
  }catch{return null;}
 }
-module.exports={browserProcessId};
+module.exports={browserProcessId,autoConnectEndpoint};

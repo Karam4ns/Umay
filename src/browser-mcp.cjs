@@ -3,7 +3,7 @@ const path=require('node:path'),{randomUUID,createHash}=require('node:crypto');
 const {Client}=require('@modelcontextprotocol/sdk/client/index.js');
 const {StdioClientTransport}=require('@modelcontextprotocol/sdk/client/stdio.js');
 const {ChromeBrowser}=require('./chrome-browser.cjs');
-const {browserProcessId}=require('./chrome-identity.cjs');
+const {browserProcessId,autoConnectEndpoint}=require('./chrome-identity.cjs');
 const COMMON=['navigate_page','new_page','select_page','click','fill','fill_form','press_key','evaluate_script','wait_for'];
 const textOf=result=>(result?.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('\n');
 function safeUrl(value){try{const url=new URL(value);url.username='';url.password='';for(const key of [...url.searchParams.keys()])if(/token|secret|password|code|key|auth|session|state/i.test(key))url.searchParams.set(key,'[gizli]');url.hash='';return url.href;}catch{return String(value||'').slice(0,200);}}
@@ -37,15 +37,16 @@ class BrowserMcp{
  beginTask(){this.stagnant=null;this.lastWrite=null;this.snapshotOffset=0;this.resultOffset=0;this.resultLength=1400;this.snapshotWindowLength=3200;this.observation=null;this.foregroundRequested=true;}
  async syncForeground(view){
   if(!this.account||!view?.processId||!/ - (?:Google )?Chrome$/i.test(view.title||''))return {connected:false};
-  if(!this.client){const endpoint=this.mode==='managed'?await this.browser.existingEndpoint?.():this.profile?.endpoint;if(!endpoint)return {connected:false};}
+  if(!this.client){const endpoint=this.mode==='managed'?await this.browser.existingEndpoint?.():this.profile?.endpoint||(await (this.autoEndpoint||autoConnectEndpoint)())?.endpoint;if(!endpoint)return {connected:false};}
   return this.waitForWatch(()=>this.exclusive(async()=>{
    const generation=this.generation;await this.connect({refresh:true});this.check(generation);
-   const pid=this.browser.ownsProcess?.(view.processId)?view.processId:await (this.readProcessIdentity||browserProcessId)(this.endpoint);this.check(generation);
+   const pid=this.browser.ownsProcess?.(view.processId)?view.processId:await (this.readProcessIdentity||browserProcessId)(this.endpoint,{expectedBrowserPath:this.identityBrowserPath});this.check(generation);
    if(pid!==view.processId)return {connected:false};
    if(this.secretBroker&&!this.secretBroker.canObserve(this.passiveState()))return {connected:false};
    const pages=parsePages(await this.call('list_pages',{},generation));this.check(generation);
    const title=String(view.title).replace(/ - (?:Google )?Chrome$/i,'');const matches=[];
-   for(const page of pages.filter(p=>!p.title||title.startsWith(p.title.replace(/…$|\.\.\.$/,''))).slice(0,40)){
+   const candidates=pages.filter(p=>!p.title||title.startsWith(p.title.replace(/…$|\.\.\.$/,'')));if(candidates.length>40)return {connected:false};
+   for(const page of candidates){
     const result=await this.call('evaluate_script',{pageId:page.id,function:'() => ({title: document.title || location.href, visible: document.visibilityState === "visible"})'},generation);this.check(generation);
     const raw=textOf(result),json=raw.match(/```(?:json)?\s*([\s\S]*?)```/)?.[1]||raw;let data;try{data=JSON.parse(json);}catch{continue;}
     if(data.visible===true&&data.title===title)matches.push(page);
@@ -59,7 +60,7 @@ class BrowserMcp{
  async connect({refresh=false}={}){
   if(this.connecting)return this.connecting;if(this.client&&(!refresh||this.mode!=='managed'))return this.client;const generation=this.generation;
   const connecting=this.connecting=(async()=>{
-   await this.drain;this.check(generation);const endpoint=this.mode==='managed'?await this.browser.ensure():this.profile?.endpoint||null;this.check(generation);
+   await this.drain;this.check(generation);const auto=this.mode==='existing'&&!this.profile?.endpoint?await (this.autoEndpoint||autoConnectEndpoint)():null;this.check(generation);const endpoint=this.mode==='managed'?await this.browser.ensure():this.profile?.endpoint||auto?.endpoint||null;this.check(generation);
    if(this.client){
     if(this.endpoint===endpoint)return this.client;
     // Only read-side refresh replaces a dead Chrome session. Never replay an
@@ -67,11 +68,11 @@ class BrowserMcp{
     const previous=this.client;this.client=null;this.transport=null;this.ready=false;this.observation=null;this.tools=[];
     await previous.close();this.check(generation);
    }
-   const args=[this.entry,'--no-usage-statistics','--no-performance-crux','--screenshot-format=jpeg','--screenshot-quality=65','--screenshot-max-width=1400',...(endpoint?['--browser-url='+endpoint]:['--autoConnect'])];
+   const args=[this.entry,'--no-usage-statistics','--no-performance-crux','--screenshot-format=jpeg','--screenshot-quality=65','--screenshot-max-width=1400',...(auto?['--ws-endpoint='+auto.webSocketUrl]:endpoint?['--browser-url='+endpoint]:['--autoConnect'])];
    const transport=this.transportFactory({command:this.command,args,env:{ELECTRON_RUN_AS_NODE:'1',CHROME_DEVTOOLS_MCP_NO_UPDATE_CHECKS:'1'},stderr:'pipe'}),client=this.clientFactory();this.transport=transport;
    client.onclose=()=>{if(this.client===client){this.client=null;this.transport=null;this.observation=null;this.ready=false;this.generation++;}};
    transport.stderr?.on('data',()=>{});
-   try{await client.connect(transport,{timeout:15000});this.check(generation);const listed=await client.listTools({},{timeout:15000});this.check(generation);this.tools=listed.tools||[];this.endpoint=endpoint;this.client=client;this.connectionId=randomUUID();return client;}
+   try{await client.connect(transport,{timeout:15000});this.check(generation);const listed=await client.listTools({},{timeout:15000});this.check(generation);this.tools=listed.tools||[];this.endpoint=endpoint;this.identityBrowserPath=auto?.browserPath||null;this.client=client;this.connectionId=randomUUID();return client;}
    catch(error){await transport.close().catch(()=>{});if(this.transport===transport)this.transport=null;throw error;}
   })();try{return await connecting;}finally{if(this.connecting===connecting)this.connecting=null;}
  }
@@ -94,7 +95,7 @@ class BrowserMcp{
   if(this.foregroundRequested){
    await this.call('select_page',{pageId:this.pageId,bringToFront:true},generation);this.check(generation);
    if(this.focusWindow){
-    const processId=await (this.readProcessIdentity||browserProcessId)(this.endpoint);this.check(generation);
+    const processId=await (this.readProcessIdentity||browserProcessId)(this.endpoint,{expectedBrowserPath:this.identityBrowserPath});this.check(generation);
     const raw=textOf(await this.call('evaluate_script',{pageId:this.pageId,function:'() => document.title || location.href'},generation));this.check(generation);let title;try{title=JSON.parse(raw.match(/```(?:json)?\s*([\s\S]*?)```/)?.[1]||raw);}catch{}
     if(!processId||typeof title!=='string')throw Object.assign(Error('Chrome penceresinin gerçek kimliği doğrulanamadı. Doğru yerel Chrome bağlantısını seçin.'),{code:'BROWSER_TARGET_REQUIRED'});
     await this.focusWindow({processId,title,check:()=>this.check(generation)});this.check(generation);
