@@ -24,11 +24,13 @@ class SystemWorkerClient{
   })();try{return await startup;}finally{if(this.starting===startup)this.starting=null;}
  }
  receive(message){const pending=this.pending.get(message.id);if(!pending)return;this.pending.delete(message.id);pending.cleanup();message.error?pending.reject(Object.assign(Error(message.error.message),{code:message.error.code,receipt:message.error.receipt})):pending.resolve(message.result);}
- request(method,params,signal){if(!this.ready||!this.socket)return Promise.reject(Object.assign(Error('Yönetici sistem bağlantısı kapalı.'),{code:'NATIVE_ELEVATION_REQUIRED'}));const id=randomUUID();return new Promise((resolve,reject)=>{
-   const abort=()=>{this.pending.delete(id);cleanup();this.socket?.write(JSON.stringify({method:'cancel',taskId:params.taskId})+'\n');reject(Object.assign(Error('Sistem görevi durduruldu.'),{code:'SYSTEM_CANCELLED'}));};
+ request(method,params,signal){if(!this.ready||!this.socket)return Promise.reject(Object.assign(Error('Yönetici sistem bağlantısı kapalı.'),{code:'NATIVE_ELEVATION_REQUIRED'}));const id=randomUUID(),socket=this.socket,account=this.account;return new Promise((resolve,reject)=>{
+   const abort=()=>{this.pending.delete(id);cleanup();if(this.socket===socket)socket.write(JSON.stringify({method:'cancel-request',requestId:id,account})+'\n');reject(Object.assign(Error('Sistem görevi durduruldu.'),{code:'SYSTEM_CANCELLED'}));};
    const cleanup=()=>signal?.removeEventListener('abort',abort);this.pending.set(id,{resolve,reject,cleanup});if(signal?.aborted){abort();return;}signal?.addEventListener('abort',abort,{once:true});this.socket.write(JSON.stringify({id,method,...params,account:this.account,roots:this.roots})+'\n');
   });}
  perform(toolName,args,{signal,taskId}={}){return this.request('perform',{toolName,args,taskId},signal);}
+ parkTask(taskId,jobIds){return this.request('park',{taskId,jobIds});}
+ unparkTask(taskId){return this.request('unpark',{taskId});}
  cancelTask(taskId){return this.ready&&taskId?this.request('cancel',{taskId}):Promise.resolve();}
  close(){this.generation++;this.ready=false;this.startReject?.();this.startReject=null;this.server?.close();this.server=null;const socket=this.socket;this.socket=null;socket?.destroy();for(const pending of this.pending.values()){pending.cleanup();pending.reject(Object.assign(Error('Yönetici sistem bağlantısı kapandı.'),{code:'SYSTEM_CANCELLED'}));}this.pending.clear();}
 }
