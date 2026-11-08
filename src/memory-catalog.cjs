@@ -17,14 +17,14 @@ function text(value,max=200){
 function identifier(value){text(value);if(!/^[\p{L}\p{N}_.:-]+$/u.test(value)||value.startsWith('cas:'))throw fail('INVALID_ARGUMENT');return value;}
 const masked=value=>typeof value==='string'&&/^(?:[•*●]{3,}|\[(?:gizli|masked|özel bilgi)\])$/iu.test(value.trim());
 const sensitiveKey=key=>/password|passphrase|parola|sifre|privatekey|ozelanahtar|apikey|accesstoken|refreshtoken|secret|otp|onetimepassword|cvv|cvc|pincode|recoverykey|recoveryphrase|seedphrase|mnemonic|cardnumber|kartnumarasi|^token$/.test(fold(key).replace(/[^a-z0-9]/g,''));
-function safePublic(value,depth=0,seen=new Set()){
+function safePublic(value,depth=0,seen=new Set(),identifierContext=false){
  if(depth>15)throw fail('INVALID_ARGUMENT');
  if(value===null||typeof value==='boolean'||typeof value==='number'&&Number.isFinite(value))return;
  if(typeof value==='string'){
   if(value.length>16000)throw fail('INVALID_ARGUMENT');
   if(/-----BEGIN (?:[A-Z ]*PRIVATE KEY|OPENSSH PRIVATE KEY)-----/i.test(value)||
    /\b(?:password|passphrase|parola|şifre|sifre|otp|api[ _-]?key|access[ _-]?token|secret|cvv|cvc|kurtarma anahtarı)\s*[:=]\s*(?![•*●\[])[^\s,;]+/iu.test(value)||
-   /(?<!\d)(?:\d[ -]?){12,18}\d(?!\d)/u.test(value))throw fail('UNSAFE_PUBLIC_DATA','Gizli değer yerine kasa referansı ve maskelenmiş bilgi kullanın.');
+   /(?<!\d)(?:\d[ -]?){12,18}\d(?!\d)/u.test(identifierContext?value.replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/gi,'[kimlik]'):value))throw fail('UNSAFE_PUBLIC_DATA','Gizli değer yerine kasa referansı ve maskelenmiş bilgi kullanın.');
   return;
  }
  if(!Array.isArray(value)&&!plain(value)||seen.has(value))throw fail('INVALID_ARGUMENT');
@@ -34,7 +34,7 @@ function safePublic(value,depth=0,seen=new Set()){
   if(!Object.hasOwn(descriptor,'value'))throw fail('INVALID_ARGUMENT');
   const item=descriptor.value;
   if(sensitiveKey(key)&&item!==null&&!masked(item))throw fail('UNSAFE_PUBLIC_DATA','Gizli alan normal hafızaya kaydedilemez.');
-  safePublic(item,depth+1,seen);
+  safePublic(item,depth+1,seen,identifierContext&&key==='id');
  }
  seen.delete(value);
 }
@@ -50,7 +50,7 @@ function body(input){
  if(!plain(result.fields)||!plain(result.source))throw fail('INVALID_ARGUMENT');
  text(result.source.kind,80);
  if(typeof result.content!=='string')throw fail('INVALID_ARGUMENT');
- for(const [key,value] of Object.entries(result))if(key!=='secretRef')safePublic(value);
+ for(const [key,value] of Object.entries(result))if(key!=='secretRef')safePublic(value,0,new Set(),key==='source');
  // Restrict total public size before it reaches the event log/search surfaces.
  if(Buffer.byteLength(stable(result))>48000)throw fail('INVALID_ARGUMENT');
  return JSON.parse(stable(result));
@@ -86,7 +86,7 @@ class MemoryCatalog {
  }
  #read(db,id){const row=db.prepare('SELECT projection FROM memory_catalog WHERE id=?').get(id);return row?JSON.parse(row.projection):null;}
  #current(db,input){
-  if(input.key!=null)safePublic(input.key);
+  if(input.key!=null)safePublic(input.key,0,new Set(),true);
   let current=input.id?this.#read(db,identifier(input.id)):null;
   const byKey=input.key==null?null:db.prepare('SELECT id FROM memory_catalog WHERE canonical_key=?').get(text(input.key));
   if(input.id&&byKey&&byKey.id!==input.id)throw fail('KEY_CONFLICT');
@@ -190,7 +190,7 @@ class MemoryCatalog {
    });
   }
   const data=body(input),id=identifier(input.id),revision=identifier(input.revision),deviceId=identifier(input.deviceId);
-  const key=input.key==null?null:text(input.key);if(key!==null)safePublic(key);
+  const key=input.key==null?null:text(input.key);if(key!==null)safePublic(key,0,new Set(),true);
   if(!Array.isArray(input.parents)||input.parents.length>100||new Set(input.parents).size!==input.parents.length||typeof input.deleted!=='boolean')throw fail('INVALID_ARGUMENT');
   const parents=input.parents.map(identifier).sort();text(input.updatedAt,60);if(!Number.isFinite(Date.parse(input.updatedAt)))throw fail('INVALID_ARGUMENT');
   const payload={id,owner:this.#owner,key,...data,revision,parents,deviceId,updatedAt:input.updatedAt,deleted:input.deleted};

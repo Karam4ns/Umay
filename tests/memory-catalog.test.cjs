@@ -183,3 +183,8 @@ test('numeric runs inside generated UUID lineage are identifiers, not payment da
  const imported=catalog.ingest(event(root,revision,[root.revision]));
  assert.equal(imported.revision,revision);
 });
+test('a generated source UUID and canonical key are not mistaken for a card, while literal PAN stays blocked',t=>{
+ const {catalog}=setup(t),id='12345678-1234-4234-8234-123456789012';
+ const saved=catalog.upsert(note({key:'local:'+id,source:{kind:'local',id}}));assert.equal(saved.source.id,id);
+ assert.throws(()=>catalog.upsert(note({content:'4111 1111 1111 1111'})),{code:'UNSAFE_PUBLIC_DATA'});
+});

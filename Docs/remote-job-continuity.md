@@ -34,18 +34,18 @@ Yeni sohbet/iş, park edilmiş işin özgün kullanıcı talimatını ve izlenen
 **Dosyalar:** yeni `src/system-worker-host.cjs`, `tests/system-worker-host.test.cjs`; değişen `src/system-worker.cjs`, `src/system-worker-client.cjs`.
 **Arayüz:** host `perform({id,account,taskId,toolName,args,roots})`, `parkTask(taskId,jobIds)`, `unparkTask(taskId)`, `cancelRequest(id)`, `cancelTask(taskId)`, `close()`; client aynı park/unpark alındısını taşır. İstek iptali ile görevdeki süreçleri durdurma ayrı RPC'dir. Worker tek hesaba bağlıdır.
 
-- [ ] RED: gerçek çocuk süreç A park edildikten sonra B'nin komutu ve A'nın salt okunur durum sorgusu A/B'yi öldürmemeli; başkasının işini park edememe, bekleme iptali, yanlış hesap, kapanma ve geç sonuç testleri.
-- [ ] GREEN: backend uygulaması ve private pipe yönlendirmesi; `SystemTools` içindeki görev değiştirme yan etkisi worker dispatch'ten çıkarılır. Main process eski araç şemasını korur.
-- [ ] Kontrol: `node --test tests/system-worker-host.test.cjs` ve gerçek özel pipe client/worker testi. UAC'siz simülasyon gerçek yükseltme sayılmaz.
+- [x] RED: gerçek çocuk süreç A park edildikten sonra B'nin komutu ve A'nın salt okunur durum sorgusu A/B'yi öldürmemeli; başkasının işini park edememe, bekleme iptali, yanlış hesap, kapanma ve geç sonuç testleri.
+- [x] GREEN: backend uygulaması ve private pipe yönlendirmesi; `SystemTools` içindeki görev değiştirme yan etkisi worker dispatch'ten çıkarılır. Main process eski araç şemasını korur.
+- [x] Kontrol: `node --test tests/system-worker-host.test.cjs` ve gerçek özel pipe client/worker testi. UAC'siz simülasyon gerçek yükseltme sayılmaz.
 
 ### Task 2: Genel backend parkı ve SSH devamlılığı
 
 **Dosyalar:** yeni `src/system-job-lifecycle.cjs`; `src/system-tools.cjs`, `src/ssh-tools.cjs`, `src/task-watch-tools.cjs`, `src/device-services.cjs`; yeni `tests/remote-job-continuity.test.cjs`, ilgili mevcut süreç/SSH testleri.
 **Arayüz:** `SystemTools.parkTask(taskId)` asenkron `Promise<jobIds>`; `readTaskJobs({taskId,jobIds})` gerçek backend'e yönlenir, bağlantı kimliği kontrol edilir; SSH adaptörü `parkTask(taskId,ids)`, `unparkTask(taskId)`, `readJob(jobId,taskId)`, `jobIdentity(jobId)` sağlar. Local backend akışı korunur.
 
-- [ ] RED: yerel/yönetici/SSH karma sahiplikte park alındısı, park başarısızlığı, geç alındı + Dur/hesap değişimi, salt okunur izleme, iptal ve bağlantı kaybı. Eski komut yeniden çalışmamalı.
-- [ ] GREEN: tüm park çağrılarını `await` et; ana görev kendi alındısıyla ön planı bırakır. Worker isteği durdurulurken park edilmiş süreç yaşamaya devam eder; açık Dur ilgili işleri durdurur.
-- [ ] Kontrol: yeni testler + mevcut `parked-process`, `process-jobs`, `task-watchers`, `ssh-tools`, `ssh-files`, `system-tools`, `computer-watch` regresyonları.
+- [x] RED: yerel/yönetici/SSH karma sahiplikte park alındısı, park başarısızlığı, geç alındı + Dur/hesap değişimi, salt okunur izleme, iptal ve bağlantı kaybı. Eski komut yeniden çalışmamalı.
+- [x] GREEN: tüm park çağrılarını `await` et; ana görev kendi alındısıyla ön planı bırakır. Worker isteği durdurulurken park edilmiş süreç yaşamaya devam eder; açık Dur ilgili işleri durdurur.
+- [x] Kontrol: yeni testler + mevcut `parked-process`, `process-jobs`, `task-watchers`, `ssh-tools`, `ssh-files`, `system-tools`, `computer-watch` regresyonları.
 
 ### Task 3: Gerçek kabul ve 0.8.3 teslim
 

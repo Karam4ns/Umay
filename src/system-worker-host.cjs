@@ -14,14 +14,14 @@ class SystemWorkerHost{
   if(message.method==='unpark'){this.parked.delete(message.taskId);return {taskId:message.taskId};}
   if(message.method==='cancel')return this.cancelTask(message.taskId);
   if(message.method!=='perform'||!text(message.id)||this.requests.has(message.id))throw invalid('Yönetici isteği geçersiz veya yinelenmiş.');
-  const {id,taskId,toolName,args}=message,generation=this.generation,controller=new AbortController(),entry={controller,taskId};this.requests.set(id,entry);
+  const {id,taskId,toolName,args}=message,generation=this.generation,controller=new AbortController(),entry={controller,taskId};entry.done=new Promise(resolve=>entry.resolveDone=resolve);this.requests.set(id,entry);
   const check=()=>{if(this.closed||generation!==this.generation)throw invalid('Yönetici işçisi kapandı.');controller.signal.throwIfAborted();};
-  try{check();if(!this.files.has(taskId)){if(this.files.size>=128)throw invalid('Yönetici görev sınırına ulaşıldı.');this.files.set(taskId,this.filesFactory(Array.isArray(message.roots)?message.roots:[]));}const files=this.files.get(taskId),backend=files.definitions().some(d=>d.name===toolName)?files:this.apps;
+  try{check();let backend=this.apps;if(!this.apps.definitions().some(d=>d.name===toolName)){if(!this.files.has(taskId)){if(this.files.size>=128)throw invalid('Yönetici görev sınırına ulaşıldı.');this.files.set(taskId,this.filesFactory(Array.isArray(message.roots)?message.roots:[]));}backend=this.files.get(taskId);}
    const result=await backend.perform(toolName,args,{taskId,signal:controller.signal,check,preserveOnCancel:()=>this.parked.has(taskId)});check();return result;
-  }finally{if(this.requests.get(id)===entry)this.requests.delete(id);}
+  }finally{entry.resolveDone();if(this.requests.get(id)===entry)this.requests.delete(id);}
  }
  parkTask(taskId,jobIds){if(!Array.isArray(jobIds)||!jobIds.length||jobIds.length>100||new Set(jobIds).size!==jobIds.length)throw invalid('Arka plan iş kimlikleri geçersiz.');for(const id of jobIds)this.apps.jobs.owned(id,taskId);this.apps.jobs.detachTask(taskId);this.parked.add(taskId);return {taskId,jobIds:[...jobIds]};}
- async cancelTask(taskId){for(const entry of this.requests.values())if(entry.taskId===taskId)entry.controller.abort();await this.apps.cancelTask(taskId);this.parked.delete(taskId);return {taskId,stopped:true};}
- async close(){if(this.closing)return this.closing;this.closed=true;this.generation++;for(const entry of this.requests.values())entry.controller.abort();this.closing=this.apps.close().then(()=>{this.parked.clear();this.files.clear();}).catch(error=>{this.closing=null;throw error;});return this.closing;}
+ async cancelTask(taskId){const requests=[...this.requests.values()].filter(r=>r.taskId===taskId);for(const entry of requests)entry.controller.abort();const results=await Promise.allSettled([this.apps.cancelTask(taskId),...requests.map(r=>r.done)]),failed=results.find(r=>r.status==='rejected');if(failed)throw failed.reason;this.parked.delete(taskId);this.files.delete(taskId);return {taskId,stopped:true};}
+ async close(){if(this.closing)return this.closing;this.closed=true;this.generation++;for(const entry of this.requests.values())entry.controller.abort();this.closing=Promise.all([this.apps.close(),...this.requests.values()].filter(Boolean).map(item=>item?.done||item)).then(()=>{this.parked.clear();this.files.clear();}).catch(error=>{this.closing=null;throw error;});return this.closing;}
 }
 module.exports={SystemWorkerHost};
