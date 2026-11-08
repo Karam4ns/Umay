@@ -112,10 +112,12 @@ class ComputerControl{
   else if(type==='wait'){const milliseconds=Number(action.milliseconds??500);if(!Number.isFinite(milliseconds)||milliseconds<0||milliseconds>5000)throw Error('Bekleme süresi geçersiz.');method='wait';params={milliseconds};}
   else throw Error('Bilgisayar işlemi desteklenmiyor.');
   }catch(error){error.code='PLANNER_INVALID';throw error;}
+  const expectation={expectedHandle:observed.handle,...(observed.processId?{expectedProcessId:observed.processId}:{})};
+  if(method==='focus'){const target=observed.windows.find(w=>w.handle===params.handle);if(target?.processId)params.expectedProcessId=target.processId;}
   this.observation=null;
   if(method==='navigate'){
    const sequence=this.sequence;
-   await this.native.request('keys',{keys:keyCodes(['CTRL','L']),expectedHandle:observed.handle});
+   await this.native.request('keys',{keys:keyCodes(['CTRL','L']),...expectation});
    if(!this.enabled||sequence!==this.sequence)throw Error('Bilgisayar görevi durduruldu.');
    const fresh=await this.observe({image:false}),field=addressField(fresh);
    if(!this.enabled||sequence+1!==this.sequence||fresh.handle!==observed.handle||!field?.focused)throw Object.assign(Error('Adres alanının odağı değişti; gezinme uygulanmadı.'),{code:'NATIVE_FOCUS_CHANGED'});
@@ -126,12 +128,12 @@ class ComputerControl{
    const sequence=this.sequence,characters=Array.from(params.text);
    for(let offset=0;offset<characters.length;offset+=32){
     if(!this.enabled||sequence!==this.sequence)throw Error('Bilgisayar görevi durduruldu.');
-    try{await this.native.request(method,{text:characters.slice(offset,offset+32).join(''),expectedHandle:observed.handle,...(params.expectedFocus?{expectedFocus:params.expectedFocus}:{}),...(params.replace&&offset===0?{replace:true}:{}),...(params.submit&&offset+32>=characters.length?{submit:true}:{})});}
+    try{await this.native.request(method,{text:characters.slice(offset,offset+32).join(''),...expectation,...(params.expectedFocus?{expectedFocus:params.expectedFocus}:{}),...(params.replace&&offset===0?{replace:true}:{}),...(params.submit&&offset+32>=characters.length?{submit:true}:{})});}
     catch(error){if(offset>0){error.code='NATIVE_PARTIAL_INPUT';error.message='Metnin bir bölümü yazıldı; tekrar yazmayı önlemek için görev durduruldu. Ekranı kontrol edip yeni görev verebilirsiniz.';}throw error;}
    }
    if(!this.enabled||sequence!==this.sequence)throw Error('Bilgisayar görevi durduruldu.');return true;
   }
-  return this.native.request(method,{...params,expectedHandle:observed.handle});
+  return this.native.request(method,{...expectation,...params});
  }
  close(){this.enable(false);this.native.close();}
 }

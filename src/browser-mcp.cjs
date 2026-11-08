@@ -3,6 +3,7 @@ const path=require('node:path'),{randomUUID,createHash}=require('node:crypto');
 const {Client}=require('@modelcontextprotocol/sdk/client/index.js');
 const {StdioClientTransport}=require('@modelcontextprotocol/sdk/client/stdio.js');
 const {ChromeBrowser}=require('./chrome-browser.cjs');
+const {browserProcessId}=require('./chrome-identity.cjs');
 const COMMON=['navigate_page','new_page','select_page','click','fill','fill_form','press_key','evaluate_script','wait_for'];
 const textOf=result=>(result?.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('\n');
 function safeUrl(value){try{const url=new URL(value);url.username='';url.password='';for(const key of [...url.searchParams.keys()])if(/token|secret|password|code|key|auth|session|state/i.test(key))url.searchParams.set(key,'[gizli]');url.hash='';return url.href;}catch{return String(value||'').slice(0,200);}}
@@ -13,7 +14,7 @@ function compactSchema(value){
 }
 function parsePages(result){
  const content=textOf(result),structured=result.structuredContent;
- if(Array.isArray(structured?.pages))return structured.pages.map(p=>({id:p.id??p.pageId,url:safeUrl(p.url),selected:!!p.selected}));
+ if(Array.isArray(structured?.pages))return structured.pages.map(p=>({id:p.id??p.pageId,url:safeUrl(p.url),selected:!!p.selected,...(p.title?{title:p.title}:{})}));
  return [...content.matchAll(/^\s*(\d+)\s*[:.]\s*(.+)$/gm)].map(m=>{const label=m[2].replace(/\s*\[selected\].*$/i,'');return {id:Number(m[1]),url:safeUrl(label.match(/\(((?:https?|file|chrome|about):.*)\)$/i)?.[1]||label),selected:/\[selected\]/i.test(m[2])};});
 }
 class BrowserMcp{
@@ -33,7 +34,27 @@ class BrowserMcp{
    return {identity:true,text:this.secretBroker?this.secretBroker.redact(redact(snapshot)).replace(/uid=\S+\s*/g,''):redact(snapshot).replace(/uid=\S+\s*/g,'')};
   });this.watchRead=reading;try{return await reading;}finally{if(this.watchRead===reading)this.watchRead=null;}
  }
- beginTask(){this.stagnant=null;this.lastWrite=null;this.snapshotOffset=0;this.resultOffset=0;this.resultLength=1400;this.snapshotWindowLength=3200;this.observation=null;}
+ beginTask(){this.stagnant=null;this.lastWrite=null;this.snapshotOffset=0;this.resultOffset=0;this.resultLength=1400;this.snapshotWindowLength=3200;this.observation=null;this.foregroundRequested=true;}
+ async syncForeground(view){
+  if(!this.account||!view?.processId||!/ - (?:Google )?Chrome$/i.test(view.title||''))return {connected:false};
+  if(!this.client){const endpoint=this.mode==='managed'?await this.browser.existingEndpoint?.():this.profile?.endpoint;if(!endpoint)return {connected:false};}
+  return this.waitForWatch(()=>this.exclusive(async()=>{
+   const generation=this.generation;await this.connect({refresh:true});this.check(generation);
+   const pid=this.browser.ownsProcess?.(view.processId)?view.processId:await (this.readProcessIdentity||browserProcessId)(this.endpoint);this.check(generation);
+   if(pid!==view.processId)return {connected:false};
+   if(this.secretBroker&&!this.secretBroker.canObserve(this.passiveState()))return {connected:false};
+   const pages=parsePages(await this.call('list_pages',{},generation));this.check(generation);
+   const title=String(view.title).replace(/ - (?:Google )?Chrome$/i,'');const matches=[];
+   for(const page of pages.filter(p=>!p.title||title.startsWith(p.title.replace(/…$|\.\.\.$/,''))).slice(0,40)){
+    const result=await this.call('evaluate_script',{pageId:page.id,function:'() => ({title: document.title || location.href, visible: document.visibilityState === "visible"})'},generation);this.check(generation);
+    const raw=textOf(result),json=raw.match(/```(?:json)?\s*([\s\S]*?)```/)?.[1]||raw;let data;try{data=JSON.parse(json);}catch{continue;}
+    if(data.visible===true&&data.title===title)matches.push(page);
+   }
+   if(matches.length!==1)return {connected:false};
+   const page=matches[0];if(page.id!==this.pageId)await this.call('select_page',{pageId:page.id,bringToFront:false},generation);this.check(generation);
+   this.pageId=page.id;this.pages=pages.map(p=>({...p,selected:p.id===page.id}));this.fullSnapshot='';this.observation=null;this.ready=true;return this.passiveState();
+  }));
+ }
  check(generation){if(generation!==this.generation||!this.account)throw Object.assign(Error('Tarayıcı işlemi durduruldu.'),{code:'BROWSER_CANCELLED'});}
  async connect({refresh=false}={}){
   if(this.connecting)return this.connecting;if(this.client&&(!refresh||this.mode!=='managed'))return this.client;const generation=this.generation;
@@ -70,6 +91,16 @@ class BrowserMcp{
   const generation=this.generation;let pages=parsePages(await this.call('list_pages'));this.check(generation);
   if(!pages.length){await this.call('new_page',{url:'about:blank'},generation);pages=parsePages(await this.call('list_pages',{},generation));}
   const selected=pages.find(p=>p.selected)||pages.find(p=>p.id===this.pageId)||pages[0];if(!selected)throw Error('Chrome sekmesi bulunamadı.');this.pageId=selected.id;this.pages=pages;
+  if(this.foregroundRequested){
+   await this.call('select_page',{pageId:this.pageId,bringToFront:true},generation);this.check(generation);
+   if(this.focusWindow){
+    const processId=await (this.readProcessIdentity||browserProcessId)(this.endpoint);this.check(generation);
+    const raw=textOf(await this.call('evaluate_script',{pageId:this.pageId,function:'() => document.title || location.href'},generation));this.check(generation);let title;try{title=JSON.parse(raw.match(/```(?:json)?\s*([\s\S]*?)```/)?.[1]||raw);}catch{}
+    if(!processId||typeof title!=='string')throw Object.assign(Error('Chrome penceresinin gerçek kimliği doğrulanamadı. Doğru yerel Chrome bağlantısını seçin.'),{code:'BROWSER_TARGET_REQUIRED'});
+    await this.focusWindow({processId,title,check:()=>this.check(generation)});this.check(generation);
+   }
+   this.foregroundRequested=false;
+  }
   const rawSnapshot=textOf(await this.call('take_snapshot',{pageId:this.pageId},generation)),snapshot=this.secretBroker?this.secretBroker.redact(rawSnapshot):rawSnapshot;this.check(generation);this.fullSnapshot=snapshot.slice(0,60000);if((this.snapshotOffset||0)>=this.fullSnapshot.length)this.snapshotOffset=0;const screenshots=[];
   if(image){const shot=await this.call('take_screenshot',{pageId:this.pageId,format:'jpeg'},generation),item=shot.content?.find(c=>c.type==='image');if(item)screenshots.push({displayId:'browser',image:'data:'+item.mimeType+';base64,'+item.data});}
   this.check(generation);

@@ -9,7 +9,8 @@ function chromeExecutable(){
 class ChromeBrowser{
  constructor({directory,spawnImpl=spawn,fetchImpl=fetch,executable=chromeExecutable,delay=ms=>new Promise(r=>setTimeout(r,ms))}){Object.assign(this,{directory,spawn:spawnImpl,fetch:fetchImpl,executable,delay});this.generation=0;this.child=null;this.account=null;}
  activate(account){if(this.account===account)return;this.cancelPending();this.child?.unref?.();this.child=null;this.account=account;}
- ownsProcess(processId){return !!this.child&&this.child.pid===processId;}
+ ownsProcess(processId){return !!this.child&&!this.child.killed&&this.child.exitCode==null&&this.child.pid===processId;}
+ existingEndpoint(){if(!this.account)return null;return this.endpoint(path.join(this.directory,'profiles',createHash('sha256').update(String(this.account)).digest('hex')));}
  async endpoint(profile){
   try{
    const lines=(await fs.readFile(path.join(profile,'DevToolsActivePort'),'utf8')).trim().split(/\r?\n/),port=Number(lines[0]);if(!Number.isInteger(port)||port<1||port>65535||!/^\/devtools\/browser\/[a-z0-9-]+$/i.test(lines[1]))return null;

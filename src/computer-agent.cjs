@@ -4,6 +4,7 @@ const {inputSignature,repeatedWrite,noteInput,stepRecord,observeOutcome,focusedF
 const {addressField,simpleNavigation}=require('./computer-navigation.cjs');
 const {watchWindow}=require('./computer-watch.cjs');
 const {standaloneNavigation,landingVerified,preferDesktopText}=require('./control-performance.cjs');
+const {prepareComputerPrompt}=require('./computer-prompt.cjs');
 const INPUT_ACTIONS=new Set(['click','double_click','right_click','middle_click','move','drag','scroll','keys','type','wait','focus_window','hold','move_relative','navigate','browser_tool','system_tool','system_batch']);
 function browserTask(request){return /https?:\/\/|www\.|chrome|tarayıcı|internet|\bweb\b|site(?:yi|ye|de|den|si)?\b|sekme|sayfa|\burl\b/iu.test(request)&&!/(?:chrome|tarayıcı).{0,30}(?:kaldır|yükle|kurulum|uninstall|install)/iu.test(request);}
 function parseAction(text){
@@ -144,21 +145,11 @@ class ComputerAgent{
      else{const system=this.system.capabilities();prompt.capabilities.system={engine:system.engine,administratorAvailable:system.administratorAvailable,availableTools:system.availableTools,tools:[],instructions:'For any local file/application/process work, choose system_start first. That fresh observation exposes complete real tool schemas and results. Keep the same original user task; never invent tool arguments.'};prompt.capabilities.actions.push('system_start');}
     }
     task.feedback=null;
-    while(JSON.stringify(prompt).length>11000&&prompt.session?.system?.artifacts?.length>1){prompt.session.system.artifacts.shift();prompt.session.system.artifactsOmitted=(prompt.session.system.artifactsOmitted||0)+1;}
-    while(JSON.stringify(prompt).length>11000&&prompt.observation.system?.artifacts?.length>1){prompt.observation.system.artifacts=prompt.observation.system.artifacts.slice(1);prompt.observation.system.artifactsOmitted=(prompt.observation.system.artifactsOmitted||0)+1;}
-    while(JSON.stringify(prompt).length>11000&&prompt.capabilities.system?.tools.length>2)prompt.capabilities.system.tools.pop();
-    while(JSON.stringify(prompt).length>11200&&prompt.observation.browser?.pages.length>6)prompt.observation.browser.pages.pop();
-    while(JSON.stringify(prompt).length>11000&&prompt.observation.browser?.snapshot.length>700)prompt.observation.browser.snapshot=prompt.observation.browser.snapshot.slice(0,-400);
-    while(JSON.stringify(prompt).length>11500&&prompt.capabilities.browser?.tools.length>2)prompt.capabilities.browser.tools.pop();
-    while(JSON.stringify(prompt.experience).length>2200&&prompt.experience.length)prompt.experience.pop();
-    while(JSON.stringify(prompt).length>11900&&prompt.experience.length)prompt.experience.pop();
-    while(JSON.stringify(prompt).length>11200&&prompt.observation.elements.length>5)prompt.observation.elements.pop();
-    while(JSON.stringify(prompt).length>11700&&prompt.observation.windows.length>1)prompt.observation.windows.pop();
-    if(JSON.stringify(prompt).length>11900)throw Error('Görev açıklaması çok uzun. Daha kısa ve tek bir görev olarak yazın.');
+    const packet=prepareComputerPrompt(prompt);
     // Keep the existing site's per-user write rate instead of changing it for
     // all chats. Wait cooperatively; F8 remains available during this interval.
     this.messageTimes=this.messageTimes.filter(t=>this.now()-t<61000);task.messageTimes=this.messageTimes;if(task.messageTimes.length>=(this.system?75:10))await this.wait(task,61000-(this.now()-task.messageTimes[0]));
-    const request={content:JSON.stringify(prompt),requestId:randomUUID(),expectedVersion:Number(task.conversation.version),kind:'CHAT',desktopMode:'computer',desktopContext:JSON.stringify({clock:new Date(this.now()).toISOString(),memory:this.memory.context(task.goal)}).slice(0,12000),...(prompt.hasImage?{desktopImage:selected.image}:{})};
+    const request={content:JSON.stringify(packet),requestId:randomUUID(),expectedVersion:Number(task.conversation.version),kind:'CHAT',desktopMode:'computer',desktopContext:JSON.stringify({clock:new Date(this.now()).toISOString(),memory:this.memory.context(task.goal)}).slice(0,12000),...(packet.hasImage?{desktopImage:selected.image}:{})};
     task.message='Modelin işlem yanıtı bekleniyor…';this.emit();const planningStarted=this.now();task.timings.modelTurns++;if(request.desktopImage)task.timings.images++;const posted=await this.api('/site/chat/conversations/'+task.conversation.id+'/messages',request);task.lastRun=posted.run.id;task.messageTimes.push(this.now());
     // Local stop quarantines this generation immediately. Let an already
     // accepted provider request finish its usage accounting instead of aborting
@@ -252,6 +243,7 @@ class ComputerAgent{
    }
    throw Error('Görev adım veya süre sınırına ulaştı. Son yapılanlar işlem günlüğüne kaydedildi.');
   }catch(error){
+   if(error.code==='NATIVE_FOCUS_DENIED'&&task.sequence===this.sequence&&task.epoch===this.memory.epoch){task.status='question';task.message='Windows hedef pencereyi öne getirmeyi reddetti; klavye/fare işlemi uygulanmadı. Pencereyi öne getirip devam et diyebilirsin.';task.requiresInput=task.message;this.emit();this.onFinish();return this.state();}
    if(['SECRET_HANDOFF_REQUIRED','BROWSER_TARGET_REQUIRED','CHECKOUT_REVIEW_REQUIRED'].includes(error.code)&&task.sequence===this.sequence&&task.epoch===this.memory.epoch){task.status='question';task.message=error.message;task.requiresInput=error.code==='CHECKOUT_REVIEW_REQUIRED'?'Sohbetteki sipariş kaydını incele; sonuç belirsizken tekrar ödeme yapılmaz.':'Gizli aşamayı yerelde tamamlayıp devam et diyebilirsin.';this.emit();this.onFinish();return this.state();}
    if(error.code==='SSH_HOST_CONFIRM_REQUIRED'&&task.sequence===this.sequence&&task.epoch===this.memory.epoch){task.status='confirmation';const args={profileId:error.challenge.profileId,expectedFingerprint:error.challenge.expectedFingerprint};task.requiresInput={summary:error.message,nextAction:{action:'system_tool',toolName:'ssh_connect',toolArguments:JSON.stringify(args)}};task.message=error.message;this.emit();this.onFinish();return this.state();}
 

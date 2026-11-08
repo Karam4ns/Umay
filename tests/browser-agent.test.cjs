@@ -9,6 +9,18 @@ function fixture(actions){
  return {browser,control,posted,executed,native,agent:new ComputerAgent({control,browser,api,memory,now:()=>clock,delay:async ms=>clock+=ms})};
 }
 const model={id:'model',source:'PERSONAL'};
+test('short browser work survives accumulated workspace context without mutating current observations or user authority',async()=>{
+ const f=fixture([{action:'done',message:'Güncel sonucu okudum.'}]);
+ const view=await f.browser.observe();view.browser.snapshot='uid=1_0 RootWebArea "Sonuç"\n'+('uid=1_2 link "Sonuç satırı"\n'.repeat(100));view.browser.lastResult={text:'gerçek sonuç '.repeat(120),offset:0,length:1560,source:{tool:'click',status:'completed'}};
+ f.browser.observe=async()=>view;
+ const session={browser:{pageId:1,summary:'eski sekme özeti '.repeat(400)},task:{goal:'önceki görev',message:'durum '.repeat(400)},previous:{goal:'önceki arama',message:'eski sonuç '.repeat(400)}};
+ f.agent.sessionContext=()=>session;
+ f.agent.onObservation=task=>{task.activeTarget={executor:'browser',target:{handle:14,processId:81,browser:{pageId:1,summary:'aktif hedef '.repeat(400)}}};};
+ const saved=JSON.stringify({session,view});
+ const original='Arama sonuçlarında üçüncü olanı aç; sorguyu değiştirme.';
+ const result=await f.agent.run('Sonucu aç',model,{userRequest:original,executor:'browser'});
+ assert.equal(result.status,'completed',result.message);assert.equal(f.posted.length,1);assert.equal(f.posted[0].originalUserRequest,original);assert.deepEqual(f.posted[0].userAuthorization,[]);assert.equal(f.posted[0].observation.browser.pageId,1);assert.match(f.posted[0].observation.browser.snapshot,/uid=1_0/);assert.ok(JSON.stringify(f.posted[0]).length<=11900);assert.equal(JSON.stringify({session,view}),saved);
+});
 test('verified standalone navigation bypasses planner turns but still observes and checks the actual landing page',async()=>{
  const f=fixture([]);let observed=0;f.browser.observe=async()=>({id:'nav'+(++observed),title:'Chrome',elements:[],windows:[],displays:[],screenshots:[],browser:{pageId:1,pages:[{id:1,url:observed===1?'about:blank':'https://www.netflix.com/tr/'}],snapshot:'uid=1_0 RootWebArea "Netflix Türkiye"'}});
  const result=await f.agent.run('Onerilen farklı görev',model,{userRequest:'chrome kullanarak netflix açar mısın',executor:'browser'});

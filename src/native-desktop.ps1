@@ -47,7 +47,7 @@ public static class UmayInput {
   uint unused,own=GetCurrentThreadId(),foreground=GetWindowThreadProcessId(GetForegroundWindow(),out unused),target=GetWindowThreadProcessId(window,out unused);bool joinedForeground=false,joinedTarget=false;
   try{if(foreground!=0&&foreground!=own)joinedForeground=AttachThreadInput(own,foreground,true);if(target!=0&&target!=own&&target!=foreground)joinedTarget=AttachThreadInput(own,target,true);BringWindowToTop(window);SetForegroundWindow(window);}
   finally{if(joinedTarget)AttachThreadInput(own,target,false);if(joinedForeground)AttachThreadInput(own,foreground,false);}
-  for(int i=0;i<12;i++){if(GetForegroundWindow()==window)return;Thread.Sleep(25);}throw new Exception("NATIVE_WINDOW_UNAVAILABLE");
+  for(int i=0;i<12;i++){if(GetForegroundWindow()==window)return;Thread.Sleep(25);}throw new Exception(IsWindow(window)?"NATIVE_FOCUS_DENIED":"NATIVE_WINDOW_UNAVAILABLE");
  }
  [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr window,out uint processId);
  [DllImport("kernel32.dll")] static extern IntPtr OpenProcess(uint access,bool inherit,uint processId);
@@ -150,6 +150,7 @@ while($true){
  try{
   $request=ConvertFrom-Json $line;$p=$request.params;$result=$true
   if($request.method -in @('click','move','move_relative','hold','drag','scroll','keys','text') -and $null -ne $p.expectedHandle -and [long]$p.expectedHandle -ne [UmayInput]::GetForegroundWindow().ToInt64()){throw 'NATIVE_FOCUS_CHANGED'}
+  if($request.method -in @('click','move','move_relative','hold','drag','scroll','keys','text') -and $null -ne $p.expectedProcessId -and ($null -eq $p.expectedHandle -or [UmayInput]::ProcessId([long]$p.expectedHandle) -ne [uint32]$p.expectedProcessId)){throw 'NATIVE_FOCUS_CHANGED'}
   if($request.method -in @('click','move','move_relative','hold','drag','scroll','keys','text','focus') -and -not $administrator -and [UmayInput]::ElevatedWindow([UmayInput]::GetForegroundWindow()) -eq $true){throw 'NATIVE_ELEVATION_REQUIRED'}
   switch($request.method){
    'privileges' {$result=@{administrator=$administrator;pid=$PID}}
@@ -189,7 +190,7 @@ while($true){
    'hold' {$result=[UmayInput]::Hold([uint16[]]$p.keys,[string]$p.button,[int]$p.milliseconds,[string]$p.stopFile,[long]$p.expectedHandle)}
    'drag' {[UmayInput]::Drag([int]$p.x,[int]$p.y,[int]$p.endX,[int]$p.endY)}
    'scroll' {if($null -ne $p.x -and $null -ne $p.y){[void][UmayInput]::SetCursorPos([int]$p.x,[int]$p.y)};[UmayInput]::Scroll([int]$p.amount,($p.axis -eq 'horizontal'))}
-   'focus' {[UmayInput]::Focus([long]$p.handle)}
+   'focus' {if($null -ne $p.expectedProcessId -and [UmayInput]::ProcessId([long]$p.handle) -ne [uint32]$p.expectedProcessId){throw 'NATIVE_WINDOW_UNAVAILABLE'};[UmayInput]::Focus([long]$p.handle)}
    'keys' {[UmayInput]::Chord([uint16[]]$p.keys)}
    'text' {
     $focused=[System.Windows.Automation.AutomationElement]::FocusedElement
