@@ -44,7 +44,7 @@ Yerel son kayıtlarda arama/fill/click sonrası “Görev açıklaması çok uzu
 
 ### Task3: Regresyon ve teslim
 
-- [ ] Tek taze bağımsız son inceleme; önemli bulgular RED/GREEN ile kapatılır.
-- [ ] Tam Node +52 konuşma/klonlama; gerçek sohbet UI/Chrome/checkout/OTP/Windows/uzun işler; canlı model erişimi varsa ayrı ölçüm ve açık sonuç.
-- [ ] 0.8.4 test installer kaynak/ASAR/MCP/hash kontrolü, ana checkout'a kopya; eski paketleri koru, otomatik kurulum/updater yayını yok.
-- [ ] Plan/walkthrought/kabul kaydı, vault kopyaları, GitHub mevcut dal teslimi. Geniş evrensel kabul tamamlanmış gösterilmez.
+- [x] Tek taze bağımsız son inceleme; iki Important RED/GREEN ile kapatıldı. Critical/Minor yok.
+- [x] 473 Node +52 konuşma/klonlama; gerçek sohbet UI/Chrome/checkout/OTP/Windows/F8/uzun işler. Canlı model erişimi kilitli oturum kopyası nedeniyle doğrulanamadı; sonuç açık kaydedildi.
+- [x] 0.8.4 test installer kaynak/ASAR/MCP/hash kontrolü, ana checkout'a kopya.80 uygulama/361 MCP/22474 runtime dosyası kaynakla aynı; gerçek paket kontrol zinciri ve yönetici işçisi geçti. Eski0.8.3 hash'i korundu; otomatik kurulum/updater yayını yok.
+- [x] Plan/walkthrought/kabul kaydı, vault kopyaları ve GitHub mevcut dal kaynak teslimi. Kaynak aa20404 uzaktan doğrulandı; son teslim kaydı aynı dalda tutulur. Geniş evrensel kabul tamamlanmış gösterilmez.

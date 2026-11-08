@@ -557,3 +557,11 @@ Kanıt ve sınırlar: `Docs/long-task-verification.md`.
 4. Bağımsız üç Important bulgu ve geç dosya drain riski RED/GREEN testleriyle kapatıldı. Metadata UUID kart-filtresi yanlış pozitifliği de sabit testle düzeltildi. Son 460/460 Node ve52/52 konuşma/klonlama testi geçti.
 5. Gerçek Windows yükseltilmiş child/token, arka plan A/normal B, explicit stop ve erişim kapatma geçti. Mevcut Windows odak testi reddedildi; eski0.8.2 ASAR ve aynı native dosyalarla aynı hata karşılaştırıldı. Bu kısım tamamlandı sayılmaz.
 6. 0.8.3 kaynak/paket/gerçek worker/MCP ve hash kontrolleri tamamlandı; installer ana checkout dist/remote-jobs-0.8.3 içine kopyalandı. GitHub dalı ve vault proje kopyaları teslimde güncellenir. Ayrıntı `Docs/remote-job-verification.md`. Gerçek sunucuda üretim komutu veya kullanıcı uygulamalarına giriş yapılmadı;0.8.2 korunur.
+
+## [2026-11-08] 0.8.4 — Gerçek hedef ve kesilmeyen kontrol döngüsü
+
+1. Yerel arama/click sonrası iç bağlam uzunluğu kesilmesi gerçek Agent'ta RED/GREEN ile düzeltildi; özgün istek/onaylar ve gerçek gözlem nesneleri korunur.
+2. Chrome OS süreç kimliği yalnız yerel debug endpoint'inden okunur. Gerçek görünen sekme MCP üzerinden başlık/görünürlükle bulunur; görev taze snapshot öncesi kesin native pencereye odaklanır. Bir komutun gözlemi başarısızsa eski hedef geçerli kalmaz.
+3. Windows focus/girdi PID koruması gerçek native testte doğrulandı. Gerçek sağ/orta/çift tık, scroll/drag, iki pencere ve F8; arka plan izleyici, sohbet UI/IPC, checkout/OTP ve yönetici uzun iş regresyonları geçti.
+4. Son473 Node ve52 konuşma/klonlama testi geçti. Bağımsız iki Important: endpoint'siz mevcut Chrome ve ilk40 adayda yanlış benzersizlik RED/GREEN ile kapatıldı; yeni inceleme döngüsü başlatılmadı.
+5. Son0.8.4 paket kaynak/native/dört konuşma/361 MCP dosyası karşılaştırması geçti; gerçek paket testleri ve teslim kanıtı `Docs/control-reliability-verification.md` içinde tutulur. Eski0.8.3 korunur; genel updater/üretim sunucusu değişmez. Canlı model testi için mevcut test oturumu yoktu, kilitli orijinal cookie profiline müdahale edilmedi.
