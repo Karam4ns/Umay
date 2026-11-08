@@ -820,3 +820,8 @@ Pencere/sekme/yerel süreç izleyicisi etkili görevden ayrıldı. Yeni iş eski
 ## [2026-11-07] Adres, OTP ve sipariş devamlılığı — 0.8.2
 
 Kalıcı sipariş denemesi, her siparişte yerel adres/toplam/ödeme teyidi, kaynaklı adres önerisi/kaydı, soru kimliği ve iptal nesliyle yerel OTP eklendi. Değişen sayfa veya tutar eski onayı geçersiz kılar; yanıtı kayıp/restart gönderimi model beyanıyla tekrar edilmez. Gerçek Chrome yerel mağazası, gerçek sohbet UI/IPC ve aynı görevde ajan devamı geçti; 440 Node ve 52 konuşma/klonlama regresyonu geçti. Ayrıntılı plan `Docs/checkout-continuity.md`, kanıt ve açık sınırlar `Docs/checkout-verification.md`. 0.8.2 imzasız test paketi kaynak/ASAR/MCP ve hash kontrolleriyle hazır; gerçek mağaza/banka/evrensel model seçimi kabulü ve genel uygulama/aygıt matrisi açık.
+
+
+## [2026-11-08] Yönetici ve SSH uzun iş devamlılığı — 0.8.3
+
+Yönetici private worker'ında görev/istek/süreç sahipliği ayrıldı; yerel/yönetici/SSH işleri ortak asenkron park alındısı ve lease doğrulamasıyla izlenir. Başka iş sürerken aynı asıl göreve gerçek sonuçla dönüş ve Dur/hesap/erişim kapatma sınandı. 460 Node + 52 konuşma/klonlama testi; gerçek loopback SSH ve gerçek Windows yönetici/token/worker kabulü geçti. Karşılaştırmalı Windows pencere odak testi eski 0.8.2'de de aynı hatayı verdi; kontrol motoru değiştirilmeden ayrı açık madde olarak tutulur. Plan `Docs/remote-job-continuity.md`, kanıt ve açık sınırlar `Docs/remote-job-verification.md`. 0.8.3 paket/kaynak/gerçek worker/MCP ve hash kontrolleri tamamlandı; installer ana checkout dist/remote-jobs-0.8.3 içinde. Sıradaki dar inceleme Windows odak reddi; tüm uygulamalar/gerçek saatler/genel uzak süreç yeniden bağlama açık kalır.

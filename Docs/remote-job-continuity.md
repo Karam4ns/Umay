@@ -51,8 +51,14 @@ Yeni sohbet/iş, park edilmiş işin özgün kullanıcı talimatını ve izlenen
 
 **Dosyalar:** yeni gerçek loopback SSH/ajan kabulü ve özel worker taşıma testi; mevcut Windows UAC testi, paket testleri; `Docs/remote-job-verification.md`, `plan.md`, `walkthrought.md` ve vault kopyaları.
 
-- [ ] Gerçek loopback SSH uzun işi + diğer görev + aynı işe sonuç aktarımı; kopmada otomatik devam/tekrar yok. Gerçek worker pipe ile iki görev, park, bekleme iptali ve doğru işi durdurma. Gerçek Windows yönetici süreci ayrı sınanır; onay engeli olursa açık raporlanır.
+- [x] Gerçek loopback SSH uzun işi + diğer görev + aynı işe sonuç aktarımı; kopmada otomatik devam/tekrar yok. Gerçek worker pipe ile iki görev, park, bekleme iptali ve doğru işi durdurma. Gerçek Windows yönetici süreci ayrı sınanır; onay engeli olursa açık raporlanır.
 - [ ] Tam Node + 52 konuşma/klonlama testi; gerçek Chrome/sipariş/OTP/sohbet UI/arka plan regresyonu. Tek taze bağımsız son inceleme ve gerekli bulguların RED/GREEN çözümü.
-- [ ] 0.8.3 imzasız test paketi, ASAR/native/konuşma/MCP kaynak eşleşmesi, gerçek paket testleri ve hash/blockmap; GitHub dalına kaynak ve ana checkout'a installer; vault güncel Docs kopyaları. 0.8.2 korunur, genel updater yayını yapılmaz.
+- [x] 0.8.3 imzasız test paketi, ASAR/native/konuşma/MCP kaynak eşleşmesi, gerçek paket testleri ve hash/blockmap; GitHub dalına kaynak ve ana checkout'a installer; vault güncel Docs kopyaları. 0.8.2 korunur, genel updater yayını yapılmaz.
 
 Tamamlanmış kutular yalnız bu turdaki gerçek kanıtla işaretlenir. Gerçek saatler ve bütün uygulama/sunucu/aygıt kabulü açık kalır.
+
+## Gerçekleşen kabul ve açık kayıt
+
+460 Node ve52 konuşma/klonlama testi; gerçek loopback SSH/same-agent devamı, gerçek Windows UAC/token/özel worker ve gerçek paket ASAR/Umay.exe kabulü geçti. Bağımsız üç Important ve iptal drain bulgusu RED/GREEN ile kapatıldı. Metadata UUID yanlış kart eşleşmesi sabit testle düzeltildi. Paket 78 kaynak/dört konuşma/361 MCP eşleşmesi ve hash ile hazır.
+
+Task3 içindeki genel Windows odak regresyonu tamamlandı işaretlenmez: güncel ve önceki0.8.2 native sınıfıyla aynı `NATIVE_WINDOW_UNAVAILABLE` alındı; dosyalar byte olarak aynı. Bu koşul ve bütün uygulamalar/gerçek saatler kapsamı ayrı açık kalır. Sonuç, hash ve kaynak kanıtı `remote-job-verification.md` içinde.

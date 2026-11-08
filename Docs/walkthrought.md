@@ -547,3 +547,13 @@ Kanıt ve sınırlar: `Docs/long-task-verification.md`.
 3. Bağımsız incelemenin son düğme/OTP, sahte sonuç, tamamlanma, sayısal eşleşme ve snapshot dosya dışa aktarımı bulguları kapatıldı. 440 Node + 52 konuşma/klonlama testi geçti.
 4. Gerçek Chrome'da yerel mağaza, yanlış/doğru OTP, değişen tutar ve click sonrası yanıt kaybı doğrulandı. Gerçek sohbet UI ve arka plan Chrome/Windows regresyonu geçti. Test penceresinin eski UIA metni ürettiği ilk denemeler de kabul kaydında tutulur.
 5. 0.8.2 paket eşleşmesi/hash ve gerçek ASAR/MCP kontrolleri tamamlandı; ana checkout dist/checkout-0.8.2 içine kopyalandı. 0.8.1 hash doğrulamasıyla korunur. Ayrıntı: `Docs/checkout-verification.md`. Sonraki adım yönetici/SSH uzun iş sahipliği; gerçek alışveriş ve evrensel uygulama kabulü tamamlanmış sayılmaz.
+
+
+## [2026-11-08] 0.8.3 — Yönetici/SSH işleri
+
+1. Temiz0.8.2 tabanında 440 Node testi geçti; mevcut named worktree ve konuşma/giriş/tarayıcı/sipariş yolları korundu.
+2. Worker'da tek isteği iptal etmek ile görevin süreçlerini durdurmak ayrıldı. Gerçek pipe ve çocuk süreçlerle A/B sahipliği doğrulandı. Worker kaydı09946d4.
+3. Backend park alındısı, bağlantı lease'i ve SSH gerçek izleyicisi eklendi; gerçek ajan döngüsü B'den sonra A'ya tek exec sonucu ile döndü. Son iş kaynak kaydı4cd9ae6.
+4. Bağımsız üç Important bulgu ve geç dosya drain riski RED/GREEN testleriyle kapatıldı. Metadata UUID kart-filtresi yanlış pozitifliği de sabit testle düzeltildi. Son 460/460 Node ve52/52 konuşma/klonlama testi geçti.
+5. Gerçek Windows yükseltilmiş child/token, arka plan A/normal B, explicit stop ve erişim kapatma geçti. Mevcut Windows odak testi reddedildi; eski0.8.2 ASAR ve aynı native dosyalarla aynı hata karşılaştırıldı. Bu kısım tamamlandı sayılmaz.
+6. 0.8.3 kaynak/paket/gerçek worker/MCP ve hash kontrolleri tamamlandı; installer ana checkout dist/remote-jobs-0.8.3 içine kopyalandı. GitHub dalı ve vault proje kopyaları teslimde güncellenir. Ayrıntı `Docs/remote-job-verification.md`. Gerçek sunucuda üretim komutu veya kullanıcı uygulamalarına giriş yapılmadı;0.8.2 korunur.
