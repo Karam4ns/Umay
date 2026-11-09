@@ -32,7 +32,7 @@
 
 ### Task2: Gerçek kabul ve teslim
 
-- [ ] Tek bağımsız son inceleme; Important/Critical bulgular varsa tek RED/GREEN düzeltme turu.
-- [ ] Tam Node ve52 konuşma testi; gerçek paket Windows/Chrome/sohbet/checkout/uzun iş kontrolleri.
+- [x] Tek bağımsız son inceleme; native foreground bayrağı bulgusu etkisine göre Important olarak değerlendirilip tek RED/GREEN turunda kapatıldı. Ertelenmiş Minor yok.
+- [x] 478 Node ve52 konuşma testi; gerçek Windows/F8, Chrome/checkout/arka plan ve son paket kontrol/izole hafıza/yönetici worker kontrolleri geçti.
 - [ ] Kurulu0.8.4'te canlı başarısızlık kanıtı ve yeni kaynakta aynı dönüş/ayrı takip zinciri. Yeni sürüm kurulumunu kullanıcı yapar; gerçek yeni bulut testi yapılamazsa açık bırak.
-- [ ] 0.8.5 installer, kaynak/ASAR/MCP/hash, eski0.8.4 korunarak ana checkout'a kopya; GitHub/vault/plan/walkthrought teslimi.
+- [x] 0.8.5 installer, kaynak/ASAR/MCP/hash, eski0.8.4 korunarak ana checkout'a kopya; GitHub kaynak ve40 Docs vault kopyası doğrulandı. Plan/walkthrought/kabul kaydı aynı dalda tutulur. Üstteki yeni kurulu canlı kabul kutusu kullanıcı kurulumu sonrası açıktır.

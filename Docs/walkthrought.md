@@ -565,3 +565,11 @@ Kanıt ve sınırlar: `Docs/long-task-verification.md`.
 3. Windows focus/girdi PID koruması gerçek native testte doğrulandı. Gerçek sağ/orta/çift tık, scroll/drag, iki pencere ve F8; arka plan izleyici, sohbet UI/IPC, checkout/OTP ve yönetici uzun iş regresyonları geçti.
 4. Son473 Node ve52 konuşma/klonlama testi geçti. Bağımsız iki Important: endpoint'siz mevcut Chrome ve ilk40 adayda yanlış benzersizlik RED/GREEN ile kapatıldı; yeni inceleme döngüsü başlatılmadı.
 5. Son0.8.4 paket kaynak/native/dört konuşma/361 MCP dosyası karşılaştırması geçti; gerçek paket testleri ve teslim kanıtı `Docs/control-reliability-verification.md` içinde tutulur. Eski0.8.3 korunur; genel updater/üretim sunucusu değişmez. Canlı model testi için mevcut test oturumu yoktu, kilitli orijinal cookie profiline müdahale edilmedi.
+
+## [2026-11-09] 0.8.5 — Kullanılan pencereyi takip komutunda koruma
+
+1. Kurulu0.8.4 oturumunda gerçek modellerle loopback sayfa açıldı; ayrı tam Türkçe arama isteği profil sorusunda durdu. Test anahtarı/cookie alınmadı; yalnız kendi test görevi normal UI ile iptal edildi.
+2. Native doğrulanmış focus ve taze masaüstü gözlemi son hedefin yalnız PID/HWND/başlık/zaman referansını günceller. Sonraki komut güncel pencere/profil/sekme kontrolünü tekrar yapar; eski UID/onay kullanılmaz.
+3. Umay ile başlayan kullanıcı site/uygulama adları artık sohbet penceresi sayılmaz. Gizli/arkaplan/geç hesap sonucu/yanlış PID ve kapanmış hedef testleri korundu.
+4. Eski0.8.4 ASAR'ında gerçek sohbet dönüşü başarısız; yeni kaynakta aynı gerçek Windows/Chrome zinciri geçti. Tek taze incelemenin native foreground bayrağı bulgusu RED/GREEN ile kapatıldı;478 Node ve52 konuşma/klonlama testi geçti. F8 kendi eski testimizin tuş rezervasyonu temizlendikten sonra gerçek Windows'ta geçti.
+5. Son kaynak287e147 ile0.8.5 paketi ve açık canlı kabul `Docs/executed-target-verification.md` içinde izlenir. Önceki0.8.4 korunur; otomatik kurulum/genel updater/üretim sunucusu değişmez.
