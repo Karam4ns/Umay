@@ -573,3 +573,8 @@ Kanıt ve sınırlar: `Docs/long-task-verification.md`.
 3. Umay ile başlayan kullanıcı site/uygulama adları artık sohbet penceresi sayılmaz. Gizli/arkaplan/geç hesap sonucu/yanlış PID ve kapanmış hedef testleri korundu.
 4. Eski0.8.4 ASAR'ında gerçek sohbet dönüşü başarısız; yeni kaynakta aynı gerçek Windows/Chrome zinciri geçti. Tek taze incelemenin native foreground bayrağı bulgusu RED/GREEN ile kapatıldı;478 Node ve52 konuşma/klonlama testi geçti. F8 kendi eski testimizin tuş rezervasyonu temizlendikten sonra gerçek Windows'ta geçti.
 5. Son kaynak287e147 ile0.8.5 paketi ve açık canlı kabul `Docs/executed-target-verification.md` içinde izlenir. Önceki0.8.4 korunur; otomatik kurulum/genel updater/üretim sunucusu değişmez.
+
+
+## [2026-11-09] Kurulu0.8.5 canlı model zinciri
+
+Kullanıcı kurulumu teyit ettikten sonra normal sohbet arayüzünde ayrı sayfa açma → tam Türkçe arama → üçüncü sonuç → form kaydetme zinciri, mevcut atanmış modellerle tamamlandı. HTTP kayıtlarında tam sorgu ve tek doğru POST var. Formun ilk sohbet isteği INVALID_PROVIDER_RESPONSE ile yürütücüye ulaşmadan başarısız oldu; etki olmadığı doğrulanıp tek kontrollü tekrar yapıldı. Yürütücü süreleri11.600/6.805/4.844/6.077s; aramada sohbet gönderiminden sona17.772s. İlk deneme hatası ve sohbet beklemesi saklanır; genel kusursuzluk/hız garantisi yoktur. Son bağımsız Chrome ekran okuması otomatik URL güvenlik denetimince durduruldu ve açık kaldı. Ayrıntı `Docs/executed-target-verification.md`. Bu tur uygulama kodu, model rolleri, ses veya üretim sunucusu değişmedi. Sonraki açık işler sağlayıcı hata kök nedeni/tekrarlı ölçüm, sohbet→eylem gecikmesi ve geniş uygulama/uzun süreli kullanım kabulüdür.
