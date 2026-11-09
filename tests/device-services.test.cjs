@@ -1,6 +1,18 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),os=require('node:os');
 const {DeviceServices}=require('../src/device-services.cjs');
 function fixture(api){return new DeviceServices({directory:fs.mkdtempSync(path.join(os.tmpdir(),'umay-devices-test-')),api,screen:{},capture:async()=>[],native:{request:async()=>({}),close(){}},background:false});}
+
+test('confirmed Chrome focus replaces an older foreign target before returning to Umay chat',async()=>{
+ const s=fixture(async()=>({}));s.activate('alice');let view={handle:3,processId:30,title:'Old - Google Chrome',windows:[]};
+ s.control.native.request=async method=>{assert.equal(method,'foreground');return view;};
+ s.browser.syncForeground=async v=>({connected:v.processId===50,profileKey:'managed:alice',connectionId:'live',pageId:7,pages:[{id:7,url:'http://127.0.0.1/test',selected:true}],snapshot:''});
+ await s.workspace.refresh();assert.equal(s.workspace.resolve('üçüncüyü aç').needsTarget,true);
+ view={handle:5,processId:50,title:'Test - Google Chrome',windows:[{handle:5,processId:50,title:'Test - Google Chrome'}]};await s.browser.focusWindow({processId:50,title:'Test',check:()=>s.memory.check(s.memory.epoch)});
+ assert.equal(s.workspace.state().target.handle,5,'actual focused window must replace stale foreign target');
+ view={handle:9,processId:90,title:'Umay',windows:[{handle:3,processId:30,title:'Old - Google Chrome'},{handle:5,processId:50,title:'Test - Google Chrome'}]};await s.workspace.refresh();const follow=s.workspace.resolve('Açtığın sayfada şunu arat');assert.equal(follow.needsTarget,false);assert.equal(follow.target.handle,5);assert.equal(follow.target.browser.pageId,7);s.close();
+});
+
+test('a focus result delivered after account switch cannot become the new account target',async()=>{const s=fixture(async()=>({}));s.activate('alice');await new Promise(r=>setImmediate(r));const epoch=s.memory.epoch;let entered,release;const ready=new Promise(r=>entered=r);s.control.native.request=async()=>{entered();return new Promise(r=>release=()=>r({handle:5,processId:50,title:'Test - Google Chrome',windows:[{handle:5,processId:50,title:'Test - Google Chrome'}]}));};const pending=s.browser.focusWindow({processId:50,title:'Test',check:()=>s.memory.check(epoch)});await ready;s.activate('bob');release();await assert.rejects(pending,/Hesap değişti/);assert.equal(s.workspace.state().target,null);s.close();});
 test('growing Obsidian context keeps current target and relevant personal memory within transport budget',async()=>{const s=fixture(async()=>({}));s.activate('a');s.control.enable(true);s.control.native.request=async()=>({handle:4,processId:12,title:'Editor',windows:[]});s.plugins.catalog.context=()=>Array.from({length:8},(_,i)=>({id:'memory-'+i,title:'Kahve',content:'Kahve tercihi. '.repeat(80),fields:{detail:'x'.repeat(1900)},source:{kind:'user'}}));s.memory.context=()=>({messages:[],profile:[],operations:[{summary:'x'.repeat(1400)}]});const text=await s.prepareContext('Kahve tercihim'),context=JSON.parse(text);assert.ok(text.length<=12000);assert.equal(context.activeWorkspace.target.handle,4);assert.ok(context.personalMemory.length>0);assert.equal(context.personalMemory[0].title,'Kahve');s.close();});
 test('a delayed foreground summary cannot cross an account switch',async()=>{
  const service=fixture(async()=>({}));service.activate('old');service.control.enable(true);let finish;

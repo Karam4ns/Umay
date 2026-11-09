@@ -1,12 +1,18 @@
 'use strict';
 const {safeUrl}=require('./browser-mcp.cjs');
-const appIsUmay=title=>/^Umay(?:\s|$|—)/i.test(title||'');
+const appIsUmay=title=>/^Umay(?: bilgisayar görevi)?$/i.test(title||'');
 const followUp=request=>/üçünc|ikinci|birinci|sıradaki|sonraki|önceki|bunu|şunu|orada|burada|devam|tam ekran|küçült|alta (?:al|koy)|kapat|kaydır|scroll|ara(?:t|ma)?\b/i.test(request);
 class WorkspaceContext{
  constructor({session,readForeground,readBrowser=async()=>null,capture,analyze,now=()=>Date.now(),schedule=setInterval,cancelSchedule=clearInterval,publish=()=>{},isBusy=()=>false,isSensitive=()=>false}={}){Object.assign(this,{session,readForeground,readBrowser,capture,analyze,now,schedule,cancelSchedule,publish,isBusy,isSensitive});this.epoch=0;this.settings={enabled:false,intervalMs:300000,excludedApps:[]};this.target=null;}
  activate(account){this.stop();this.account=account;this.target=null;this.summary=null;this.lastError=null;}
  configure(input={}){if(input.intervalMs!==undefined&&input.intervalMs!==300000)throw Error('Gözlem aralığı 5 dakikadır.');this.settings={enabled:!!input.enabled,intervalMs:300000,excludedApps:(input.excludedApps||[]).filter(v=>typeof v==='string').slice(0,30)};if(this.timer)this.cancelSchedule(this.timer);this.timer=null;if(this.account&&this.settings.enabled){this.timer=this.schedule(()=>{void this.refresh({reason:'timer'}).catch(()=>{});},300000);this.timer?.unref?.();}return this.state();}
  state(){return structuredClone({enabled:this.settings.enabled,intervalMs:300000,target:this.target,summary:this.summary,lastError:this.lastError});}
+ rememberForeground(view){
+  if(!this.account||!Number.isSafeInteger(view?.handle)||view.handle<=0||!Number.isInteger(view.processId)||view.processId<=0||view.isForeground===false||view.requiresElevation||view.browser||view.system||appIsUmay(view.title)||this.isSensitive(view)||this.settings.excludedApps.some(name=>String(view.title).toLowerCase().includes(name.toLowerCase())))return false;
+  // This is only a reference for the next command's fresh PID/profile check.
+  // A native focus receipt does not carry reusable element IDs or authority.
+  this.target={handle:view.handle,processId:view.processId,title:String(view.title||'').slice(0,240),executor:/ - (?:Google )?Chrome$/i.test(view.title||'')?'browser':'desktop',observedAt:this.now()};return true;
+ }
  stop(){this.epoch++;this.controller?.abort();this.controller=null;if(this.timer)this.cancelSchedule(this.timer);this.timer=null;this.flight=null;}
  async refresh({reason='command',signal}={}){
   if(!this.account)return {skipped:true};if(reason==='timer'&&(this.isBusy()||this.isSensitive()))return {skipped:true};
