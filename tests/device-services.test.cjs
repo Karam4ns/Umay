@@ -2,6 +2,34 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 const {DeviceServices}=require('../src/device-services.cjs');
 function fixture(api){return new DeviceServices({directory:fs.mkdtempSync(path.join(os.tmpdir(),'umay-devices-test-')),api,screen:{},capture:async()=>[],native:{request:async()=>({}),close(){}},background:false});}
 
+test('standalone greeting keeps profile but excludes old task payloads and avoids native/browser reads',async()=>{
+ const s=fixture(async()=>({}));s.activate('a');s.control.enable(true);let reads=0;s.control.native.request=async()=>{reads++;return {handle:4,processId:40,title:'Editor',windows:[]};};s.computerSession.update({id:'old',status:'completed',goal:'Eski test dosyasını aç',steps:[]});s.memory.putNode({kind:'preference',key:'address',title:'Hitap',content:'Bana şef de.'});s.memory.archiveConversation({id:'old-chat',title:'Eski test'},[{id:'greet',role:'user',content:'Umay selam, test dosyasını aç'}]);
+ const value=JSON.parse(await s.prepareContext('Umay selam',{conversationId:'new-chat'}));assert.equal(reads,0);assert.equal(value.turn.intent,'social');assert.ok(value.memory.profile.some(p=>p.content==='Bana şef de.'));assert.doesNotMatch(JSON.stringify(value),/Eski test|test dosyasını/);assert.equal(value.computer,undefined);s.close();
+});
+
+test('screen question can inspect a PID-bound current application before the first control task',async()=>{
+ const s=fixture(async()=>({}));s.activate('a');let observed=0;s.control.native.request=async(method,params)=>{if(method==='foreground')return {handle:4,processId:40,title:'Report editor',windows:[]};assert.equal(method,'observe_window');assert.deepEqual(params,{handle:4,expectedProcessId:40});observed++;return {handle:4,processId:40,title:'Report editor',elements:[{type:'ControlType.Text',name:'Project Aurora'},{type:'ControlType.Edit',name:'Private field',value:'secret'}],windows:[]};};
+ const value=JSON.parse(await s.prepareContext('Ekranda hangi belge açık?'));assert.equal(observed,1);assert.equal(value.activeWorkspace.target.handle,4);assert.match(value.activeWorkspace.summary.text,/Project Aurora/);assert.doesNotMatch(JSON.stringify(value),/Private field|secret/);assert.equal(s.control.enabled,false);s.close();
+});
+
+test('chat context includes only task history from its own conversation and the exact new request',async()=>{
+ const s=fixture(async()=>({}));s.activate('a');s.computerSession.update({id:'old',status:'completed',goal:'Unrelated private task',origin:{conversationId:'other',userRequest:'Other request'},steps:[]});const value=JSON.parse(await s.prepareContext('Üçüncü sonucu aç',{conversationId:'current'}));assert.equal(value.turn.request,'Üçüncü sonucu aç');assert.doesNotMatch(JSON.stringify(value.computer),/Unrelated private task|Other request/);s.close();
+});
+
+test('legacy default separate Chrome migrates once to personal Chrome and a later explicit choice is preserved',async()=>{
+ const s=fixture(async()=>({}));s.activate('alice');s.memory.setSetting('browserMode','managed');s.memory.setSetting('browserConnectionPreferenceVersion',0);s.browserSessions.save({id:'default',name:'Umay Chrome profili',mode:'managed'});s.activate('bob');s.activate('alice');assert.equal(s.browser.state().mode,'existing');assert.equal(s.browserSessions.current().mode,'existing');
+ await s.browserAction('settings',{mode:'managed'});s.activate('bob');s.activate('alice');assert.equal(s.browser.state().mode,'managed');s.close();
+});
+
+test('named separate Chrome session remains an explicit selection during default migration',async()=>{
+ const s=fixture(async()=>({}));s.activate('alice');const state=s.browserSessions.save({name:'İş için ayrı profil',mode:'managed'}),id=state.sessions.at(-1).id;s.browserSessions.select(id);s.memory.setSetting('browserConnectionPreferenceVersion',0);s.activate('bob');s.activate('alice');assert.equal(s.browser.state().mode,'managed');assert.equal(s.browser.state().profileId,id);s.close();
+});
+
+test('leaving Umay remembers only real external foreground metadata for the next voice or typed request',async()=>{
+ const s=fixture(async()=>({}));s.activate('a');let reads=0;s.control.native.request=async method=>{assert.equal(method,'foreground');reads++;return {handle:6,processId:60,title:'Draft editor',windows:[],elements:[{value:'private'}]};};assert.equal(await s.rememberWorkspaceForeground(),true);assert.equal(reads,1);assert.equal(s.workspace.state().target.handle,6);assert.doesNotMatch(JSON.stringify(s.workspace.state()),/private|elements/);
+ s.control.native.request=async()=>({handle:9,processId:90,title:'Umay'});assert.equal(await s.rememberWorkspaceForeground(),false);assert.equal(s.workspace.state().target.handle,6);s.close();
+});
+
 test('confirmed Chrome focus replaces an older foreign target before returning to Umay chat',async()=>{
  const s=fixture(async()=>({}));s.activate('alice');let view={handle:3,processId:30,title:'Old - Google Chrome',windows:[]};
  s.control.native.request=async method=>{assert.equal(method,'foreground');return view;};

@@ -86,6 +86,19 @@ function patchDesktopReply(source,{worker=true}={}){
                     {`);
  source=source.replaceAll('desktop_context_1.desktopChatTask(', 'desktop_reply_1.plannedTask(');
  source=source.replaceAll('desktop_context_1.computerInstructions', 'desktop_reply_1.plannerInstructions(desktop_context_1.computerInstructions, messages.at(-1)?.content)');
+ return patchConversationReliability(source);
+}
+// Incremental overlay on the already deployed reply module. Each anchor must
+// match exactly once so unrelated/newer deployments cannot be silently edited.
+function patchConversationReliability(source){
+ const replace=(before,after)=>{if(source.split(before).length!==2)throw Error('Conversation reliability anchor changed: '+before.slice(0,100));source=source.replace(before,after);};
+ replace('const memory = isDesktop || umayDirectTask ?', 'const umaySocialTurn = desktop_reply_1.socialTurn(run.media_options,messages.at(-1)?.content);\n                const memory = isDesktop || umayDirectTask || umaySocialTurn ?');
+ replace('const knowledgeCatalog = !isDesktop && !umayDirectTask && run.source', 'const knowledgeCatalog = !isDesktop && !umayDirectTask && !umaySocialTurn && run.source');
+ replace('const socialQuestion = (0, chat_identity_1.socialConversationQuestion)(messages.at(-1)?.content ?? "");','const socialQuestion = umaySocialTurn || (0, chat_identity_1.socialConversationQuestion)(messages.at(-1)?.content ?? "");');
+ replace('const qualityInstructions = isDesktop || desktop_reply_1.fastRoute', 'if (umaySocialTurn) instructions = "The user is talking to the assistant in Umay. Reply only to this current social turn, briefly and naturally in Turkish. Older tasks are unrelated; do not resume them or introduce the model biography/version.";\n                const qualityInstructions = isDesktop || desktop_reply_1.fastRoute');
+ replace('isDesktop ? messages.slice(-1) : desktop_reply_1.enabled(run.media_options) ? messages.slice(-12) : messages','isDesktop ? messages.slice(-1) : desktop_reply_1.chatHistory(run.media_options,messages)');
+ replace('desktop_reply_1.replyInstructions+(desktop_reply_1.generalEnabled(run.media_options)?"\\n"+desktop_reply_1.generalReplyInstructions:"")+(desktop_reply_1.browserEnabled(run.media_options)?"\\n"+desktop_reply_1.browserReplyInstructions:"")','desktop_reply_1.chatInstructions(run.media_options,messages.at(-1)?.content)');
+ replace('!desktop_reply_1.plannedTask(text, run.media_options) && desktop_reply_1.publicReply(text) === null','(umaySocialTurn || !desktop_reply_1.plannedTask(text, run.media_options)) && desktop_reply_1.publicReply(text) === null');
  return source;
 }
-module.exports={patchDesktopReply};
+module.exports={patchDesktopReply,patchConversationReliability};

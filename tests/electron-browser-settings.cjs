@@ -14,7 +14,7 @@ app.on('browser-window-created',(_e,window)=>{
   ipcMain.handle('speech',(_e,method)=>method==='status'?{stt:{installed:false},tts:{installed:false}}:[]);
   ipcMain.handle('model-roles',()=>({roles:{chat:null,computer:null},models:[]}));ipcMain.handle('browser',(_e,method,input)=>service.browserAction(method,input));
   const js=code=>window.webContents.executeJavaScript(code,true);await js('refresh()');await js("window.umayShell.navigate('settings');document.getElementById('settings-models-tab').click()");
-  await js("window.umayBrowser.load()");assert.match(await js("document.getElementById('admin-state').textContent"),/kapalı/);assert.equal(await js("document.getElementById('admin-revoke').disabled"),true);assert.equal(await js("document.getElementById('browser-mode').value"),'managed');
+  await js("window.umayBrowser.load()");assert.match(await js("document.getElementById('admin-state').textContent"),/kapalı/);assert.equal(await js("document.getElementById('admin-revoke').disabled"),true);assert.equal(await js("document.getElementById('browser-mode').value"),'existing');
   await js("document.getElementById('browser-mode').value='existing';document.getElementById('browser-save').onclick()");assert.equal(service.memory.setting('browserMode'),'existing');
   await js("document.getElementById('browser-mode').value='managed';document.getElementById('browser-save').onclick()");
   await js("document.getElementById('browser-connect').onclick()");assert.equal(service.browser.state().connected,true);assert.match(await js("document.getElementById('browser-status').textContent"),/hazır/);

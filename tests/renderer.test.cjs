@@ -32,6 +32,20 @@ function renderer(overrides={}){
   vm.runInContext(source,context,{filename:'renderer.js'});
   return {node,run:code=>vm.runInContext(code,context),emit:event=>eventListener(event)};
 }
+
+test('streamed speech keeps sentence and paragraph pauses across separate model polls',async()=>{
+ const spoken=[],app=renderer({speech:async(method,params)=>{if(method==='status')return {stt:{installed:false},tts:{installed:false}};if(method==='speak')spoken.push(params);return true;}});
+ await new Promise(r=>setImmediate(r));app.node('speak').checked=true;
+ app.run("voice='clone-id';output={current:ticket,spoken:'',tail:Promise.resolve()}");
+ await app.run("replySpeech(output,'Merhaba. ')");
+ await app.run("replySpeech(output,'Merhaba. Hazır mısın? ')");
+ await app.run("replySpeech(output,'Merhaba. Hazır mısın?\\n\\nBaşlayalım!',true)");
+ assert.deepEqual(spoken.map(p=>[p.text,p.pauseBeforeMs]),[['Merhaba.',0],['Hazır mısın?',180],['Başlayalım!',320]]);
+ assert.ok(spoken.every(p=>p.voice==='clone-id'&&p.playbackId===spoken[0].playbackId));
+ await app.run("replySpeech(output,'Merhaba. Hazır mısın?\\n\\nBaşlayalım!',true)");assert.equal(spoken.length,3);
+ app.run('ticket++');await app.run("replySpeech(output,'Merhaba. Hazır mısın?\\n\\nBaşlayalım! Eski ses.',true)");assert.equal(spoken.length,3);
+ app.run("nextOutput={current:ticket,spoken:'',tail:Promise.resolve()}");await app.run("replySpeech(nextOutput,'Yeni yanıt.',true)");assert.equal(spoken.at(-1).pauseBeforeMs,0);
+});
 test('historical uppercase USER messages retain the user appearance',()=>{
  const app=renderer();app.run("message('USER','earlier question')");assert.equal(app.node('messages').children[0].className,'message user');
 });

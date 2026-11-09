@@ -20,7 +20,7 @@ const tool=(toolName,args)=>({action:'browser_tool',toolName,toolArguments:JSON.
    else if(req.url==='/receipt')res.end(page('İstasyon işlem sonucu','<a href="/download" download="report.txt">Rapor indir</a><label>Dosya yükle<input type="file" aria-label="Dosya yükle"></label><button id="upload">Düzenlenmiş raporu gönder</button><p id="status">Bekliyor</p><script>upload.onclick=async()=>{const file=document.querySelector("input").files[0];await fetch("/upload",{method:"POST",body:await file.text()});status.textContent="Dosya alındı"}</script>'));
    else res.end(page('İstasyon kayıt',form(['Ad','Eposta','Şehir','Kurum'],'Kayıt oluştur','/register','/login')));
   });await new Promise(r=>server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+server.address().port;
-  browser.activate('fixture');system.activate('fixture');
+  browser.activate('fixture','managed');system.activate('fixture');
   const uid=(p,role,name)=>{const line=p.observation.browser.snapshot.split('\n').find(line=>line.includes(role)&&line.includes('"'+name+'"'));assert.ok(line,role+' '+name+' missing in '+p.observation.browser.snapshot);return line.match(/uid=(\S+)/)[1];};
   const fill=(p,values)=>tool('fill_form',{elements:Object.entries(values).map(([name,value])=>({uid:uid(p,'textbox',name),value}))});
   const click=(p,name)=>tool('click',{uid:uid(p,'button',name)});

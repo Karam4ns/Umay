@@ -1,6 +1,19 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 // The same small module is loaded by the server overlay and the desktop tests.
 const {replyInstructions,publicReply,publicDraft,toolOptions,toolTask}=require('../server/desktop-reply.cjs');
+test('wake-name social turns discard obsolete tasks while actual follow-ups keep recent history',()=>{
+ const {socialTurn,chatHistory,chatInstructions}=require('../server/desktop-reply.cjs'),options={desktopMode:'context',desktopContext:JSON.stringify({capabilities:{computerControl:true,protocol:'umay-computer-task-v1'}})},old=[{role:'user',content:'YouTube videosunu aç'},{role:'assistant',content:'Eski görev tamamlandı.'}];
+ for(const request of ['Umay Selam','Selam Umay','Merhaba Umay!']){const messages=[...old,{role:'user',content:request}];assert.equal(socialTurn(options,request),true);assert.deepEqual(chatHistory(options,messages),messages.slice(-1));assert.match(chatInstructions(options,request),/assistant.*Umay/i);assert.doesNotMatch(chatInstructions(options,request),/umay_start_computer_task|CHROME MCP CLIENT/);}
+ const messages=[...old,{role:'user',content:'Onu tekrar oynat'}];assert.deepEqual(chatHistory(options,messages),messages);for(const request of ['Umay selam, YouTube aç','"Selam Umay" cümlesini çevir'])assert.equal(socialTurn(options,request),false);assert.equal(socialTurn({},'Selam Umay'),false);
+});
+test('fresh supplied screen questions use current context instead of obsolete assistant state',()=>{
+ const {chatHistory}=require('../server/desktop-reply.cjs'),options={desktopMode:'context',desktopContext:JSON.stringify({capabilities:{computerControl:true,protocol:'umay-computer-task-v1'},screen:{title:'Güncel pencere'}})},messages=[{role:'assistant',content:'Eski uygulama Not Defteri açık'},{role:'user',content:'Hangi ekrandayım?'}];assert.deepEqual(chatHistory(options,messages),messages.slice(-1));
+});
+test('explicit browser profile requests preserve profile labels as full task scope rather than guessing a website',()=>{
+ const {directTask,plannedTask}=require('../server/desktop-reply.cjs'),options={desktopMode:'context',desktopContext:JSON.stringify({capabilities:{computerControl:true,protocol:'umay-computer-task-v1',chromeMcp:true,browserProtocol:'umay-browser-mcp-v1',controlPerformance:'v1',systemTools:'umay-system-tools-v1'}})};
+ for(const request of ['Umay Kromo Suno profiliyle aç','Chrome’u Suno profiliyle aç','Tarayıcıyı Zümrüt profiliyle başlat']){const task=plannedTask(directTask(options,request),options);assert.ok(task,request);assert.equal(task.goal,request);assert.equal(task.executor,'mixed');}
+ for(const request of ['Suno profili nedir?','Chrome profili nasıl açılır?','"Chrome Suno profiliyle aç" cümlesini çevir'])assert.equal(directTask(options,request),null);
+});
 test('general explicit device work routes the unchanged full request without provider interpretation',()=>{
  const {directTask,plannedTask}=require('../server/desktop-reply.cjs'),options={desktopMode:'context',desktopContext:JSON.stringify({capabilities:{computerControl:true,protocol:'umay-computer-task-v1',chromeMcp:true,browserProtocol:'umay-browser-mcp-v1',controlPerformance:'v1',systemTools:'umay-system-tools-v1'}})},request='C:\\Deneme içinde "Analiz" klasörünü oluştur ve rapor.txt dosyasına "Gelir: 123" yaz.';
  const task=plannedTask(directTask(options,request),options);assert.ok(task);assert.equal(task.goal,request);assert.equal(task.executor,'mixed');assert.ok(directTask(options,'Az önce oluşturduğun rapor.txt dosyasını kopyala ve yeni kopyanın adını değiştir.'));

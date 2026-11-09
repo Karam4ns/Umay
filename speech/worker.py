@@ -85,7 +85,7 @@ def _load(kind):
     if kind=='stt':
         from sedalib import Recognizer
         with contextlib.redirect_stdout(sys.stderr):
-            model=Recognizer(location,mode='balanced',chunk=16,punctuate=True,num_threads=2,endpoint_silence=.35)
+            model=Recognizer(location,mode='balanced',chunk=16,punctuate=True,num_threads=2,endpoint_silence=.6)
         MODELS[kind]=(model,'cpu')
         return {'device':'cpu','resident':True,'engine':'Seda v0.2'}
     selected = hardware()[kind]
@@ -189,7 +189,7 @@ def run(request):
             model = MODELS['tts'][0]
             with contextlib.redirect_stdout(sys.stderr):
                 cancelled = lambda: CANCEL.is_set() or request.get('_epoch', EPOCH) != EPOCH
-                for chunk in stream_speech(model, text, p.get('voice') or 'female_1', cancelled):
+                for chunk in stream_speech(model, text, p.get('voice') or 'female_1', cancelled, pause_before_ms=p.get('pauseBeforeMs',0)):
                     if CANCEL.is_set() or request.get('_epoch',EPOCH)!=EPOCH:
                         break
                     import numpy as np

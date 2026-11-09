@@ -31,7 +31,7 @@ function silenceReply(){
  playbackId=crypto.randomUUID();audioQueue=Promise.resolve();const hadPlayback=sources.length>0;sources.forEach(source=>{try{source.stop();}catch{}});sources=[];if(audioContext)playbackEcho.stop(audioContext.currentTime);playHead=0;if(hadPlayback)echoGuardUntil=Date.now()+200;window.umayShell?.speaking(false);
  void api.speech('cancel').catch(()=>{});
 }
-function speakReply(text,current=ticket){if(current!==ticket)return Promise.resolve();return api.speech('speak',{text,voice,playbackId});}
+function speakReply(text,current=ticket,pauseBeforeMs=0){if(current!==ticket)return Promise.resolve();return api.speech('speak',{text,voice,playbackId,pauseBeforeMs});}
 async function stop(advance=true,preserveCapture=false,preserveComputer=false,cancelServer=false){
  if(advance)++ticket;silenceReply();
  const previous=runId;runId=null;responseActive=false;
@@ -54,9 +54,13 @@ function replySpeech(output,text,final=false){
   if(/\d\.$|^[A-ZÇĞİÖŞÜ]\.$|^(?:Dr|Prof|Doç|Sn|vb|vs)\.$/u.test(word))continue;
   if(match.index+1>output.spoken.length)end=match.index+1;
  }
- const part=text.slice(output.spoken.length,end).trim();if(!part)return output.tail;
+ const raw=text.slice(output.spoken.length,end),part=raw.trim();if(!part)return output.tail;
+ // A poll can end after any sentence. Keep its punctuation pause when the next
+ // sentence arrives in another request, without delaying the first audio.
+ const gap=raw.match(/^\s*/)?.[0]||'',previous=output.spoken.trimEnd();
+ const pauseBeforeMs=!previous?0:/\n\s*\n/.test(gap)?320:/\n/.test(gap)?260:/[.…]$/.test(previous)&&/(?:\.{3,}|…)$/.test(previous)?320:previous.endsWith('?')?220:previous.endsWith('!')?200:180;
  output.spoken=text.slice(0,end);
- output.tail=output.tail.then(()=>output.current===ticket?speakReply(part,output.current):undefined);return output.tail;
+ output.tail=output.tail.then(()=>output.current===ticket?speakReply(part,output.current,pauseBeforeMs):undefined);return output.tail;
 }
 function showReplyDraft(output,text){
  if(output.current!==ticket||typeof text!=='string'||!text.trim())return;

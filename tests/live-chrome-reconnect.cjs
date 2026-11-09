@@ -3,7 +3,7 @@ const {BrowserMcp}=require('../src/browser-mcp.cjs'),fs=require('node:fs'),os=re
 (async()=>{
  const directory=fs.mkdtempSync(path.join(os.tmpdir(),'umay-chrome-reconnect-')),browser=new BrowserMcp({directory});
  try{
-  browser.activate('reconnect-test');let view=await browser.observe();const previous=browser.client,endpoint=await browser.browser.ensure();
+  browser.activate('reconnect-test','managed');let view=await browser.observe();const previous=browser.client,endpoint=await browser.browser.ensure();
   browser.browser.close();for(let i=0;i<100;i++){let alive=false;try{alive=(await fetch(endpoint+'/json/version',{signal:AbortSignal.timeout(300)})).ok;}catch{}if(!alive)break;await new Promise(r=>setTimeout(r,50));if(i===99)throw Error('Owned test Chrome did not close');}
   view=await browser.observe();assert.notEqual(browser.client,previous,'closed Chrome requires a new MCP connection');assert.ok(browser.state().connected);
   await browser.perform({toolName:'navigate_page',toolArguments:JSON.stringify({pageId:view.browser.pageId,url:'https://www.netflix.com',timeout:15000})},view.id);

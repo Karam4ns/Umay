@@ -94,6 +94,17 @@ const {ChatMemory}=req('./dist/chat-memory'),recallCalls=[],originalRecall=ChatM
   const extraRequests=seen.slice(requestsBeforeProfile).map(p=>p.messages.map(m=>({role:m.role,content:typeof m.content==='string'?m.content.slice(-500):'<image>'})));
   assert.equal(seen.length,requestsBeforeProfile,'local profile acknowledgement must not call provider or require JSON: '+JSON.stringify(extraRequests));
   detail=(await call('conversations/'+chat.id)).json();assert.match(detail.messages.at(-1).content,/Anladım/);
+  // A wake-name greeting must not inherit an old task, old model identity,
+  // archived retrieval or a native tool contract from the previous turns.
+  chat=detail.conversation;const wakeBefore=seen.length;
+  r=await call('conversations/'+chat.id+'/messages',{content:'Umay Selam',requestId:randomUUID(),expectedVersion:chat.version,desktopMode:'context',desktopContext:caps});
+  assert.equal(r.statusCode,201,r.body);const wake=await awaitRun(r.json().run.id),wakePayload=seen.at(-1);
+  assert.equal(wake.mediaOptions.desktopChatTask,undefined);assert.equal(seen.length,wakeBefore+1);
+  assert.equal(wakePayload.messages.filter(m=>m.role==='user').length,1,'desktop wake greeting must exclude obsolete task history');
+  assert.equal(wakePayload.tools,undefined,'desktop wake greeting cannot offer execution tools');
+  assert.ok(!recallCalls.includes(wake.userMessageId),'desktop wake greeting must avoid archived task retrieval');
+  assert.ok(wakePayload.messages.some(m=>m.role==='system'&&m.content.includes('SOCIAL TURN')));
+  detail=(await call('conversations/'+chat.id)).json();
   // Paging must return the older side of a stable timestamp+id cursor.
   const anchor=detail.messages.at(-1);r=await call('conversations/'+chat.id+'?before='+anchor.id);assert.equal(r.statusCode,200,r.body);assert.ok(!r.json().messages.some(m=>m.id===anchor.id));
   console.log('PASS real HTTP/isolated PostgreSQL: queued image cleanup, context-separated chat, planner JSON preserved, run-field privacy and archive pagination');

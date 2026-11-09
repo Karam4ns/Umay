@@ -96,6 +96,25 @@ def test_empty_text_produces_no_audio():
     assert speech_parts('... !!!') == []
 
 
+def test_separate_speech_request_prepends_only_the_requested_continuation_pause():
+    class Model:
+        sample_rate = 24000
+        def stream(self, text, **options):
+            yield np.ones(32, dtype=np.float32)
+    first = list(stream_speech(Model(), 'Merhaba.', 'clone', lambda: False))
+    continuation = list(stream_speech(Model(), 'Hazır mısın?', 'clone', lambda: False, pause_before_ms=180))
+    assert [len(chunk) for chunk in first] == [32]
+    assert [len(chunk) for chunk in continuation] == [4320, 32]
+    assert np.all(continuation[0] == 0)
+    assert list(stream_speech(Model(), 'Eski ses.', 'clone', lambda: True, pause_before_ms=180)) == []
+
+
+@pytest.mark.parametrize('pause', [-1, 321, float('inf'), float('nan'), '180', True])
+def test_continuation_pause_is_bounded(pause):
+    with pytest.raises(ValueError):
+        list(stream_speech(object(), 'Merhaba.', 'clone', lambda: False, pause_before_ms=pause))
+
+
 def test_existing_supported_emotion_tag_is_not_spoken_as_a_word():
     assert [p.text for p in speech_parts('[sakin] TRT hazır. Başlayalım.')] == [
         '[sakin] terete hazır.', '[sakin] Başlayalım.',

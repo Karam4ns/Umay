@@ -129,10 +129,15 @@ def speech_parts(text, normalize=None):
     return parts
 
 
-def stream_speech(model, text, voice, cancelled):
+def stream_speech(model, text, voice, cancelled, *, pause_before_ms=0):
     """Yield model audio and short punctuation pauses; close inference on barge-in."""
     import numpy as np
-    for part in speech_parts(text):
+    if type(pause_before_ms) not in (int,float) or not 0 <= pause_before_ms <= 320:
+        raise ValueError('Konuşma aralığı 0–320 ms olmalı.')
+    parts=speech_parts(text)
+    if parts and pause_before_ms and not cancelled():
+        yield np.zeros(round(model.sample_rate * pause_before_ms / 1000), dtype=np.float32)
+    for part in parts:
         if cancelled():
             return
         stream = model.stream(part.text, voice=voice, sentence_gap_ms=0)

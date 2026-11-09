@@ -4,7 +4,7 @@ const {BrowserMcp}=require('../src/browser-mcp.cjs'),{ComputerAgent}=require('..
 (async()=>{
  const directory=fs.mkdtempSync(path.join(os.tmpdir(),'umay-mcp-agent-')),browser=new BrowserMcp({directory}),memory=new LocalMemory(path.join(directory,'memory'));let server;
  try{
-  memory.activate('fixture');browser.activate('fixture');server=createServer((_req,res)=>res.end('<!doctype html><html lang="tr"><meta charset="utf-8"><title>UMAY agent acceptance</title><label>Deneme metni<input aria-label="Deneme metni"></label><button onclick="document.querySelector(\'p\').textContent=document.querySelector(\'input\').value">Kaydet</button><p role="status">Hazır</p></html>'));await new Promise(r=>server.listen(0,'127.0.0.1',r));
+  memory.activate('fixture');browser.activate('fixture','managed');server=createServer((_req,res)=>res.end('<!doctype html><html lang="tr"><meta charset="utf-8"><title>UMAY agent acceptance</title><label>Deneme metni<input aria-label="Deneme metni"></label><button onclick="document.querySelector(\'p\').textContent=document.querySelector(\'input\').value">Kaydet</button><p role="status">Hazır</p></html>'));await new Promise(r=>server.listen(0,'127.0.0.1',r));
   const url='http://127.0.0.1:'+server.address().port;let phase=0,version=1,next;const prompts=[];
   const api=async(route,body)=>{
    if(route==='/site/chat/conversations')return {conversation:{id:'fixture',version}};
