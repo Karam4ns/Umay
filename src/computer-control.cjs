@@ -70,7 +70,7 @@ class ComputerControl{
   const native=await this.native.request('observe');if(native.requiresElevation&&!native.administrator)throw Object.assign(Error('Bu pencere için Windows yönetici izni gerekiyor.'),{code:'NATIVE_ELEVATION_REQUIRED'});const displays=this.screen.getAllDisplays();
   const shots=image&&!preferText(native)&&(!this.allowCapture||this.allowCapture(native))?await this.capture(displays):[];
   if(!this.enabled||sequence!==this.sequence)throw Error('Bilgisayar görevi durduruldu.');
-  const observation={id:randomUUID(),createdAt:this.now(),title:native.title,handle:native.handle,processId:native.processId,windows:(native.windows||[]).filter(w=>!this.excludedWindowHandles().includes(w.handle)),elements:native.elements||[],cursor:native.cursor,displays:displays.map(d=>({id:String(d.id),bounds:d.bounds,scaleFactor:d.scaleFactor})),screenshots:shots};this.observation=this.sanitize?this.sanitize(observation):observation;return this.observation;
+  const observation={id:randomUUID(),createdAt:this.now(),title:native.title,handle:native.handle,processId:native.processId,isForeground:native.isForeground,windows:(native.windows||[]).filter(w=>!this.excludedWindowHandles().includes(w.handle)),elements:native.elements||[],cursor:native.cursor,displays:displays.map(d=>({id:String(d.id),bounds:d.bounds,scaleFactor:d.scaleFactor})),screenshots:shots};this.observation=this.sanitize?this.sanitize(observation):observation;return this.observation;
  }
  stop(){this.sequence++;this.observation=null;return this.native.cancel?.();}
  async inspectWindow(handle){
